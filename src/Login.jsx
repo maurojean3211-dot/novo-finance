@@ -69,7 +69,7 @@ export default function Login({ onLogin }) {
 
       const userId = data.user.id;
 
-      const { data:empresa } =
+      const { data: empresa } =
         await supabase
         .from("empresas")
         .insert([{
@@ -93,7 +93,6 @@ export default function Login({ onLogin }) {
         role: "cliente",
         empresa_id: empresa?.id
       }]);
-
     }
 
     setLoading(false);
@@ -127,8 +126,12 @@ export default function Login({ onLogin }) {
 
       <div style={box}>
 
-        {/* 🔥 LOGO */}
-        <img src="/logo.png" width={80} style={{marginBottom:10}} />
+        {/* 🔥 LOGO CORRIGIDO */}
+        <img
+          src={window.location.origin + "/logo.png"}
+          width={80}
+          style={{marginBottom:10}}
+        />
 
         <h2>Cunha Finance</h2>
 
@@ -223,9 +226,9 @@ const box={
 
 const botao={
   marginTop:12,
-  padding:14,
+  padding:12, // 🔥 DIMINUÍ (ANTES 14)
   width:"100%",
-  borderRadius:10,
+  borderRadius:8, // 🔥 MAIS BONITO
   border:"none",
   background:"#2563eb",
   color:"white",
@@ -235,9 +238,9 @@ const botao={
 
 const botaoSecundario={
   marginTop:10,
-  padding:12,
+  padding:10,
   width:"100%",
-  borderRadius:10,
+  borderRadius:8,
   border:"none",
   background:"#374151",
   color:"white",
@@ -246,9 +249,9 @@ const botaoSecundario={
 
 const input={
   width:"100%",
-  padding:12,
+  padding:10,
   marginTop:10,
-  borderRadius:8,
+  borderRadius:6,
   border:"none"
 };
 
