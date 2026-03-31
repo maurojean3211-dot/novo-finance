@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
+// 🔥 GARANTE CSS NO BUILD
+import "./index.css";
+
 import Login from "./Login";
 import Admin from "./Admin";
 import Dashboard from "./Dashboard";
@@ -20,6 +23,12 @@ const [pagina,setPagina] = useState("dashboard");
 const [role,setRole] = useState(null);
 const [empresaId,setEmpresaId] = useState(null);
 const [isMobile,setIsMobile] = useState(window.innerWidth < 768);
+
+// 🔥 REMOVE SPLASH (CORREÇÃO FINAL)
+useEffect(() => {
+  const splash = document.getElementById("splash");
+  if (splash) splash.style.display = "none";
+}, []);
 
 // RESPONSIVO
 useEffect(()=>{
