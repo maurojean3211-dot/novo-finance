@@ -56,13 +56,12 @@
 
     <script type="module" src="/src/main.jsx"></script>
 
-    <!-- 🔥 SCRIPT MELHORADO -->
+    <!-- 🔥 SCRIPT CORRIGIDO -->
     <script>
-      document.addEventListener("DOMContentLoaded", () => {
+      window.addEventListener("load", () => {
         const splash = document.getElementById("splash");
 
         if (splash) {
-          // mantém visível por mais tempo
           setTimeout(() => {
             splash.style.transition = "opacity 0.5s";
             splash.style.opacity = "0";
@@ -71,7 +70,7 @@
               splash.style.display = "none";
             }, 500);
 
-          }, 2000); // ⏱ tempo maior
+          }, 500); // 🔥 reduzido (antes era 2000)
         }
       });
     </script>
