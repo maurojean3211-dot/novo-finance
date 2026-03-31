@@ -1,0 +1,260 @@
+/* =====================================================
+RESET TOTAL DO SISTEMA — CUNHA FINANCE
+===================================================== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  opacity: 1 !important;
+
+  /* 🔥 CORREÇÃO FINAL DO ZOOM */
+  -webkit-tap-highlight-color: transparent;
+
+  /* 🔥 melhora no Firefox */
+  touch-action: manipulation;
+}
+
+/* =====================================================
+BODY / FUNDO
+===================================================== */
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #020617;
+  color: #ffffff;
+  min-height: 100vh;
+
+  touch-action: manipulation;
+
+  width: 100%;
+  overflow-x: hidden;
+
+  /* 🔥 NOVO → corrige escala no Firefox */
+  max-width: 100vw;
+}
+
+/* =====================================================
+HTML
+===================================================== */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  width: 100%;
+
+  /* 🔥 NOVO → corrige comportamento no Firefox */
+  overflow-x: hidden;
+}
+
+/* =====================================================
+AJUSTE GLOBAL (SEM ALTERAR ESTRUTURA)
+===================================================== */
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* =====================================================
+TEXTOS GERAIS
+===================================================== */
+
+h1, h2, h3, h4, p, label, div, span {
+  color: #ffffff !important;
+}
+
+/* =====================================================
+INPUTS / SELECT / TEXTAREA
+===================================================== */
+
+input,
+select,
+textarea {
+  background: #1e293b !important;
+  color: #ffffff !important;
+  border: 1px solid #334155;
+  padding: 10px;
+  border-radius: 6px;
+  outline: none;
+
+  font-size: 16px;
+
+  width: 300px;
+  max-width: 100%;
+
+  -webkit-appearance: none;
+
+  /* 🔥 melhora render no Firefox */
+  transform: translateZ(0);
+
+  /* 🔥 NOVO → impede escala errada */
+  box-sizing: border-box;
+}
+
+/* melhora toque */
+input, select, textarea, button {
+  min-height: 44px;
+}
+
+/* placeholder */
+
+input::placeholder,
+textarea::placeholder {
+  color: #cbd5e1;
+}
+
+/* foco */
+
+input:focus,
+select:focus,
+textarea:focus {
+  border: 1px solid #2563eb;
+}
+
+/* opções */
+
+option {
+  background: #1e293b;
+  color: #ffffff;
+}
+
+/* =====================================================
+BOTÕES
+===================================================== */
+
+button {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+
+  font-size: 16px;
+
+  -webkit-appearance: none;
+
+  transform: translateZ(0);
+}
+
+/* toque */
+
+button:active {
+  transform: scale(0.98);
+}
+
+button:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+/* excluir */
+
+button.excluir {
+  background: #dc2626;
+}
+
+/* =====================================================
+CARDS
+===================================================== */
+
+.card {
+  background: #1e293b;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid #334155;
+  width: 100%;
+}
+
+/* =====================================================
+MENU
+===================================================== */
+
+.sidebar {
+  background: #111827;
+  color: #ffffff;
+  width: 100%;
+}
+
+.sidebar button {
+  width: 100%;
+  margin-bottom: 10px;
+  background: #1f2937;
+}
+
+.sidebar button:hover {
+  background: #2563eb;
+}
+
+/* =====================================================
+SCROLL
+===================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* =====================================================
+RESPONSIVO
+===================================================== */
+
+@media (max-width: 768px){
+
+  input,
+  select,
+  textarea{
+    width: 100%;
+    font-size: 16px;
+  }
+
+  button{
+    width: 100%;
+    margin-top: 5px;
+    font-size: 16px;
+  }
+
+  .card{
+    width: 100%;
+  }
+
+  h1, h2 {
+    font-size: 20px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    width: 100%;
+  }
+
+}
+
+/* =====================================================
+🔥 CORREÇÃO FINAL FIREFOX
+===================================================== */
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+* {
+  max-width: 100%;
+}

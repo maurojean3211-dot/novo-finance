@@ -1,0 +1,141 @@
+/* ===== GERAL ===== */
+
+body{
+margin:0;
+background:#020617;
+color:white;
+font-family:Arial, Helvetica, sans-serif;
+overflow-y:auto;
+}
+
+/* ===== LAYOUT ===== */
+
+.app-container{
+display:flex;
+min-height:100vh;
+position:relative;
+}
+
+/* ===== MENU LATERAL ===== */
+
+.menu-lateral{
+width:220px;
+background:#020617;
+border-right:1px solid #1e293b;
+padding:20px;
+
+position:sticky;
+top:0;
+height:100vh;
+
+overflow-y:auto;
+display:flex;
+flex-direction:column;
+}
+
+/* ===== BOTÕES DO MENU ===== */
+
+.menu-lateral button{
+width:100%;
+margin-bottom:10px;
+}
+
+/* ===== BOTÃO SAIR ===== */
+
+.botao-sair{
+margin-top:20px;
+background:#ef4444;
+}
+
+/* ===== CONTEÚDO ===== */
+
+.conteudo{
+flex:1;
+padding:30px;
+min-height:100vh;
+overflow-y:auto;
+}
+
+/* ===== INPUT ===== */
+
+input{
+display:block;
+width:420px;
+max-width:100%;
+padding:12px;
+margin-bottom:12px;
+
+background:#111827;
+color:white;
+
+border:1px solid #475569;
+border-radius:6px;
+
+font-size:16px;
+}
+
+/* ===== SELECT ===== */
+
+select{
+display:block;
+width:420px;
+max-width:100%;
+padding:12px;
+margin-bottom:12px;
+
+background:#111827;
+color:white;
+
+border:1px solid #475569;
+border-radius:6px;
+
+font-size:16px;
+cursor:pointer;
+}
+
+/* ===== OPTIONS ===== */
+
+select option{
+background:#ffffff;
+color:#000000;
+}
+
+/* ===== BOTÕES ===== */
+
+button{
+padding:12px 20px;
+border-radius:6px;
+border:none;
+
+background:#3b82f6;
+color:white;
+
+cursor:pointer;
+font-weight:bold;
+}
+
+button:hover{
+opacity:0.9;
+}
+
+/* ===== DIVISÃO ===== */
+
+hr{
+border:1px solid #334155;
+margin:30px 0;
+}
+
+/* ===== SCROLL BONITO ===== */
+
+::-webkit-scrollbar{
+width:8px;
+}
+
+::-webkit-scrollbar-track{
+background:#020617;
+}
+
+::-webkit-scrollbar-thumb{
+background:#334155;
+border-radius:4px;
+}
