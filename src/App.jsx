@@ -10,7 +10,7 @@ import Lucro from "./Lucro.jsx";
 import DespesasPessoais from "./DespesasPessoais.jsx";
 import Relatorio from "./Relatorio.jsx";
 import Clientes from "./Clientes.jsx";
-import Recebimentos from "./Recebimentos.jsx"; // 🔥 NOVO
+import Recebimentos from "./Recebimentos.jsx";
 
 export default function App(){
 
@@ -155,7 +155,7 @@ gap:10,
 marginBottom:10,
 width:"100%"
 }}>
-<img src={window.location.origin + "/logo.png"} width={40} />
+<img src="/logo.png" width={40} />
 <h2 style={{margin:0}}>Cunha Finance</h2>
 </div>
 
@@ -167,7 +167,6 @@ width:"100%"
 💰 Financeiro
 </button>
 
-{/* 🔥 NOVO */}
 <button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>
 💰 Recebimentos
 </button>
@@ -214,7 +213,7 @@ padding:20
 
 {pagina==="dashboard" && <Dashboard />}
 {pagina==="financeiro" && <Financeiro empresaId={empresaId} />}
-{pagina==="recebimentos" && <Recebimentos empresaId={empresaId} />} {/* 🔥 NOVO */}
+{pagina==="recebimentos" && <Recebimentos empresaId={empresaId} />}
 {pagina==="clientes" && <Clientes />}
 {pagina==="lucro" && role==="admin" && <Lucro />}
 {pagina==="despesas" && <DespesasPessoais />}
