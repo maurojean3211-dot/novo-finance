@@ -50,30 +50,20 @@
     <div id="splash">
       <img src="/icon-512.png" />
       <h1>Cunha Finance</h1>
-    </div>
+  <script>
+  window.addEventListener("load", () => {
+    const splash = document.getElementById("splash");
 
-    <div id="root"></div>
+    if (splash) {
+      setTimeout(() => {
+        splash.style.transition = "opacity 0.5s";
+        splash.style.opacity = "0";
 
-    <script type="module" src="/src/main.jsx"></script>
+        setTimeout(() => {
+          splash.style.display = "none";
+        }, 500);
 
-    <!-- 🔥 SCRIPT CORRIGIDO -->
-    <script>
-      window.addEventListener("load", () => {
-        const splash = document.getElementById("splash");
-
-        if (splash) {
-          setTimeout(() => {
-            splash.style.transition = "opacity 0.5s";
-            splash.style.opacity = "0";
-
-            setTimeout(() => {
-              splash.style.display = "none";
-            }, 500);
-
-          }, 500); // 🔥 reduzido (antes era 2000)
-        }
-      });
-    </script>
-
-  </body>
-</html>
+      }, 500);
+    }
+  });
+</script>
