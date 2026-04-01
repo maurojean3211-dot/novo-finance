@@ -6,23 +6,14 @@ Pie,
 Cell,
 Tooltip,
 Legend,
-LineChart,
-Line,
-XAxis,
-YAxis,
-CartesianGrid,
 ResponsiveContainer
 } from "recharts";
 
 export default function Dashboard(){
 
 const [receitas,setReceitas] = useState(0);
-const [despesas,setDespesas] = useState(0);
-const [saldo,setSaldo] = useState(0);
-
+const [pendente,setPendente] = useState(0);
 const [dadosGrafico,setDadosGrafico] = useState([]);
-const [dadosMes,setDadosMes] = useState([]);
-
 const [carregando,setCarregando] = useState(true);
 
 useEffect(()=>{
@@ -40,39 +31,31 @@ setCarregando(false);
 return;
 }
 
-// 🔥 SE FOR SEU LOGIN -> USA CLIENTES PAGOS DO MASTER
+// 🔥 SEU DASHBOARD (MASTER)
 if(user.email === "maurojean3211@gmail.com"){
 await carregarReceitaClientes();
 setCarregando(false);
 return;
 }
 
-// 🔥 NORMAL PARA OUTROS USUÁRIOS
-const { data:usuario } = await supabase
-.from("usuarios")
-.select("empresa_id, role")
-.eq("id",user.id)
-.maybeSingle();
-
-await carregarDados(usuario?.empresa_id);
+// 🔥 outros usuários (mantém simples)
+setCarregando(false);
 
 }catch(err){
 console.log(err);
-}
-
 setCarregando(false);
+}
 
 }
 
 // ===============================
-// 🔥 NOVA FUNÇÃO (SEU DASHBOARD)
+// 🔥 RECEITA DO MASTER (CORRIGIDO)
 // ===============================
 async function carregarReceitaClientes(){
 
 const { data, error } = await supabase
-.from("clientes")
-.select("*")
-.eq("pagou", true);
+.from("empresas")
+.select("*");
 
 if(error){
 console.log(error);
@@ -80,128 +63,38 @@ return;
 }
 
 let totalReceita = 0;
+let totalPendente = 0;
 
 (data || []).forEach(c=>{
-totalReceita += Number(c.valor || 0);
+
+const valor = Number(c.valor || 0);
+
+// ignora isento
+if(c.isento) return;
+
+// pago
+if(c.pagou){
+totalReceita += valor;
+}else{
+totalPendente += valor;
+}
+
 });
 
 setReceitas(totalReceita);
-setDespesas(0);
-setSaldo(totalReceita);
+setPendente(totalPendente);
 
-// gráfico simples só receita
+// gráfico
 setDadosGrafico([
-{ name:"Receitas", value:totalReceita }
+{ name:"Recebido", value: totalReceita },
+{ name:"Pendente", value: totalPendente }
 ]);
-
-setDadosMes([]);
 
 }
 
 // ===============================
-// 🔥 RESTO DO SISTEMA NORMAL
-// ===============================
-async function carregarDados(empresa_id){
 
-const dataLimite = new Date();
-dataLimite.setMonth(dataLimite.getMonth()-3);
-
-// ===== LANCAMENTOS
-const {data:lancamentos} = await supabase
-.from("lancamentos")
-.select("*")
-.gte("data_lancamento", dataLimite.toISOString())
-.limit(200);
-
-// ===== VENDAS
-const {data:vendas} = await supabase
-.from("vendas")
-.select("*");
-
-// ===== COMPRAS
-const {data:compras} = await supabase
-.from("compras")
-.select("*");
-
-calcularDados(lancamentos || [], vendas || [], compras || []);
-
-}
-
-function calcularDados(lista,vendas,compras){
-
-let totalReceita=0;
-let totalDespesa=0;
-
-// ===== LANCAMENTOS
-lista.forEach(l=>{
-const tipo = String(l.tipo || "").toLowerCase();
-const valor = Number(l.valor || 0);
-
-if(tipo==="receita") totalReceita+=valor;
-if(tipo==="despesa") totalDespesa+=valor;
-});
-
-// ===== VENDAS COMO RECEITA
-vendas.forEach(v=>{
-totalReceita += Number(v.valor_total || v.valor || 0);
-});
-
-// ===== COMPRAS COMO DESPESA
-compras.forEach(c=>{
-const kilos = Number(c.kilos || c.quantidade || 0);
-const preco = Number(c.preco_compra || c.preco || 0);
-
-totalDespesa += kilos * preco;
-});
-
-// ===== RESULTADO
-setReceitas(totalReceita);
-setDespesas(totalDespesa);
-setSaldo(totalReceita-totalDespesa);
-
-// ===== GRAFICO
-setDadosGrafico([
-{ name:"Receitas", value:totalReceita },
-{ name:"Despesas", value:totalDespesa }
-]);
-
-// ===== MENSAL
-const meses={};
-
-lista.forEach(l=>{
-
-let mes = Number(l.mes);
-
-if(!mes && l.data_lancamento){
-mes = new Date(l.data_lancamento).getMonth()+1;
-}
-
-if(!mes) return;
-
-if(!meses[mes]) meses[mes]=0;
-
-const tipo = String(l.tipo || "").toLowerCase();
-const valor = Number(l.valor || 0);
-
-if(tipo==="receita") meses[mes]+=valor;
-if(tipo==="despesa") meses[mes]-=valor;
-
-});
-
-const nomesMes=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-
-setDadosMes(
-Object.keys(meses)
-.sort((a,b)=>a-b)
-.map(m=>({
-mes: nomesMes[m-1],
-valor: meses[m]
-}))
-);
-
-}
-
-const cores=["#22c55e","#ef4444"];
+const cores=["#22c55e","#f59e0b"];
 
 if(carregando){
 return <div style={{padding:20,color:"#fff"}}>Carregando dados...</div>;
@@ -220,24 +113,19 @@ gap:15,
 marginBottom:20
 }}>
 
-<Card titulo="💰 Receitas" valor={receitas}/>
-<Card titulo="💸 Despesas" valor={despesas}/>
-<Card titulo="🏦 Saldo" valor={saldo}/>
+<Card titulo="💰 Recebido" valor={receitas}/>
+<Card titulo="⏳ Pendente" valor={pendente}/>
+<Card titulo="📊 Total" valor={receitas + pendente}/>
 
 </div>
 
-<div style={{
-display:"flex",
-flexDirection:"column",
-gap:20
-}}>
-
 <div style={{background:"#111827",padding:15,borderRadius:10}}>
+
 <h3>Distribuição</h3>
 
-<ResponsiveContainer width="100%" height={200}>
+<ResponsiveContainer width="100%" height={220}>
 <PieChart>
-<Pie data={dadosGrafico} dataKey="value" outerRadius={70}>
+<Pie data={dadosGrafico} dataKey="value" outerRadius={80}>
 {dadosGrafico.map((e,i)=>(
 <Cell key={i} fill={cores[i]} />
 ))}
@@ -249,28 +137,13 @@ gap:20
 
 </div>
 
-<div style={{background:"#111827",padding:15,borderRadius:10}}>
-<h3>Mensal</h3>
-
-<ResponsiveContainer width="100%" height={200}>
-<LineChart data={dadosMes}>
-<CartesianGrid strokeDasharray="3 3"/>
-<XAxis dataKey="mes"/>
-<YAxis/>
-<Tooltip/>
-<Line type="monotone" dataKey="valor" stroke="#22c55e"/>
-</LineChart>
-</ResponsiveContainer>
-
-</div>
-
-</div>
-
 </div>
 
 );
 
 }
+
+// ================= CARD
 
 function Card({titulo,valor}){
 return(
@@ -280,7 +153,11 @@ padding:15,
 borderRadius:10
 }}>
 <h4>{titulo}</h4>
-<p style={{fontSize:20,fontWeight:"bold",color:"#22c55e"}}>
+<p style={{
+fontSize:20,
+fontWeight:"bold",
+color:"#22c55e"
+}}>
 R$ {Number(valor||0).toFixed(2)}
 </p>
 </div>

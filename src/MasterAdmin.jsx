@@ -18,18 +18,16 @@ const [status,setStatus]=useState("Ativo");
 
 const [editandoId,setEditandoId]=useState(null);
 
-// 🔥 PIX GLOBAL
+// PIX GLOBAL
 const [pixSistema,setPixSistema]=useState("");
 
-// ================= INIT
-
+// INIT
 useEffect(()=>{
 carregarClientes();
 buscarPix();
 },[]);
 
-// ================= CARREGAR CLIENTES
-
+// CARREGAR
 async function carregarClientes(){
 
 const { data, error } = await supabase
@@ -46,8 +44,7 @@ setClientes(data || []);
 
 }
 
-// ================= BUSCAR PIX GLOBAL
-
+// BUSCAR PIX
 async function buscarPix(){
 
 const { data } = await supabase
@@ -62,8 +59,7 @@ setPixSistema(data.valor);
 
 }
 
-// ================= SALVAR PIX GLOBAL
-
+// SALVAR PIX
 async function salvarPix(){
 
 const { error } = await supabase
@@ -81,8 +77,7 @@ alert("PIX salvo com sucesso!");
 
 }
 
-// ================= CADASTRAR CLIENTE
-
+// CADASTRAR
 async function cadastrarCliente(){
 
 if(!nome){
@@ -104,7 +99,7 @@ valor:Number(valor)
 .eq("id",editandoId);
 
 if(error){
-alert("Erro ao atualizar");
+alert("Erro ao atualizar: " + error.message);
 return;
 }
 
@@ -124,7 +119,8 @@ plano,
 status,
 tipo,
 tipo_sistema:"financeiro",
-pagou:false
+pagou:false,
+isento:false
 }]);
 
 if(error){
@@ -139,8 +135,7 @@ carregarClientes();
 
 }
 
-// ================= LIMPAR
-
+// LIMPAR
 function limpar(){
 setNome("");
 setEmail("");
@@ -149,8 +144,7 @@ setWhatsapp("");
 setValor("");
 }
 
-// ================= EDITAR
-
+// EDITAR
 function editarCliente(c){
 
 setEditandoId(c.id);
@@ -164,8 +158,7 @@ window.scrollTo({top:0,behavior:"smooth"});
 
 }
 
-// ================= EXCLUIR
-
+// EXCLUIR
 async function excluirCliente(id){
 
 const { error } = await supabase
@@ -181,8 +174,7 @@ carregarClientes();
 
 }
 
-// ================= STATUS
-
+// STATUS
 async function alterarStatus(c){
 
 const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
@@ -200,8 +192,7 @@ carregarClientes();
 
 }
 
-// ================= ISENÇÃO
-
+// ISENÇÃO
 async function alternarIsencao(c){
 
 const { error } = await supabase
@@ -217,8 +208,7 @@ carregarClientes();
 
 }
 
-// ================= PAGO
-
+// PAGO
 async function marcarPago(c){
 
 const mes = new Date().getMonth()+1;
@@ -239,8 +229,7 @@ carregarClientes();
 
 }
 
-// ================= PENDENTE
-
+// PENDENTE
 async function marcarPendente(c){
 
 const { error } = await supabase
@@ -256,8 +245,7 @@ carregarClientes();
 
 }
 
-// ================= PIX + WHATSAPP
-
+// PIX + WHATSAPP
 function enviarPixWhatsApp(cliente){
 
 if(!pixSistema){
@@ -274,7 +262,7 @@ const numero = cliente.whatsapp.replace(/\D/g, "");
 
 const mensagem = `Olá ${cliente.name || ""}!
 
-Valor do aluguel: R$ ${cliente.valor || 0}
+Valor do aluguel: ${cliente.isento ? "ISENTO" : `R$ ${cliente.valor || 0}`}
 
 Segue o PIX para pagamento:
 ${pixSistema}
@@ -287,8 +275,7 @@ window.open(url, "_blank");
 
 }
 
-// ================= UI
-
+// UI
 return(
 
 <div style={{padding:20,color:"#fff"}}>
@@ -353,10 +340,19 @@ gap:10
 
 {clientes.map(c=>(
 
-<tr key={c.id} style={{textAlign:"center"}}>
+<tr 
+key={c.id} 
+style={{
+textAlign:"center",
+background: c.isento ? "#1e3a8a" : "transparent"
+}}
+>
 
 <td>{c.name}</td>
-<td>R$ {c.valor || 0}</td>
+
+<td style={{color: c.isento ? "#93c5fd" : "#fff"}}>
+{c.isento ? "Isento" : `R$ ${c.valor || 0}`}
+</td>
 
 <td style={{color:c.status==="Ativo"?"#22c55e":"#ef4444"}}>
 {c.status}
@@ -369,14 +365,30 @@ gap:10
 <td style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"center"}}>
 
 <button style={btn} onClick={()=>editarCliente(c)}>Editar</button>
+
 <button style={btn} onClick={()=>enviarPixWhatsApp(c)}>PIX</button>
+
 <button style={btn} onClick={()=>marcarPago(c)}>Pago</button>
+
 <button style={btn} onClick={()=>marcarPendente(c)}>Pendente</button>
+
 <button style={btn} onClick={()=>alterarStatus(c)}>
 {c.status==="Ativo"?"Bloquear":"Ativar"}
 </button>
-<button style={btn} onClick={()=>alternarIsencao(c)}>Isenção</button>
-<button style={btnDanger} onClick={()=>excluirCliente(c.id)}>Excluir</button>
+
+<button 
+style={{
+...btn,
+background: c.isento ? "#2563eb" : "#374151"
+}}
+onClick={()=>alternarIsencao(c)}
+>
+{c.isento ? "Isento ✔" : "Isentar"}
+</button>
+
+<button style={btnDanger} onClick={()=>excluirCliente(c.id)}>
+Excluir
+</button>
 
 </td>
 
