@@ -18,6 +18,9 @@ new Date().toISOString().split("T")[0]
 
 const [empresaId,setEmpresaId] = useState(null);
 
+// 🔥 CONTROLE DE ACESSO
+const [userEmail,setUserEmail] = useState(null);
+
 useEffect(() => {
 iniciar();
 }, []);
@@ -32,6 +35,9 @@ async function carregarEmpresa(){
 
 const { data:{ user } } = await supabase.auth.getUser();
 if(!user) return;
+
+// 🔥 SALVA EMAIL
+setUserEmail(user.email);
 
 const { data, error } = await supabase
 .from("usuarios")
@@ -52,6 +58,11 @@ await carregarProdutos(data.empresa_id);
 await carregarCompras(data.empresa_id);
 }
 
+}
+
+// 🔥 BLOQUEIO
+if(userEmail && userEmail !== "maurojean3211@gmail.com"){
+return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 }
 
 
@@ -90,6 +101,27 @@ setCompras(data || []);
 }
 
 
+// ================= CALCULO COMISSÃO
+function calcularComissao(){
+
+const produto = produtos.find(p => p.id == produtoId);
+const nome = (produto?.nome || "").toUpperCase();
+
+const kg = Number(kilos || 0);
+
+if(nome.includes("SUCATA")){
+return kg * 0.05;
+}
+
+if(nome.includes("CAVACO")){
+return kg * 0.07;
+}
+
+return 0;
+
+}
+
+
 // ================= SALVAR COMPRA
 async function salvarCompra() {
 
@@ -101,8 +133,6 @@ return;
 const { data: { user } } = await supabase.auth.getUser();
 if (!user) return;
 
-
-// validações
 if (!produtoId) {
 alert("Selecione um produto");
 return;
@@ -122,6 +152,9 @@ const produto = produtos.find(p => p.id === produtoId);
 
 const valorTotal = Number(kilos) * Number(preco);
 
+// 🔥 COMISSÃO
+const comissao = calcularComissao();
+
 
 // ================= SALVAR COMPRA
 const { error } = await supabase
@@ -134,6 +167,7 @@ produto_id: produtoId,
 kilos: Number(kilos),
 preco_compra: Number(preco),
 valor_total: valorTotal,
+comissao: comissao, // 🔥 NOVO
 data_compra: dataCompra,
 user_id: user.id
 }
@@ -145,7 +179,7 @@ return;
 }
 
 
-// ================= REGISTRAR NO FINANCEIRO (CORRIGIDO 🔥)
+// ================= FINANCEIRO
 await supabase
 .from("lancamentos")
 .insert([
@@ -155,7 +189,7 @@ tipo: "despesa",
 categoria: "Compras",
 descricao: `Compra ${produto?.nome || ""}`,
 valor: valorTotal,
-data_lancamento: new Date(dataCompra).toISOString(), // 🔥 ESSENCIAL
+data_lancamento: new Date(dataCompra).toISOString(),
 mes: new Date(dataCompra).getMonth() + 1,
 ano: new Date(dataCompra).getFullYear()
 }
@@ -172,7 +206,7 @@ await carregarCompras(empresaId);
 }
 
 
-// ================= EXCLUIR COMPRA
+// ================= EXCLUIR
 async function excluirCompra(id) {
 
 if (!window.confirm("Deseja excluir esta compra?")) return;
@@ -188,6 +222,11 @@ carregarCompras(empresaId);
 }
 
 
+// ================= PREVIEW
+const comissaoPreview = calcularComissao();
+
+
+// ================= TELA
 const titulo =
 role === "admin"
 ? "♻️ Compras / Sucata"
@@ -226,11 +265,9 @@ onChange={(e)=>setProdutoId(e.target.value)}
 <option value="">Selecione o produto</option>
 
 {produtos.map(p => (
-
 <option key={p.id} value={p.id}>
 {p.nome}
 </option>
-
 ))}
 
 </select>
@@ -254,6 +291,9 @@ onChange={(e)=>setPreco(e.target.value)}
 />
 
 <br/><br/>
+
+{/* 🔥 MOSTRA COMISSÃO */}
+<p>💵 Comissão: R$ {comissaoPreview.toFixed(2)}</p>
 
 <button onClick={salvarCompra}>
 Salvar Compra
@@ -298,9 +338,7 @@ padding:"5px 10px",
 cursor:"pointer"
 }}
 >
-
 Excluir
-
 </button>
 
 </div>
