@@ -208,17 +208,35 @@ carregarClientes();
 
 }
 
-// ================= PIX GLOBAL
+// ================= 🚀 PIX + WHATSAPP
 
-function copiarPix(){
+function enviarPixWhatsApp(cliente){
 
 if(!pixSistema){
 alert("Cadastre seu PIX no topo");
 return;
 }
 
-navigator.clipboard.writeText(pixSistema);
-alert("PIX copiado!");
+if(!cliente.whatsapp){
+alert("Cliente sem WhatsApp");
+return;
+}
+
+// limpa número
+const numero = cliente.whatsapp.replace(/\D/g, "");
+
+// mensagem
+const mensagem = `Olá ${cliente.name || ""}!
+
+Segue o PIX para pagamento:
+${pixSistema}
+
+Após pagar, me envie o comprovante 👍`;
+
+// link
+const url = `https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`;
+
+window.open(url, "_blank");
 
 }
 
@@ -309,7 +327,7 @@ gap:10
 
 <button style={btn} onClick={()=>editarCliente(c)}>Editar</button>
 
-<button style={btn} onClick={copiarPix}>PIX</button>
+<button style={btn} onClick={()=>enviarPixWhatsApp(c)}>PIX</button>
 
 <button style={btn} onClick={()=>marcarPago(c)}>Pago</button>
 
