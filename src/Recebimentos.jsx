@@ -6,12 +6,10 @@ export default function Recebimentos({ empresaId }) {
   const [lista, setLista] = useState([]);
   const [pix, setPix] = useState("");
 
-  // 🔥 PIX SEMPRE CARREGA (INDEPENDENTE)
   useEffect(()=>{
     carregarPix();
   },[]);
 
-  // 🔥 DADOS DEPENDEM DA EMPRESA
   useEffect(()=>{
     if(!empresaId) return;
     carregar();
@@ -47,30 +45,17 @@ export default function Recebimentos({ empresaId }) {
     setLista(listaCompleta);
   }
 
-  // 🔥 CORRIGIDO TOTAL
   async function carregarPix(){
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    console.log("USER:", user);
+    if(!user) return;
 
-    if(!user){
-      console.log("SEM USUARIO");
-      return;
-    }
-
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("usuarios")
       .select("pix")
       .eq("id", user.id)
       .maybeSingle();
-
-    console.log("PIX BANCO:", data);
-
-    if(error){
-      console.log("Erro PIX:", error);
-      return;
-    }
 
     setPix(data?.pix || "");
   }
@@ -93,11 +78,24 @@ export default function Recebimentos({ empresaId }) {
     alert("✅ PIX salvo!");
   }
 
+  // 🔥 AGORA COM CONFIRMAÇÃO
   async function receber(id){
-    await supabase
+
+    const confirmar = window.confirm("Confirmar pagamento?");
+
+    if(!confirmar) return;
+
+    const { error } = await supabase
       .from("recebimentos")
       .update({ status: "pago" })
       .eq("id", id);
+
+    if(error){
+      alert("Erro ao confirmar pagamento");
+      return;
+    }
+
+    alert("✅ Pagamento confirmado!");
 
     carregar();
   }
@@ -199,9 +197,16 @@ Aguardo 👍`;
               📲 WhatsApp
             </button>
 
-            <button onClick={()=>receber(r.id)} style={botaoReceber}>
-              ✔ Receber
-            </button>
+            {/* 🔥 BOTÃO INTELIGENTE */}
+            {r.status === "pago" ? (
+              <button style={botaoPago}>
+                ✅ Pago
+              </button>
+            ) : (
+              <button onClick={()=>receber(r.id)} style={botaoReceber}>
+                ✔ Receber
+              </button>
+            )}
 
             <button onClick={()=>excluir(r.id)} style={botaoExcluir}>
               🗑 Excluir
@@ -228,5 +233,7 @@ const botaoSalvarPix={ padding:"10px", width:"100%", background:"#22c55e", borde
 const botaoWhats={ padding:"10px 16px", background:"#16a34a", border:"none", borderRadius:6, color:"#fff", cursor:"pointer" };
 
 const botaoReceber={ padding:"10px 16px", background:"#2563eb", border:"none", borderRadius:6, color:"#fff" };
+
+const botaoPago={ padding:"10px 16px", background:"#22c55e", border:"none", borderRadius:6, color:"#fff", fontWeight:"bold" };
 
 const botaoExcluir={ padding:"10px 16px", background:"#dc2626", border:"none", borderRadius:6, color:"#fff" };
