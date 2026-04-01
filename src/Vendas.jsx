@@ -147,25 +147,53 @@ empresa_id: empresaId
 clienteFinalId = novoCliente?.id;
 }
 
-const { error } = await supabase
+// 🔥 SALVA VENDA
+const { data:venda, error } = await supabase
 .from("vendas")
 .insert([{
 empresa_id:empresaId,
 cliente_id:clienteFinalId,
-produto: produtoId || null, // 🔥 AGORA TEXTO LIVRE
+produto: produtoId || null,
 kilos:qtd,
 preco_unitario:preco,
 valor_total:valorTotal,
 comissao:comissao,
 data_venda:dataVenda,
 user_id:user.id
-}]);
+}])
+.select()
+.single();
 
 if(error){
 console.log(error);
 alert("Erro ao salvar venda");
 return;
 }
+
+// ================= 🔥 NOVO: GERAR RECEBIMENTOS
+
+let listaRecebimentos = [];
+
+for(let i=1;i<=parcelas;i++){
+
+let dataParcela = new Date(dataVenda);
+
+// intervalo padrão 30 dias (depois melhoramos)
+dataParcela.setDate(dataParcela.getDate() + ((i-1)*30));
+
+listaRecebimentos.push({
+empresa_id: empresaId,
+venda_id: venda.id,
+cliente_id: clienteFinalId,
+valor: Number((valorTotal / parcelas).toFixed(2)),
+data_vencimento: dataParcela.toISOString().split("T")[0],
+status: "pendente"
+});
+}
+
+await supabase.from("recebimentos").insert(listaRecebimentos);
+
+// ================= FINAL
 
 alert("Venda registrada!");
 
@@ -198,7 +226,6 @@ onChange={e=>setDataVenda(e.target.value)}
 
 <br/><br/>
 
-{/* CLIENTE LIVRE */}
 <input
 list="lista-clientes"
 placeholder="Digite ou selecione cliente"
@@ -225,7 +252,6 @@ setClienteId("");
 
 <br/><br/>
 
-{/* 🔥 PRODUTO LIVRE */}
 <input
 list="lista-produtos"
 placeholder="Digite ou selecione produto"
