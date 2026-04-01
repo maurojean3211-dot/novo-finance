@@ -5,23 +5,29 @@ export default function MasterAdmin(){
 
 const [clientes,setClientes]=useState([]);
 
+// FORM CLIENTE
 const [tipo,setTipo]=useState("Empresa");
 const [nome,setNome]=useState("");
 const [email,setEmail]=useState("");
 const [cpf,setCpf]=useState("");
 const [whatsapp,setWhatsapp]=useState("");
-const [pix,setPix]=useState("");
 
 const [plano,setPlano]=useState("Básico");
 const [status,setStatus]=useState("Ativo");
 
 const [editandoId,setEditandoId]=useState(null);
 
+// 🔥 PIX GLOBAL
+const [pixSistema,setPixSistema]=useState("");
+
+// ================= INIT
+
 useEffect(()=>{
 carregarClientes();
+buscarPix();
 },[]);
 
-// ================= CARREGAR
+// ================= CARREGAR CLIENTES
 
 async function carregarClientes(){
 
@@ -34,7 +40,38 @@ setClientes(data || []);
 
 }
 
-// ================= CADASTRAR
+// ================= BUSCAR PIX GLOBAL
+
+async function buscarPix(){
+
+const { data } = await supabase
+.from("configuracoes")
+.select("*")
+.eq("chave","pix_sistema")
+.single();
+
+if(data){
+setPixSistema(data.valor);
+}
+
+}
+
+// ================= SALVAR PIX GLOBAL
+
+async function salvarPix(){
+
+await supabase
+.from("configuracoes")
+.upsert({
+chave:"pix_sistema",
+valor:pixSistema
+});
+
+alert("PIX salvo com sucesso!");
+
+}
+
+// ================= CADASTRAR CLIENTE
 
 async function cadastrarCliente(){
 
@@ -51,8 +88,7 @@ await supabase
 name:nome,
 email,
 cpf,
-whatsapp,
-pix
+whatsapp
 })
 .eq("id",editandoId);
 
@@ -67,7 +103,6 @@ name:nome,
 email,
 cpf,
 whatsapp,
-pix,
 plano,
 status,
 tipo,
@@ -89,7 +124,6 @@ setNome("");
 setEmail("");
 setCpf("");
 setWhatsapp("");
-setPix("");
 }
 
 // ================= EDITAR
@@ -101,7 +135,6 @@ setNome(c.name || "");
 setEmail(c.email || "");
 setCpf(c.cpf || "");
 setWhatsapp(c.whatsapp || "");
-setPix(c.pix || "");
 
 window.scrollTo({top:0,behavior:"smooth"});
 
@@ -175,19 +208,21 @@ carregarClientes();
 
 }
 
-// ================= PIX
+// ================= PIX GLOBAL
 
-function copiarPix(chave){
+function copiarPix(){
 
-if(!chave){
-alert("Cliente sem PIX");
+if(!pixSistema){
+alert("Cadastre seu PIX no topo");
 return;
 }
 
-navigator.clipboard.writeText(chave);
+navigator.clipboard.writeText(pixSistema);
 alert("PIX copiado!");
 
 }
+
+// ================= UI
 
 return(
 
@@ -195,7 +230,30 @@ return(
 
 <h2 style={{marginBottom:20}}>👑 Painel Master Admin</h2>
 
-{/* FORM */}
+{/* 🔥 PIX GLOBAL */}
+<div style={{
+background:"#111827",
+padding:15,
+borderRadius:10,
+marginBottom:20
+}}>
+
+<h3>💰 PIX do Sistema</h3>
+
+<input
+placeholder="Seu PIX (telefone, CPF ou email)"
+value={pixSistema}
+onChange={e=>setPixSistema(e.target.value)}
+style={{width:"100%",marginBottom:10}}
+/>
+
+<button onClick={salvarPix} style={btnPrincipal}>
+Salvar PIX
+</button>
+
+</div>
+
+{/* FORM CLIENTE */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -210,7 +268,6 @@ gap:10
 <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
 <input placeholder="CPF" value={cpf} onChange={e=>setCpf(e.target.value)}/>
 <input placeholder="WhatsApp" value={whatsapp} onChange={e=>setWhatsapp(e.target.value)}/>
-<input placeholder="PIX (CPF/email/telefone)" value={pix} onChange={e=>setPix(e.target.value)}/>
 
 <button onClick={cadastrarCliente} style={btnPrincipal}>
 {editandoId ? "Salvar" : "Cadastrar"}
@@ -227,7 +284,6 @@ gap:10
 <th>Plano</th>
 <th>Status</th>
 <th>Pagamento</th>
-<th>PIX</th>
 <th>Ações</th>
 </tr>
 </thead>
@@ -249,13 +305,11 @@ gap:10
 {c.pagou ? "Pago" : "Pendente"}
 </td>
 
-<td>{c.pix || "-"}</td>
-
 <td style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"center"}}>
 
 <button style={btn} onClick={()=>editarCliente(c)}>Editar</button>
 
-<button style={btn} onClick={()=>copiarPix(c.pix)}>PIX</button>
+<button style={btn} onClick={copiarPix}>PIX</button>
 
 <button style={btn} onClick={()=>marcarPago(c)}>Pago</button>
 
