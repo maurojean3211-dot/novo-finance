@@ -70,7 +70,7 @@ totalPendente += valor;
 setReceitas(totalReceita);
 setPendente(totalPendente);
 
-// 🔥 FORÇA GRÁFICO APARECER
+// 🔥 GARANTE QUE SEMPRE TEM DADO
 const dados = [
 { name:"Recebido", valor: totalReceita },
 { name:"Pendente", valor: totalPendente }
@@ -116,11 +116,17 @@ marginBottom:20
 </div>
 
 {/* GRÁFICO PIZZA */}
-<div style={{background:"#111827",padding:15,borderRadius:10,marginBottom:20}}>
+<div style={{
+background:"#111827",
+padding:15,
+borderRadius:10,
+marginBottom:20,
+minHeight:300
+}}>
 
 <h3>Distribuição</h3>
 
-<div style={{width:"100%", height:250}}>
+<div style={{width:"100%", height:260}}>
 <ResponsiveContainer width="100%" height="100%">
 <PieChart>
 <Pie data={dadosGrafico} dataKey="valor" outerRadius={80}>
@@ -137,11 +143,16 @@ marginBottom:20
 </div>
 
 {/* GRÁFICO BARRAS */}
-<div style={{background:"#111827",padding:15,borderRadius:10}}>
+<div style={{
+background:"#111827",
+padding:15,
+borderRadius:10,
+minHeight:320
+}}>
 
 <h3>Comparativo</h3>
 
-<div style={{width:"100%", height:300}}>
+<div style={{width:"100%", height:280}}>
 <ResponsiveContainer width="100%" height="100%">
 <BarChart data={dadosGrafico}>
 <CartesianGrid strokeDasharray="3 3" />
