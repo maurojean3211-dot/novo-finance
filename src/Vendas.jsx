@@ -9,7 +9,7 @@ const [produtos,setProdutos] = useState([]);
 const [vendas,setVendas] = useState([]);
 
 const [clienteId,setClienteId] = useState("");
-const [clienteNome,setClienteNome] = useState(""); // 🔥 NOVO
+const [clienteNome,setClienteNome] = useState("");
 const [clienteWhatsapp,setClienteWhatsapp] = useState("");
 
 const [produtoId,setProdutoId] = useState("");
@@ -27,14 +27,13 @@ new Date().toISOString().split("T")[0]
 
 const [empresaId,setEmpresaId] = useState(null);
 
-// 🔥 CONTROLE DE ACESSO
 const [userEmail,setUserEmail] = useState(null);
 
 useEffect(()=>{
 buscarEmpresa();
 },[]);
 
-// ================= BUSCAR EMPRESA
+// ================= EMPRESA
 
 async function buscarEmpresa(){
 
@@ -50,15 +49,9 @@ const { data,error } = await supabase
 .eq("id",user.id)
 .single();
 
-if(error){
-console.log("Erro usuario:",error);
-return;
-}
+if(error) return;
 
-if(!data?.empresa_id){
-console.log("Empresa não encontrada");
-return;
-}
+if(!data?.empresa_id) return;
 
 setEmpresaId(data.empresa_id);
 
@@ -72,7 +65,7 @@ if(userEmail && userEmail !== "maurojean3211@gmail.com"){
 return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 }
 
-// ================= BUSCAR PIX
+// ================= PIX
 
 async function buscarPix(empresa_id){
 
@@ -88,7 +81,7 @@ setPixEmpresa(data.pix_chave || "");
 
 }
 
-// ================= BUSCAR DADOS
+// ================= DADOS
 
 async function buscarDados(empresa_id){
 
@@ -125,40 +118,29 @@ const valorParcela = parcelas > 0 ? valorTotal / parcelas : valorTotal;
 
 const comissao = qtd * 0.05;
 
-// ================= SALVAR VENDA
+// ================= SALVAR
 
 async function salvarVenda(){
 
-if(!empresaId){
-alert("Empresa não carregada");
-return;
-}
+if(!empresaId) return alert("Empresa não carregada");
 
-if(!clienteNome){
-alert("Informe o cliente");
-return;
-}
+if(!clienteNome) return alert("Informe o cliente");
 
-if(qtd <= 0){
-alert("Quantidade inválida");
-return;
-}
+if(qtd <= 0) return alert("Quantidade inválida");
 
 const { data:{ user } } = await supabase.auth.getUser();
 
-// 🔥 VERIFICA OU CRIA CLIENTE
+// 🔥 CRIA CLIENTE SE NÃO EXISTIR
 let clienteFinalId = clienteId;
 
 if(!clienteId){
 
 const { data:novoCliente } = await supabase
 .from("clientes")
-.insert([
-{
+.insert([{
 nome: clienteNome,
 empresa_id: empresaId
-}
-])
+}])
 .select()
 .single();
 
@@ -170,7 +152,7 @@ const { error } = await supabase
 .insert([{
 empresa_id:empresaId,
 cliente_id:clienteFinalId,
-produto_id:produtoId || null,
+produto: produtoId || null, // 🔥 AGORA TEXTO LIVRE
 kilos:qtd,
 preco_unitario:preco,
 valor_total:valorTotal,
@@ -192,6 +174,7 @@ setPrecoUnitario("");
 setParcelas(1);
 setClienteNome("");
 setClienteId("");
+setProdutoId("");
 
 buscarDados(empresaId);
 
@@ -215,7 +198,7 @@ onChange={e=>setDataVenda(e.target.value)}
 
 <br/><br/>
 
-{/* 🔥 CLIENTE LIVRE */}
+{/* CLIENTE LIVRE */}
 <input
 list="lista-clientes"
 placeholder="Digite ou selecione cliente"
@@ -242,15 +225,19 @@ setClienteId("");
 
 <br/><br/>
 
-<select
+{/* 🔥 PRODUTO LIVRE */}
+<input
+list="lista-produtos"
+placeholder="Digite ou selecione produto"
 value={produtoId}
 onChange={e=>setProdutoId(e.target.value)}
->
-<option value="">Produto</option>
+/>
+
+<datalist id="lista-produtos">
 {produtos.map(p=>(
-<option key={p.id} value={p.id}>{p.nome}</option>
+<option key={p.id} value={p.nome} />
 ))}
-</select>
+</datalist>
 
 <br/><br/>
 

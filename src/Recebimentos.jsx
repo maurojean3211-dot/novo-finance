@@ -5,6 +5,7 @@ export default function Recebimentos({ empresaId }) {
 
   const [lista, setLista] = useState([]);
   const [pix, setPix] = useState("");
+  const [busca, setBusca] = useState(""); // 🔥 NOVO
 
   useEffect(()=>{
     carregarPix();
@@ -22,25 +23,30 @@ export default function Recebimentos({ empresaId }) {
     const { data } = await supabase
       .from("recebimentos")
       .select("*")
-      .eq("empresa_id", empresaId)
-      .order("data_vencimento", { ascending:true });
+      .eq("empresa_id", empresaId);
 
     const { data:clientes } = await supabase
       .from("clientes")
       .select("id, nome, telefone, whatsapp")
       .eq("empresa_id", empresaId);
 
-    const listaCompleta = (data || []).map(r => {
+    let listaCompleta = (data || []).map(r => {
 
       const cliente = clientes?.find(c => c.id === r.cliente_id);
 
       return {
         ...r,
+        status_normalizado: String(r.status || "").toLowerCase().trim(),
         cliente_nome: cliente?.nome || "Cliente",
         cliente_tel: cliente?.telefone || cliente?.whatsapp || ""
       };
 
     });
+
+    // 🔥 ORDEM ALFABÉTICA
+    listaCompleta.sort((a,b)=>
+      a.cliente_nome.localeCompare(b.cliente_nome)
+    );
 
     setLista(listaCompleta);
   }
@@ -48,7 +54,6 @@ export default function Recebimentos({ empresaId }) {
   async function carregarPix(){
 
     const { data: { user } } = await supabase.auth.getUser();
-
     if(!user) return;
 
     const { data } = await supabase
@@ -78,11 +83,9 @@ export default function Recebimentos({ empresaId }) {
     alert("✅ PIX salvo!");
   }
 
-  // 🔥 AGORA COM CONFIRMAÇÃO
   async function receber(id){
 
     const confirmar = window.confirm("Confirmar pagamento?");
-
     if(!confirmar) return;
 
     const { error } = await supabase
@@ -95,9 +98,29 @@ export default function Recebimentos({ empresaId }) {
       return;
     }
 
-    alert("✅ Pagamento confirmado!");
+    await carregar();
 
-    carregar();
+    alert("✅ Pagamento confirmado!");
+  }
+
+  async function reabrir(id){
+
+    const confirmar = window.confirm("Voltar para pendente?");
+    if(!confirmar) return;
+
+    const { error } = await supabase
+      .from("recebimentos")
+      .update({ status: "pendente" })
+      .eq("id", id);
+
+    if(error){
+      alert("Erro ao reabrir");
+      return;
+    }
+
+    await carregar();
+
+    alert("🔄 Voltou para pendente!");
   }
 
   async function excluir(id){
@@ -143,17 +166,6 @@ Aguardo 👍`;
     window.open(url, "_blank");
   }
 
-  function corStatus(r){
-    if(r.status === "pago") return "#22c55e";
-
-    const hoje = new Date();
-    const venc = new Date(r.data_vencimento);
-
-    if(venc < hoje) return "#ef4444";
-
-    return "#facc15";
-  }
-
   return (
     <div style={{padding:20,color:"#fff"}}>
 
@@ -174,11 +186,23 @@ Aguardo 👍`;
         </button>
       </div>
 
+      {/* 🔥 CAMPO DE BUSCA */}
+      <input
+        style={input}
+        placeholder="🔍 Buscar cliente..."
+        value={busca}
+        onChange={(e)=>setBusca(e.target.value)}
+      />
+
       {lista.length === 0 && (
         <p style={{color:"#9ca3af"}}>Nenhum recebimento encontrado</p>
       )}
 
-      {lista.map(r => (
+      {lista
+        .filter(r =>
+          r.cliente_nome.toLowerCase().includes(busca.toLowerCase())
+        )
+        .map(r => (
 
         <div key={r.id} style={card}>
 
@@ -197,10 +221,9 @@ Aguardo 👍`;
               📲 WhatsApp
             </button>
 
-            {/* 🔥 BOTÃO INTELIGENTE */}
-            {r.status === "pago" ? (
-              <button style={botaoPago}>
-                ✅ Pago
+            {r.status_normalizado === "pago" ? (
+              <button onClick={()=>reabrir(r.id)} style={botaoPago}>
+                ↩️ Reabrir
               </button>
             ) : (
               <button onClick={()=>receber(r.id)} style={botaoReceber}>
@@ -234,6 +257,6 @@ const botaoWhats={ padding:"10px 16px", background:"#16a34a", border:"none", bor
 
 const botaoReceber={ padding:"10px 16px", background:"#2563eb", border:"none", borderRadius:6, color:"#fff" };
 
-const botaoPago={ padding:"10px 16px", background:"#22c55e", border:"none", borderRadius:6, color:"#fff", fontWeight:"bold" };
+const botaoPago={ padding:"10px 16px", background:"#f59e0b", border:"none", borderRadius:6, color:"#fff", fontWeight:"bold" };
 
 const botaoExcluir={ padding:"10px 16px", background:"#dc2626", border:"none", borderRadius:6, color:"#fff" };

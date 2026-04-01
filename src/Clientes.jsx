@@ -16,6 +16,8 @@ export default function Clientes() {
   const [parcelas, setParcelas] = useState(1);
   const [intervalo, setIntervalo] = useState(15);
 
+  const [datasVencimento, setDatasVencimento] = useState([""]);
+
   const [empresaId, setEmpresaId] = useState(null);
   const [carregando, setCarregando] = useState(true);
 
@@ -31,7 +33,7 @@ export default function Clientes() {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("usuarios")
       .select("empresa_id")
       .eq("id", user.id)
@@ -63,10 +65,7 @@ export default function Clientes() {
 
     const qtd = Number(quantidade) || 1;
     const valorUnitario = Number(valor) || 0;
-    const qtdParcelas = Number(parcelas) || 1;
-    const intervaloDias = Number(intervalo) || 0;
 
-    // CLIENTE
     const { data:cliente, error } = await supabase
       .from("clientes")
       .insert([{
@@ -80,7 +79,6 @@ export default function Clientes() {
 
     if(error) return alert("Erro cliente");
 
-    // VENDA
     if(valorUnitario > 0 && dataVenda){
 
       const valorTotal = valorUnitario * qtd;
@@ -100,30 +98,39 @@ export default function Clientes() {
 
       let listaParcelas = [];
 
-      for(let i=1;i<=qtdParcelas;i++){
+      const datasValidas = datasVencimento.filter(d => d);
 
-        let dataParcela = new Date(dataVenda);
+      // 🔥 NOVA REGRA (À VISTA)
+      if(datasValidas.length > 0){
 
-        if(intervaloDias > 0){
-          dataParcela.setDate(dataParcela.getDate() + ((i-1)*intervaloDias));
-        }
-
-        listaParcelas.push({
+        listaParcelas = datasValidas.map((data, i) => ({
           empresa_id: empresaId,
           venda_id: venda.id,
           cliente_id: cliente.id,
-          numero_parcela: i,
-          valor: Number((valorTotal / qtdParcelas).toFixed(2)),
-          data_vencimento: dataParcela.toISOString().split("T")[0], // 🔥 CORRETO
+          numero_parcela: i + 1,
+          valor: Number((valorTotal / datasValidas.length).toFixed(2)),
+          data_vencimento: data,
           status: "pendente"
-        });
+        }));
+
+      } else {
+
+        // 🔥 PAGAMENTO À VISTA
+        listaParcelas = [{
+          empresa_id: empresaId,
+          venda_id: venda.id,
+          cliente_id: cliente.id,
+          numero_parcela: 1,
+          valor: Number(valorTotal.toFixed(2)),
+          data_vencimento: dataVenda,
+          status: "pendente"
+        }];
       }
 
       await supabase.from("parcelas").insert(listaParcelas);
 
-      // 🔥 RECEBIMENTOS CORRIGIDO
       const recebimentos = listaParcelas.map(p => ({
-        empresa_id: empresaId, // 🔥 FORÇADO
+        empresa_id: empresaId,
         venda_id: p.venda_id,
         cliente_id: p.cliente_id,
         valor: Number(p.valor),
@@ -144,6 +151,7 @@ export default function Clientes() {
     setValor("");
     setDataVenda("");
     setParcelas(1);
+    setDatasVencimento([""]);
 
     alert("✅ Salvo com sucesso!");
   }
@@ -208,6 +216,29 @@ export default function Clientes() {
           value={intervalo}
           onChange={(e)=>setIntervalo(e.target.value)}
         />
+
+        <h4>📅 Datas de vencimento (opcional)</h4>
+
+        {datasVencimento.map((data, index) => (
+          <input
+            key={index}
+            type="date"
+            style={inputStyle}
+            value={data}
+            onChange={(e) => {
+              const novas = [...datasVencimento];
+              novas[index] = e.target.value;
+              setDatasVencimento(novas);
+            }}
+          />
+        ))}
+
+        <button
+          onClick={() => setDatasVencimento([...datasVencimento, ""])}
+          style={{marginBottom:10}}
+        >
+          + Adicionar data
+        </button>
 
         <button style={buttonStyle} onClick={salvarCliente}>
           💾 Salvar
