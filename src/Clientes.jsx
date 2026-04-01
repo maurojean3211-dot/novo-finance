@@ -9,7 +9,6 @@ export default function Clientes() {
   const [telefone, setTelefone] = useState("");
   const [email, setEmail] = useState("");
 
-  // 🔥 VENDA
   const [produto, setProduto] = useState("");
   const [quantidade, setQuantidade] = useState(1);
   const [valor, setValor] = useState("");
@@ -38,12 +37,6 @@ export default function Clientes() {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (error) {
-      console.log(error);
-      setCarregando(false);
-      return;
-    }
-
     if (data?.empresa_id) {
       setEmpresaId(data.empresa_id);
       await carregarClientes(data.empresa_id);
@@ -54,34 +47,26 @@ export default function Clientes() {
 
   async function carregarClientes(empId) {
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("clientes")
       .select("*")
       .eq("empresa_id", empId)
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.log("ERRO CLIENTES:", error);
-      return;
-    }
-
     setClientes(data || []);
   }
 
-  // 🔥 SALVAR CLIENTE + VENDA + PARCELAS + RECEBIMENTOS
   async function salvarCliente(){
 
-    if(!empresaId){
-      alert("Empresa ainda não carregou");
-      return;
-    }
+    if(!empresaId) return alert("Empresa não carregada");
+    if(!nome) return alert("Digite o nome do cliente");
 
-    if(!nome){
-      alert("Digite o nome do cliente");
-      return;
-    }
+    const qtd = Number(quantidade) || 1;
+    const valorUnitario = Number(valor) || 0;
+    const qtdParcelas = Number(parcelas) || 1;
+    const intervaloDias = Number(intervalo) || 0;
 
-    // 1️⃣ CLIENTE
+    // CLIENTE
     const { data:cliente, error } = await supabase
       .from("clientes")
       .insert([{
@@ -93,21 +78,14 @@ export default function Clientes() {
       .select()
       .single();
 
-    if(error){
-      console.log("ERRO CLIENTE:", error);
-      alert("Erro ao salvar cliente");
-      return;
-    }
+    if(error) return alert("Erro cliente");
 
-    // 2️⃣ VENDA + PARCELAS
-    if(valor && dataVenda){
+    // VENDA
+    if(valorUnitario > 0 && dataVenda){
 
-      const valorUnitario = Number(valor);
-      const qtd = Number(quantidade);
       const valorTotal = valorUnitario * qtd;
-      const qtdParcelas = Number(parcelas);
 
-      const { data:venda, error:erroVenda } = await supabase
+      const { data:venda } = await supabase
         .from("vendas")
         .insert([{
           empresa_id: empresaId,
@@ -120,64 +98,44 @@ export default function Clientes() {
         .select()
         .single();
 
-      if(erroVenda){
-        console.log("ERRO VENDA:", erroVenda);
-        alert("Erro ao salvar venda");
-        return;
-      }
-
       let listaParcelas = [];
 
       for(let i=1;i<=qtdParcelas;i++){
 
         let dataParcela = new Date(dataVenda);
-        dataParcela.setDate(dataParcela.getDate() + ((i-1) * intervalo));
+
+        if(intervaloDias > 0){
+          dataParcela.setDate(dataParcela.getDate() + ((i-1)*intervaloDias));
+        }
 
         listaParcelas.push({
           empresa_id: empresaId,
           venda_id: venda.id,
           cliente_id: cliente.id,
           numero_parcela: i,
-          valor: Number((valorTotal / qtdParcelas).toFixed(2)), // 🔥 corrigido arredondamento
-          data_vencimento: dataParcela.toISOString().split("T")[0],
+          valor: Number((valorTotal / qtdParcelas).toFixed(2)),
+          data_vencimento: dataParcela.toISOString().split("T")[0], // 🔥 CORRETO
           status: "pendente"
         });
       }
 
-      const { error: erroParcelas } = await supabase
-        .from("parcelas")
-        .insert(listaParcelas);
+      await supabase.from("parcelas").insert(listaParcelas);
 
-      if(erroParcelas){
-        console.log("ERRO PARCELAS:", erroParcelas);
-        alert("Erro ao salvar parcelas");
-        return;
-      }
-
+      // 🔥 RECEBIMENTOS CORRIGIDO
       const recebimentos = listaParcelas.map(p => ({
-        empresa_id: p.empresa_id,
+        empresa_id: empresaId, // 🔥 FORÇADO
         venda_id: p.venda_id,
         cliente_id: p.cliente_id,
-        valor: p.valor,
+        valor: Number(p.valor),
         data_vencimento: p.data_vencimento,
         status: "pendente"
       }));
 
-      const { error: erroReceb } = await supabase
-        .from("recebimentos")
-        .insert(recebimentos);
-
-      if(erroReceb){
-        console.log("ERRO RECEBIMENTOS:", erroReceb);
-        alert("Erro ao salvar recebimentos");
-        return;
-      }
+      await supabase.from("recebimentos").insert(recebimentos);
     }
 
-    // atualiza lista
     setClientes(prev => [cliente, ...prev]);
 
-    // limpar campos
     setNome("");
     setTelefone("");
     setEmail("");
@@ -187,24 +145,18 @@ export default function Clientes() {
     setDataVenda("");
     setParcelas(1);
 
-    alert("✅ Cliente + venda salvos!");
+    alert("✅ Salvo com sucesso!");
   }
 
   async function excluirCliente(id) {
 
     if (!window.confirm("Excluir cliente?")) return;
 
-    const { error } = await supabase
+    await supabase
       .from("clientes")
       .delete()
       .eq("id", id)
       .eq("empresa_id", empresaId);
-
-    if (error) {
-      console.log("ERRO EXCLUIR:", error);
-      alert("Erro ao excluir");
-      return;
-    }
 
     setClientes(prev => prev.filter(c => c.id !== id));
   }
@@ -283,50 +235,8 @@ export default function Clientes() {
   );
 }
 
-// 🎨 estilos
-
-const card={
-  background:"#111827",
-  padding:15,
-  borderRadius:10,
-  marginBottom:15
-};
-
-const cardLista={
-  background:"#1f2937",
-  padding:10,
-  borderRadius:8,
-  marginBottom:10,
-  display:"flex",
-  justifyContent:"space-between",
-  alignItems:"center"
-};
-
-const inputStyle={
-  display:"block",
-  marginBottom:10,
-  padding:10,
-  width:"100%",
-  borderRadius:6,
-  border:"none"
-};
-
-const buttonStyle={
-  padding:12,
-  width:"100%",
-  borderRadius:8,
-  border:"none",
-  background:"#2563eb",
-  color:"#fff",
-  fontWeight:"bold",
-  cursor:"pointer"
-};
-
-const deleteStyle={
-  padding:6,
-  borderRadius:6,
-  border:"none",
-  background:"#dc2626",
-  color:"#fff",
-  cursor:"pointer"
-};
+const card={ background:"#111827", padding:15, borderRadius:10, marginBottom:15 };
+const cardLista={ background:"#1f2937", padding:10, borderRadius:8, marginBottom:10, display:"flex", justifyContent:"space-between" };
+const inputStyle={ display:"block", marginBottom:10, padding:10, width:"100%", borderRadius:6, border:"none" };
+const buttonStyle={ padding:12, width:"100%", borderRadius:8, border:"none", background:"#2563eb", color:"#fff" };
+const deleteStyle={ padding:6, borderRadius:6, border:"none", background:"#dc2626", color:"#fff" };
