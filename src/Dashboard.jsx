@@ -40,22 +40,13 @@ setCarregando(false);
 return;
 }
 
-// 🔥 CORRIGIDO AQUI
-const { data:usuario, error } = await supabase
+const { data:usuario } = await supabase
 .from("usuarios")
 .select("empresa_id, role")
 .eq("id",user.id)
 .maybeSingle();
 
-if(error){
-console.log("Erro usuario:", error);
-setCarregando(false);
-return;
-}
-
-console.log("USUARIO:", usuario);
-
-// 🔥 NÃO BLOQUEIA ADMIN
+// 🔥 CARREGA TUDO
 await carregarDados(usuario?.empresa_id);
 
 }catch(err){
@@ -71,28 +62,33 @@ async function carregarDados(empresa_id){
 const dataLimite = new Date();
 dataLimite.setMonth(dataLimite.getMonth()-3);
 
-// 🔥 TESTE SEM FILTRO DE EMPRESA (IMPORTANTE)
-const {data, error} = await supabase
+// ===== LANCAMENTOS
+const {data:lancamentos} = await supabase
 .from("lancamentos")
 .select("*")
 .gte("data_lancamento", dataLimite.toISOString())
 .limit(200);
 
-if(error){
-console.log("Erro lancamentos:", error);
+// ===== VENDAS
+const {data:vendas} = await supabase
+.from("vendas")
+.select("*");
+
+// ===== COMPRAS
+const {data:compras} = await supabase
+.from("compras")
+.select("*");
+
+calcularDados(lancamentos || [], vendas || [], compras || []);
+
 }
 
-console.log("LANCAMENTOS:", data);
-
-calcularDados(data || []);
-
-}
-
-function calcularDados(lista){
+function calcularDados(lista,vendas,compras){
 
 let totalReceita=0;
 let totalDespesa=0;
 
+// ===== LANCAMENTOS
 lista.forEach(l=>{
 const tipo = String(l.tipo || "").toLowerCase();
 const valor = Number(l.valor || 0);
@@ -101,15 +97,31 @@ if(tipo==="receita") totalReceita+=valor;
 if(tipo==="despesa") totalDespesa+=valor;
 });
 
+// ===== SOMA VENDAS COMO RECEITA
+vendas.forEach(v=>{
+totalReceita += Number(v.valor_total || v.valor || 0);
+});
+
+// ===== SOMA COMPRAS COMO DESPESA
+compras.forEach(c=>{
+const kilos = Number(c.kilos || c.quantidade || 0);
+const preco = Number(c.preco_compra || c.preco || 0);
+
+totalDespesa += kilos * preco;
+});
+
+// ===== RESULTADO
 setReceitas(totalReceita);
 setDespesas(totalDespesa);
 setSaldo(totalReceita-totalDespesa);
 
+// ===== GRAFICO
 setDadosGrafico([
 { name:"Receitas", value:totalReceita },
 { name:"Despesas", value:totalDespesa }
 ]);
 
+// ===== MENSAL
 const meses={};
 
 lista.forEach(l=>{

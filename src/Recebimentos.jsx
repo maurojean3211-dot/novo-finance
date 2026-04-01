@@ -32,9 +32,10 @@ export default function Recebimentos({ empresaId }) {
       return;
     }
 
+    // 🔥 CORRIGIDO AQUI
     const { data:clientes, error:erroClientes } = await supabase
       .from("clientes")
-      .select("id, nome, telefone")
+      .select("id, nome, telefone, whatsapp")
       .eq("empresa_id", empresaId);
 
     if(erroClientes){
@@ -50,7 +51,7 @@ export default function Recebimentos({ empresaId }) {
       return {
         ...r,
         cliente_nome: cliente?.nome || "Cliente",
-        cliente_tel: cliente?.telefone || ""
+        cliente_tel: cliente?.telefone || cliente?.whatsapp || "" // 🔥 CORRIGIDO
       };
 
     });
@@ -106,7 +107,6 @@ export default function Recebimentos({ empresaId }) {
     carregar();
   }
 
-  // 🔥 CORRIGIDO AQUI
   async function excluir(id){
 
     if(!window.confirm("Excluir recebimento?")) return;
@@ -121,7 +121,6 @@ export default function Recebimentos({ empresaId }) {
       return;
     }
 
-    // 🔥 REMOVE DA TELA NA HORA (SEM F5)
     setLista(prev => prev.filter(item => item.id !== id));
   }
 

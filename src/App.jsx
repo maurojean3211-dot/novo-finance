@@ -15,6 +15,10 @@ import Relatorio from "./Relatorio.jsx";
 import Clientes from "./Clientes.jsx";
 import Recebimentos from "./Recebimentos.jsx";
 
+// 🔥 NOVOS
+import Vendas from "./Vendas.jsx";
+import Compras from "./Compras.jsx";
+
 export default function App(){
 
 const [session,setSession] = useState(null);
@@ -24,7 +28,7 @@ const [role,setRole] = useState(null);
 const [empresaId,setEmpresaId] = useState(null);
 const [isMobile,setIsMobile] = useState(window.innerWidth < 768);
 
-// 🔥 REMOVE SPLASH (CORREÇÃO FINAL)
+// 🔥 REMOVE SPLASH
 useEffect(() => {
   const splash = document.getElementById("splash");
   if (splash) splash.style.display = "none";
@@ -106,10 +110,10 @@ subscription?.unsubscribe();
 
 },[]);
 
-// LOGOUT
+// 🔥 LOGOUT
 async function sair(){
-await supabase.auth.signOut();
-window.location.href="/";
+  await supabase.auth.signOut();
+  setSession(null);
 }
 
 // LOADING
@@ -130,6 +134,9 @@ Carregando empresa... (aguarde)
 </div>
 );
 }
+
+// 🔥 IDENTIFICA SE É VOCÊ
+const isMauro = session?.user?.email === "maurojean3211@gmail.com";
 
 // APP
 return(
@@ -190,6 +197,19 @@ width:"100%"
 </button>
 )}
 
+{/* 🔥 NOVO MENU SÓ PRA VOCÊ */}
+{isMauro && (
+<>
+<button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>
+📦 Vendas
+</button>
+
+<button onClick={()=>setPagina("compras")} style={pagina==="compras" ? botaoAtivo : botaoMenu}>
+🧱 Compras
+</button>
+</>
+)}
+
 <button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>
 💳 Pessoal
 </button>
@@ -225,6 +245,11 @@ padding:20
 {pagina==="recebimentos" && <Recebimentos empresaId={empresaId} />}
 {pagina==="clientes" && <Clientes />}
 {pagina==="lucro" && role==="admin" && <Lucro />}
+
+{/* 🔥 NOVAS TELAS */}
+{pagina==="vendas" && isMauro && <Vendas empresaId={empresaId} />}
+{pagina==="compras" && isMauro && <Compras empresaId={empresaId} />}
+
 {pagina==="despesas" && <DespesasPessoais />}
 {pagina==="relatorio" && <Relatorio empresaId={empresaId} />}
 {pagina==="admin" && <Admin />}

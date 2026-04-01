@@ -146,7 +146,7 @@ return(
 
 <div style={{padding:20}}>
 
-<h1>📈 Relatório de Lucro</h1>
+<h1>📊 Relatório Financeiro</h1>
 
 <div style={{
 background:"#111827",
@@ -155,14 +155,6 @@ borderRadius:10,
 marginBottom:20,
 color:"#fff"
 }}>
-
-<p>📦 Kilos Comprados: {kilosComprados} kg</p>
-
-<p>📦 Kilos Vendidos: {kilosVendidos} kg</p>
-
-<p>📦 Estoque Atual: {estoque} kg</p>
-
-<hr/>
 
 <p>💸 Total Compras: R$ {totalCompras.toFixed(2)}</p>
 
