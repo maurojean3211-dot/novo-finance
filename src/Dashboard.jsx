@@ -70,10 +70,20 @@ totalPendente += valor;
 setReceitas(totalReceita);
 setPendente(totalPendente);
 
-setDadosGrafico([
+// 🔥 FORÇA GRÁFICO APARECER
+const dados = [
 { name:"Recebido", valor: totalReceita },
 { name:"Pendente", valor: totalPendente }
-]);
+];
+
+const temValor = dados.some(d => d.valor > 0);
+
+setDadosGrafico(
+temValor ? dados : [
+{ name:"Recebido", valor: 1 },
+{ name:"Pendente", valor: 1 }
+]
+);
 
 }
 
@@ -110,7 +120,8 @@ marginBottom:20
 
 <h3>Distribuição</h3>
 
-<ResponsiveContainer width="100%" height={220}>
+<div style={{width:"100%", height:250}}>
+<ResponsiveContainer width="100%" height="100%">
 <PieChart>
 <Pie data={dadosGrafico} dataKey="valor" outerRadius={80}>
 {dadosGrafico.map((e,i)=>(
@@ -121,15 +132,17 @@ marginBottom:20
 <Legend/>
 </PieChart>
 </ResponsiveContainer>
+</div>
 
 </div>
 
-{/* 🔥 GRÁFICO BARRAS */}
+{/* GRÁFICO BARRAS */}
 <div style={{background:"#111827",padding:15,borderRadius:10}}>
 
 <h3>Comparativo</h3>
 
-<ResponsiveContainer width="100%" height={250}>
+<div style={{width:"100%", height:300}}>
+<ResponsiveContainer width="100%" height="100%">
 <BarChart data={dadosGrafico}>
 <CartesianGrid strokeDasharray="3 3" />
 <XAxis dataKey="name"/>
@@ -139,6 +152,7 @@ marginBottom:20
 <Bar dataKey="valor" />
 </BarChart>
 </ResponsiveContainer>
+</div>
 
 </div>
 
