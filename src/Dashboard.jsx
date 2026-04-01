@@ -35,7 +35,7 @@ setCarregando(false);
 return;
 }
 
-// 🔥 IDENTIFICA SE É VOCÊ
+// 🔥 DEFINE SE É VOCÊ
 if(user.email === "maurojean3211@gmail.com"){
 setIsMaster(true);
 await carregarReceitaClientes();
@@ -75,7 +75,7 @@ totalPendente += valor;
 setReceitas(totalReceita);
 setPendente(totalPendente);
 
-// 🔥 GARANTE GRÁFICO
+// 🔥 GARANTE QUE SEMPRE TEM DADO
 const dados = [
 { name:"Recebido", valor: totalReceita },
 { name:"Pendente", valor: totalPendente }
@@ -83,6 +83,7 @@ const dados = [
 
 const temValor = dados.some(d => d.valor > 0);
 
+// 🔥 FORÇA APARECER SEM ERRO
 setDadosGrafico(
 temValor ? dados : [
 { name:"Recebido", valor: 100 },
@@ -106,15 +107,15 @@ return(
 
 <h2>📊 Dashboard</h2>
 
-{/* 🔥 SE NÃO FOR MASTER */}
+{/* 🔥 USUÁRIO NORMAL */}
 {!isMaster && (
 <div style={{background:"#111827",padding:20,borderRadius:10}}>
 <h3>Bem-vindo 👋</h3>
-<p>Seu painel financeiro aparecerá aqui.</p>
+<p>Seu painel será exibido conforme seu plano.</p>
 </div>
 )}
 
-{/* 🔥 SE FOR VOCÊ (MASTER) */}
+{/* 🔥 SEU DASHBOARD (MASTER) */}
 {isMaster && (
 
 <>
@@ -132,7 +133,7 @@ marginBottom:20
 
 </div>
 
-{/* GRÁFICO PIZZA */}
+{/* PIZZA */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -156,7 +157,7 @@ marginBottom:20
 
 </div>
 
-{/* GRÁFICO BARRAS */}
+{/* BARRAS */}
 <div style={{
 background:"#111827",
 padding:15,
