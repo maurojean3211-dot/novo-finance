@@ -14,7 +14,7 @@ export default function Clientes() {
   const [valor, setValor] = useState("");
   const [dataVenda, setDataVenda] = useState("");
   const [parcelas, setParcelas] = useState(1);
-  const [intervalo, setIntervalo] = useState(0); // 🔥 0 = à vista
+  const [intervalo, setIntervalo] = useState(0); // 0 = à vista
 
   const [empresaId, setEmpresaId] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -103,19 +103,34 @@ export default function Clientes() {
       const qtdParcelas = Number(parcelas) || 1;
       const intervaloDias = Number(intervalo) || 0;
 
+      // 🔥 CORREÇÃO TOTAL DAS DATAS
+      const [ano, mes, dia] = dataVenda.split("-");
+
+      let dataBase = new Date(
+        Number(ano),
+        Number(mes) - 1,
+        Number(dia)
+      );
+
       for(let i=1;i<=qtdParcelas;i++){
 
-        let dataParcela = new Date(dataVenda);
+        let dataParcela = new Date(dataBase);
 
-        if(intervaloDias > 0){
+        if(qtdParcelas === 1 || intervaloDias === 0){
+          // À vista
+          dataParcela = dataBase;
+        } else {
+          // Parcelado começa depois
           dataParcela.setDate(
-            dataParcela.getDate() + ((i-1)*intervaloDias)
+            dataBase.getDate() + (i * intervaloDias)
           );
         }
 
-        const dataFormatada = new Date(dataParcela)
-          .toISOString()
-          .split("T")[0];
+        const anoF = dataParcela.getFullYear();
+        const mesF = String(dataParcela.getMonth() + 1).padStart(2, "0");
+        const diaF = String(dataParcela.getDate()).padStart(2, "0");
+
+        const dataFormatada = `${anoF}-${mesF}-${diaF}`;
 
         listaParcelas.push({
           empresa_id: empresaId,
