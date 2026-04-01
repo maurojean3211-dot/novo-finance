@@ -5,7 +5,7 @@ export default function Recebimentos({ empresaId }) {
 
   const [lista, setLista] = useState([]);
   const [pix, setPix] = useState("");
-  const [busca, setBusca] = useState(""); // 🔥 NOVO
+  const [busca, setBusca] = useState("");
 
   useEffect(()=>{
     carregarPix();
@@ -186,7 +186,6 @@ Aguardo 👍`;
         </button>
       </div>
 
-      {/* 🔥 CAMPO DE BUSCA */}
       <input
         style={input}
         placeholder="🔍 Buscar cliente..."
@@ -202,15 +201,55 @@ Aguardo 👍`;
         .filter(r =>
           r.cliente_nome.toLowerCase().includes(busca.toLowerCase())
         )
-        .map(r => (
+        .map(r => {
+
+          // 🔥 AVISO AUTOMÁTICO
+          const hoje = new Date();
+          const venc = new Date(r.data_vencimento);
+
+          let aviso = "";
+          let cor = "#9ca3af";
+
+          if(r.status_normalizado !== "pago"){
+
+            const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
+
+            if(diff < 0){
+              aviso = "🔴 Atrasado";
+              cor = "#ef4444";
+            }
+            else if(diff === 0){
+              aviso = "🟡 Vence hoje";
+              cor = "#facc15";
+            }
+            else if(diff <= 3){
+              aviso = `🟠 Vence em ${diff} dia(s)`;
+              cor = "#fb923c";
+            } else {
+              aviso = "🟢 Em dia";
+              cor = "#22c55e";
+            }
+          }
+
+          return (
 
         <div key={r.id} style={card}>
 
-          <strong>{r.cliente_nome}</strong>
+          <strong style={{fontSize:16}}>
+            👤 {r.cliente_nome}
+          </strong>
 
-          <div>💵 R$ {Number(r.valor).toFixed(2)}</div>
+          <div style={{marginTop:5}}>
+            📅 Vencimento: {new Date(r.data_vencimento).toLocaleDateString()}
+          </div>
 
-          <div>📅 {new Date(r.data_vencimento).toLocaleDateString()}</div>
+          <div>
+            💵 Valor: R$ {Number(r.valor).toFixed(2)}
+          </div>
+
+          <div style={{color:cor, fontWeight:"bold", marginTop:5}}>
+            {aviso}
+          </div>
 
           <div style={{display:"flex",gap:10,marginTop:10}}>
 
@@ -239,7 +278,9 @@ Aguardo 👍`;
 
         </div>
 
-      ))}
+          );
+
+        })}
 
     </div>
   );

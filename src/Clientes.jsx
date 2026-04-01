@@ -14,9 +14,7 @@ export default function Clientes() {
   const [valor, setValor] = useState("");
   const [dataVenda, setDataVenda] = useState("");
   const [parcelas, setParcelas] = useState(1);
-  const [intervalo, setIntervalo] = useState(15);
-
-  const [datasVencimento, setDatasVencimento] = useState([""]);
+  const [intervalo, setIntervalo] = useState(0); // 🔥 0 = à vista
 
   const [empresaId, setEmpresaId] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -63,6 +61,10 @@ export default function Clientes() {
     if(!empresaId) return alert("Empresa não carregada");
     if(!nome) return alert("Digite o nome do cliente");
 
+    if(valor && !dataVenda){
+      return alert("Informe a data da venda");
+    }
+
     const qtd = Number(quantidade) || 1;
     const valorUnitario = Number(valor) || 0;
 
@@ -79,7 +81,7 @@ export default function Clientes() {
 
     if(error) return alert("Erro cliente");
 
-    if(valorUnitario > 0 && dataVenda){
+    if(valorUnitario > 0){
 
       const valorTotal = valorUnitario * qtd;
 
@@ -98,33 +100,32 @@ export default function Clientes() {
 
       let listaParcelas = [];
 
-      const datasValidas = datasVencimento.filter(d => d);
+      const qtdParcelas = Number(parcelas) || 1;
+      const intervaloDias = Number(intervalo) || 0;
 
-      // 🔥 NOVA REGRA (À VISTA)
-      if(datasValidas.length > 0){
+      for(let i=1;i<=qtdParcelas;i++){
 
-        listaParcelas = datasValidas.map((data, i) => ({
+        let dataParcela = new Date(dataVenda);
+
+        if(intervaloDias > 0){
+          dataParcela.setDate(
+            dataParcela.getDate() + ((i-1)*intervaloDias)
+          );
+        }
+
+        const dataFormatada = new Date(dataParcela)
+          .toISOString()
+          .split("T")[0];
+
+        listaParcelas.push({
           empresa_id: empresaId,
           venda_id: venda.id,
           cliente_id: cliente.id,
-          numero_parcela: i + 1,
-          valor: Number((valorTotal / datasValidas.length).toFixed(2)),
-          data_vencimento: data,
+          numero_parcela: i,
+          valor: Number((valorTotal / qtdParcelas).toFixed(2)),
+          data_vencimento: dataFormatada,
           status: "pendente"
-        }));
-
-      } else {
-
-        // 🔥 PAGAMENTO À VISTA
-        listaParcelas = [{
-          empresa_id: empresaId,
-          venda_id: venda.id,
-          cliente_id: cliente.id,
-          numero_parcela: 1,
-          valor: Number(valorTotal.toFixed(2)),
-          data_vencimento: dataVenda,
-          status: "pendente"
-        }];
+        });
       }
 
       await supabase.from("parcelas").insert(listaParcelas);
@@ -151,7 +152,7 @@ export default function Clientes() {
     setValor("");
     setDataVenda("");
     setParcelas(1);
-    setDatasVencimento([""]);
+    setIntervalo(0);
 
     alert("✅ Salvo com sucesso!");
   }
@@ -212,33 +213,10 @@ export default function Clientes() {
           onChange={(e)=>setParcelas(e.target.value)}
         />
 
-        <input style={inputStyle} type="number" placeholder="Intervalo (dias)"
+        <input style={inputStyle} type="number" placeholder="Intervalo (dias) - 0 = à vista"
           value={intervalo}
           onChange={(e)=>setIntervalo(e.target.value)}
         />
-
-        <h4>📅 Datas de vencimento (opcional)</h4>
-
-        {datasVencimento.map((data, index) => (
-          <input
-            key={index}
-            type="date"
-            style={inputStyle}
-            value={data}
-            onChange={(e) => {
-              const novas = [...datasVencimento];
-              novas[index] = e.target.value;
-              setDatasVencimento(novas);
-            }}
-          />
-        ))}
-
-        <button
-          onClick={() => setDatasVencimento([...datasVencimento, ""])}
-          style={{marginBottom:10}}
-        >
-          + Adicionar data
-        </button>
 
         <button style={buttonStyle} onClick={salvarCliente}>
           💾 Salvar
