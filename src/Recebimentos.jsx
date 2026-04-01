@@ -6,26 +6,26 @@ export default function Recebimentos({ empresaId }) {
   const [lista, setLista] = useState([]);
   const [pix, setPix] = useState("");
 
+  // 🔥 PIX SEMPRE CARREGA (INDEPENDENTE)
+  useEffect(()=>{
+    carregarPix();
+  },[]);
+
+  // 🔥 DADOS DEPENDEM DA EMPRESA
   useEffect(()=>{
     if(!empresaId) return;
     carregar();
-    carregarPix();
   },[empresaId]);
 
   async function carregar(){
 
     if(!empresaId) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("recebimentos")
       .select("*")
       .eq("empresa_id", empresaId)
       .order("data_vencimento", { ascending:true });
-
-    if(error){
-      console.log("ERRO AO CARREGAR:", error);
-      return;
-    }
 
     const { data:clientes } = await supabase
       .from("clientes")
@@ -47,32 +47,48 @@ export default function Recebimentos({ empresaId }) {
     setLista(listaCompleta);
   }
 
+  // 🔥 CORRIGIDO TOTAL
   async function carregarPix(){
 
     const { data: { user } } = await supabase.auth.getUser();
-    if(!user) return;
 
-    const { data } = await supabase
+    console.log("USER:", user);
+
+    if(!user){
+      console.log("SEM USUARIO");
+      return;
+    }
+
+    const { data, error } = await supabase
       .from("usuarios")
       .select("pix")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if(data?.pix){
-      setPix(data.pix);
+    console.log("PIX BANCO:", data);
+
+    if(error){
+      console.log("Erro PIX:", error);
+      return;
     }
+
+    setPix(data?.pix || "");
   }
 
   async function salvarPix(){
 
     const { data: { user } } = await supabase.auth.getUser();
-
     if(!user) return;
 
-    await supabase
+    const { error } = await supabase
       .from("usuarios")
       .update({ pix })
       .eq("id", user.id);
+
+    if(error){
+      alert("Erro ao salvar PIX");
+      return;
+    }
 
     alert("✅ PIX salvo!");
   }
@@ -98,6 +114,37 @@ export default function Recebimentos({ empresaId }) {
     setLista(prev => prev.filter(item => item.id !== id));
   }
 
+  function enviarWhatsapp(r){
+
+    if(!pix){
+      alert("⚠ Cadastre o PIX primeiro!");
+      return;
+    }
+
+    let telefone = (r.cliente_tel || "").replace(/\D/g,"");
+
+    if(!telefone){
+      alert("Cliente sem telefone");
+      return;
+    }
+
+    if(!telefone.startsWith("55")){
+      telefone = "55" + telefone;
+    }
+
+    const mensagem = `Olá ${r.cliente_nome} 👋
+
+💰 Valor: R$ ${Number(r.valor).toFixed(2)}
+
+PIX: ${pix}
+
+Pode realizar o pagamento hoje?
+Aguardo 👍`;
+
+    const url = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, "_blank");
+  }
+
   function corStatus(r){
     if(r.status === "pago") return "#22c55e";
 
@@ -121,12 +168,17 @@ export default function Recebimentos({ empresaId }) {
           style={input}
           value={pix}
           onChange={(e)=>setPix(e.target.value)}
+          placeholder="Digite sua chave PIX"
         />
 
         <button style={botaoSalvarPix} onClick={salvarPix}>
           💾 Salvar PIX
         </button>
       </div>
+
+      {lista.length === 0 && (
+        <p style={{color:"#9ca3af"}}>Nenhum recebimento encontrado</p>
+      )}
 
       {lista.map(r => (
 
@@ -139,6 +191,13 @@ export default function Recebimentos({ empresaId }) {
           <div>📅 {new Date(r.data_vencimento).toLocaleDateString()}</div>
 
           <div style={{display:"flex",gap:10,marginTop:10}}>
+
+            <button
+              onClick={()=>enviarWhatsapp(r)}
+              style={botaoWhats}
+            >
+              📲 WhatsApp
+            </button>
 
             <button onClick={()=>receber(r.id)} style={botaoReceber}>
               ✔ Receber
@@ -158,10 +217,16 @@ export default function Recebimentos({ empresaId }) {
   );
 }
 
-// estilos (mantidos)
+// 🎨 estilos
+
 const card={ background:"#111827", padding:15, borderRadius:10, marginBottom:10 };
 const cardPix={ background:"#1f2937", padding:15, borderRadius:10, marginBottom:20 };
 const input={ padding:10, width:"100%", borderRadius:6, border:"none", marginBottom:10 };
+
 const botaoSalvarPix={ padding:"10px", width:"100%", background:"#22c55e", border:"none", borderRadius:6, color:"#fff" };
+
+const botaoWhats={ padding:"10px 16px", background:"#16a34a", border:"none", borderRadius:6, color:"#fff", cursor:"pointer" };
+
 const botaoReceber={ padding:"10px 16px", background:"#2563eb", border:"none", borderRadius:6, color:"#fff" };
+
 const botaoExcluir={ padding:"10px 16px", background:"#dc2626", border:"none", borderRadius:6, color:"#fff" };
