@@ -4,6 +4,9 @@ import { supabase } from "./supabase";
 export default function Clientes() {
 
   const [clientes, setClientes] = useState([]);
+  const [vendas, setVendas] = useState([]);
+
+  const [busca, setBusca] = useState(""); // 🔥 BUSCA
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -14,7 +17,7 @@ export default function Clientes() {
   const [valor, setValor] = useState("");
   const [dataVenda, setDataVenda] = useState("");
   const [parcelas, setParcelas] = useState(1);
-  const [intervalo, setIntervalo] = useState(0); // 0 = à vista
+  const [intervalo, setIntervalo] = useState(0);
 
   const [empresaId, setEmpresaId] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -39,21 +42,27 @@ export default function Clientes() {
 
     if (data?.empresa_id) {
       setEmpresaId(data.empresa_id);
-      await carregarClientes(data.empresa_id);
+      await carregarTudo(data.empresa_id);
     }
 
     setCarregando(false);
   }
 
-  async function carregarClientes(empId) {
+  async function carregarTudo(empId) {
 
-    const { data } = await supabase
+    const { data:clientesData } = await supabase
       .from("clientes")
       .select("*")
       .eq("empresa_id", empId)
       .order("created_at", { ascending: false });
 
-    setClientes(data || []);
+    const { data:vendasData } = await supabase
+      .from("vendas")
+      .select("*")
+      .eq("empresa_id", empId);
+
+    setClientes(clientesData || []);
+    setVendas(vendasData || []);
   }
 
   async function salvarCliente(){
@@ -61,14 +70,10 @@ export default function Clientes() {
     if(!empresaId) return alert("Empresa não carregada");
     if(!nome) return alert("Digite o nome do cliente");
 
-    if(valor && !dataVenda){
-      return alert("Informe a data da venda");
-    }
-
     const qtd = Number(quantidade) || 1;
     const valorUnitario = Number(valor) || 0;
 
-    const { data:cliente, error } = await supabase
+    const { data:cliente } = await supabase
       .from("clientes")
       .insert([{
         nome: nome.trim(),
@@ -79,13 +84,11 @@ export default function Clientes() {
       .select()
       .single();
 
-    if(error) return alert("Erro cliente");
-
     if(valorUnitario > 0){
 
       const valorTotal = valorUnitario * qtd;
 
-      const { data:venda } = await supabase
+      await supabase
         .from("vendas")
         .insert([{
           empresa_id: empresaId,
@@ -93,71 +96,10 @@ export default function Clientes() {
           produto: produto || null,
           quantidade: qtd,
           valor_total: valorTotal,
+          parcelas: parcelas, // 🔥 GUARDA PARCELAS
           data_venda: dataVenda
-        }])
-        .select()
-        .single();
-
-      let listaParcelas = [];
-
-      const qtdParcelas = Number(parcelas) || 1;
-      const intervaloDias = Number(intervalo) || 0;
-
-      // 🔥 CORREÇÃO TOTAL DAS DATAS
-      const [ano, mes, dia] = dataVenda.split("-");
-
-      let dataBase = new Date(
-        Number(ano),
-        Number(mes) - 1,
-        Number(dia)
-      );
-
-      for(let i=1;i<=qtdParcelas;i++){
-
-        let dataParcela = new Date(dataBase);
-
-        if(qtdParcelas === 1 || intervaloDias === 0){
-          // À vista
-          dataParcela = dataBase;
-        } else {
-          // Parcelado começa depois
-          dataParcela.setDate(
-            dataBase.getDate() + (i * intervaloDias)
-          );
-        }
-
-        const anoF = dataParcela.getFullYear();
-        const mesF = String(dataParcela.getMonth() + 1).padStart(2, "0");
-        const diaF = String(dataParcela.getDate()).padStart(2, "0");
-
-        const dataFormatada = `${anoF}-${mesF}-${diaF}`;
-
-        listaParcelas.push({
-          empresa_id: empresaId,
-          venda_id: venda.id,
-          cliente_id: cliente.id,
-          numero_parcela: i,
-          valor: Number((valorTotal / qtdParcelas).toFixed(2)),
-          data_vencimento: dataFormatada,
-          status: "pendente"
-        });
-      }
-
-      await supabase.from("parcelas").insert(listaParcelas);
-
-      const recebimentos = listaParcelas.map(p => ({
-        empresa_id: empresaId,
-        venda_id: p.venda_id,
-        cliente_id: p.cliente_id,
-        valor: Number(p.valor),
-        data_vencimento: p.data_vencimento,
-        status: "pendente"
-      }));
-
-      await supabase.from("recebimentos").insert(recebimentos);
+        }]);
     }
-
-    setClientes(prev => [cliente, ...prev]);
 
     setNome("");
     setTelefone("");
@@ -167,9 +109,10 @@ export default function Clientes() {
     setValor("");
     setDataVenda("");
     setParcelas(1);
-    setIntervalo(0);
 
-    alert("✅ Salvo com sucesso!");
+    await carregarTudo(empresaId);
+
+    alert("✅ Salvo!");
   }
 
   async function excluirCliente(id) {
@@ -196,15 +139,9 @@ export default function Clientes() {
 
       <div style={card}>
 
-        <h3>Cadastro</h3>
-
         <input style={inputStyle} placeholder="Nome" value={nome} onChange={(e)=>setNome(e.target.value)} />
         <input style={inputStyle} placeholder="Telefone" value={telefone} onChange={(e)=>setTelefone(e.target.value)} />
         <input style={inputStyle} placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
-
-        <hr />
-
-        <h3>💰 Venda (opcional)</h3>
 
         <input style={inputStyle} placeholder="Produto" value={produto} onChange={(e)=>setProduto(e.target.value)} />
 
@@ -213,7 +150,7 @@ export default function Clientes() {
           onChange={(e)=>setQuantidade(e.target.value)}
         />
 
-        <input style={inputStyle} type="number" placeholder="Valor unitário"
+        <input style={inputStyle} type="number" placeholder="Valor"
           value={valor}
           onChange={(e)=>setValor(e.target.value)}
         />
@@ -228,32 +165,52 @@ export default function Clientes() {
           onChange={(e)=>setParcelas(e.target.value)}
         />
 
-        <input style={inputStyle} type="number" placeholder="Intervalo (dias) - 0 = à vista"
-          value={intervalo}
-          onChange={(e)=>setIntervalo(e.target.value)}
-        />
-
         <button style={buttonStyle} onClick={salvarCliente}>
           💾 Salvar
         </button>
 
       </div>
 
-      <h3 style={{marginTop:20}}>📋 Clientes</h3>
+      {/* 🔥 BUSCA */}
+      <input
+        style={inputStyle}
+        placeholder="🔍 Buscar cliente..."
+        value={busca}
+        onChange={(e)=>setBusca(e.target.value)}
+      />
 
-      {clientes.map(c => (
-        <div key={c.id} style={cardLista}>
-          <div>
-            <strong>{c.nome}</strong><br/>
-            {c.telefone}<br/>
-            {c.email}
-          </div>
+      <h3>📋 Clientes</h3>
 
-          <button onClick={()=>excluirCliente(c.id)} style={deleteStyle}>
-            🗑
-          </button>
-        </div>
-      ))}
+      {clientes
+        .filter(c =>
+          c.nome.toLowerCase().includes(busca.toLowerCase())
+        )
+        .map(c => {
+
+          const venda = vendas.find(v => v.cliente_id === c.id);
+
+          return (
+            <div key={c.id} style={cardLista}>
+
+              <div>
+                <strong>{c.nome}</strong><br/>
+                📞 {c.telefone}<br/>
+
+                {venda && (
+                  <>
+                    💰 R$ {Number(venda.valor_total).toFixed(2)}<br/>
+                    📦 {venda.parcelas || 1}x
+                  </>
+                )}
+              </div>
+
+              <button onClick={()=>excluirCliente(c.id)} style={deleteStyle}>
+                🗑
+              </button>
+
+            </div>
+          );
+        })}
 
     </div>
   );
