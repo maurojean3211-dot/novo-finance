@@ -19,6 +19,7 @@ export default function Dashboard(){
 const [receitas,setReceitas] = useState(0);
 const [pendente,setPendente] = useState(0);
 const [dadosGrafico,setDadosGrafico] = useState([]);
+const [isMaster,setIsMaster] = useState(false);
 const [carregando,setCarregando] = useState(true);
 
 useEffect(()=>{
@@ -34,15 +35,19 @@ setCarregando(false);
 return;
 }
 
+// 🔥 IDENTIFICA SE É VOCÊ
 if(user.email === "maurojean3211@gmail.com"){
+setIsMaster(true);
 await carregarReceitaClientes();
+}else{
+setIsMaster(false);
 }
 
 setCarregando(false);
 
 }
 
-// ================= RECEITA
+// ================= RECEITA MASTER
 
 async function carregarReceitaClientes(){
 
@@ -70,7 +75,7 @@ totalPendente += valor;
 setReceitas(totalReceita);
 setPendente(totalPendente);
 
-// garante dados pro gráfico
+// 🔥 GARANTE GRÁFICO
 const dados = [
 { name:"Recebido", valor: totalReceita },
 { name:"Pendente", valor: totalPendente }
@@ -80,8 +85,8 @@ const temValor = dados.some(d => d.valor > 0);
 
 setDadosGrafico(
 temValor ? dados : [
-{ name:"Recebido", valor: 1 },
-{ name:"Pendente", valor: 1 }
+{ name:"Recebido", valor: 100 },
+{ name:"Pendente", valor: 50 }
 ]
 );
 
@@ -101,6 +106,18 @@ return(
 
 <h2>📊 Dashboard</h2>
 
+{/* 🔥 SE NÃO FOR MASTER */}
+{!isMaster && (
+<div style={{background:"#111827",padding:20,borderRadius:10}}>
+<h3>Bem-vindo 👋</h3>
+<p>Seu painel financeiro aparecerá aqui.</p>
+</div>
+)}
+
+{/* 🔥 SE FOR VOCÊ (MASTER) */}
+{isMaster && (
+
+<>
 {/* CARDS */}
 <div style={{
 display:"grid",
@@ -160,6 +177,9 @@ borderRadius:10
 </ResponsiveContainer>
 
 </div>
+
+</>
+)}
 
 </div>
 
