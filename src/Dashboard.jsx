@@ -70,7 +70,7 @@ totalPendente += valor;
 setReceitas(totalReceita);
 setPendente(totalPendente);
 
-// 🔥 GARANTE QUE SEMPRE TEM DADO
+// garante dados pro gráfico
 const dados = [
 { name:"Recebido", valor: totalReceita },
 { name:"Pendente", valor: totalPendente }
@@ -120,16 +120,14 @@ marginBottom:20
 background:"#111827",
 padding:15,
 borderRadius:10,
-marginBottom:20,
-minHeight:300
+marginBottom:20
 }}>
 
 <h3>Distribuição</h3>
 
-<div style={{width:"100%", height:260}}>
-<ResponsiveContainer width="100%" height="100%">
+<ResponsiveContainer width="100%" height={300}>
 <PieChart>
-<Pie data={dadosGrafico} dataKey="valor" outerRadius={80}>
+<Pie data={dadosGrafico} dataKey="valor" outerRadius={90}>
 {dadosGrafico.map((e,i)=>(
 <Cell key={i} fill={cores[i]} />
 ))}
@@ -138,7 +136,6 @@ minHeight:300
 <Legend/>
 </PieChart>
 </ResponsiveContainer>
-</div>
 
 </div>
 
@@ -146,14 +143,12 @@ minHeight:300
 <div style={{
 background:"#111827",
 padding:15,
-borderRadius:10,
-minHeight:320
+borderRadius:10
 }}>
 
 <h3>Comparativo</h3>
 
-<div style={{width:"100%", height:280}}>
-<ResponsiveContainer width="100%" height="100%">
+<ResponsiveContainer width="100%" height={300}>
 <BarChart data={dadosGrafico}>
 <CartesianGrid strokeDasharray="3 3" />
 <XAxis dataKey="name"/>
@@ -163,7 +158,6 @@ minHeight:320
 <Bar dataKey="valor" />
 </BarChart>
 </ResponsiveContainer>
-</div>
 
 </div>
 
