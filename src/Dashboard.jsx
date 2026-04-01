@@ -40,13 +40,20 @@ setCarregando(false);
 return;
 }
 
+// 🔥 SE FOR SEU LOGIN -> USA CLIENTES PAGOS DO MASTER
+if(user.email === "maurojean3211@gmail.com"){
+await carregarReceitaClientes();
+setCarregando(false);
+return;
+}
+
+// 🔥 NORMAL PARA OUTROS USUÁRIOS
 const { data:usuario } = await supabase
 .from("usuarios")
 .select("empresa_id, role")
 .eq("id",user.id)
 .maybeSingle();
 
-// 🔥 CARREGA TUDO
 await carregarDados(usuario?.empresa_id);
 
 }catch(err){
@@ -57,6 +64,43 @@ setCarregando(false);
 
 }
 
+// ===============================
+// 🔥 NOVA FUNÇÃO (SEU DASHBOARD)
+// ===============================
+async function carregarReceitaClientes(){
+
+const { data, error } = await supabase
+.from("clientes")
+.select("*")
+.eq("pagou", true);
+
+if(error){
+console.log(error);
+return;
+}
+
+let totalReceita = 0;
+
+(data || []).forEach(c=>{
+totalReceita += Number(c.valor || 0);
+});
+
+setReceitas(totalReceita);
+setDespesas(0);
+setSaldo(totalReceita);
+
+// gráfico simples só receita
+setDadosGrafico([
+{ name:"Receitas", value:totalReceita }
+]);
+
+setDadosMes([]);
+
+}
+
+// ===============================
+// 🔥 RESTO DO SISTEMA NORMAL
+// ===============================
 async function carregarDados(empresa_id){
 
 const dataLimite = new Date();
@@ -97,12 +141,12 @@ if(tipo==="receita") totalReceita+=valor;
 if(tipo==="despesa") totalDespesa+=valor;
 });
 
-// ===== SOMA VENDAS COMO RECEITA
+// ===== VENDAS COMO RECEITA
 vendas.forEach(v=>{
 totalReceita += Number(v.valor_total || v.valor || 0);
 });
 
-// ===== SOMA COMPRAS COMO DESPESA
+// ===== COMPRAS COMO DESPESA
 compras.forEach(c=>{
 const kilos = Number(c.kilos || c.quantidade || 0);
 const preco = Number(c.preco_compra || c.preco || 0);
