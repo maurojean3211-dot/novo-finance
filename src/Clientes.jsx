@@ -6,7 +6,7 @@ export default function Clientes() {
   const [clientes, setClientes] = useState([]);
   const [vendas, setVendas] = useState([]);
 
-  const [busca, setBusca] = useState(""); // 🔥 BUSCA
+  const [busca, setBusca] = useState("");
 
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -17,7 +17,7 @@ export default function Clientes() {
   const [valor, setValor] = useState("");
   const [dataVenda, setDataVenda] = useState("");
   const [parcelas, setParcelas] = useState(1);
-  const [intervalo, setIntervalo] = useState(0);
+  const [intervalo, setIntervalo] = useState(30);
 
   const [empresaId, setEmpresaId] = useState(null);
   const [carregando, setCarregando] = useState(true);
@@ -73,7 +73,7 @@ export default function Clientes() {
     const qtd = Number(quantidade) || 1;
     const valorUnitario = Number(valor) || 0;
 
-    const { data:cliente } = await supabase
+    const { data:cliente, error:erroCliente } = await supabase
       .from("clientes")
       .insert([{
         nome: nome.trim(),
@@ -84,11 +84,16 @@ export default function Clientes() {
       .select()
       .single();
 
+    if(erroCliente){
+      alert("Erro ao salvar cliente");
+      return;
+    }
+
     if(valorUnitario > 0){
 
       const valorTotal = valorUnitario * qtd;
 
-      await supabase
+      const { data:venda, error:erroVenda } = await supabase
         .from("vendas")
         .insert([{
           empresa_id: empresaId,
@@ -96,9 +101,50 @@ export default function Clientes() {
           produto: produto || null,
           quantidade: qtd,
           valor_total: valorTotal,
-          parcelas: parcelas, // 🔥 GUARDA PARCELAS
-          data_venda: dataVenda
-        }]);
+          parcelas: parcelas,
+          data_venda: dataVenda || new Date()
+        }])
+        .select()
+        .single();
+
+      if(erroVenda){
+        console.error(erroVenda);
+        alert("Erro ao salvar venda");
+        return;
+      }
+
+      // 🔒 TRAVA INTERVALO
+      let intervaloSeguro = Number(intervalo) || 1;
+      if(intervaloSeguro < 1) intervaloSeguro = 1;
+      if(intervaloSeguro > 30) intervaloSeguro = 30;
+
+      const listaRecebimentos = [];
+
+      const valorParcela = valorTotal / parcelas;
+      const dataBase = new Date(dataVenda || new Date());
+
+      for(let i = 0; i < parcelas; i++){
+
+        const vencimento = new Date(dataBase);
+        vencimento.setDate(vencimento.getDate() + (i * intervaloSeguro));
+
+        listaRecebimentos.push({
+          empresa_id: empresaId,
+          cliente_id: cliente.id,
+          venda_id: venda.id,
+          valor: valorParcela,
+          data_vencimento: vencimento,
+          status: "pendente"
+        });
+      }
+
+      const { error:erroReceb } = await supabase
+        .from("recebimentos")
+        .insert(listaRecebimentos);
+
+      if(erroReceb){
+        console.error("Erro recebimentos", erroReceb);
+      }
     }
 
     setNome("");
@@ -109,10 +155,11 @@ export default function Clientes() {
     setValor("");
     setDataVenda("");
     setParcelas(1);
+    setIntervalo(30);
 
     await carregarTudo(empresaId);
 
-    alert("✅ Salvo!");
+    alert("✅ Cliente + Venda + Recebimentos salvos!");
   }
 
   async function excluirCliente(id) {
@@ -165,13 +212,28 @@ export default function Clientes() {
           onChange={(e)=>setParcelas(e.target.value)}
         />
 
+        {/* 🔥 INTERVALO TRAVADO */}
+        <input 
+          style={inputStyle} 
+          type="number" 
+          placeholder="Intervalo (1 a 30 dias)"
+          value={intervalo}
+          min={1}
+          max={30}
+          onChange={(e)=>{
+            let valor = Number(e.target.value);
+            if(valor < 1) valor = 1;
+            if(valor > 30) valor = 30;
+            setIntervalo(valor);
+          }}
+        />
+
         <button style={buttonStyle} onClick={salvarCliente}>
           💾 Salvar
         </button>
 
       </div>
 
-      {/* 🔥 BUSCA */}
       <input
         style={inputStyle}
         placeholder="🔍 Buscar cliente..."
