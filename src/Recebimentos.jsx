@@ -43,7 +43,6 @@ export default function Recebimentos({ empresaId }) {
 
     });
 
-    // 🔥 ORDEM ALFABÉTICA
     listaCompleta.sort((a,b)=>
       a.cliente_nome.localeCompare(b.cliente_nome)
     );
@@ -83,19 +82,46 @@ export default function Recebimentos({ empresaId }) {
     alert("✅ PIX salvo!");
   }
 
-  async function receber(id){
+  // 🔥 CORREÇÃO PRINCIPAL AQUI
+  async function receber(r){
 
     const confirmar = window.confirm("Confirmar pagamento?");
     if(!confirmar) return;
 
+    // 1️⃣ Atualiza status
     const { error } = await supabase
       .from("recebimentos")
       .update({ status: "pago" })
-      .eq("id", id);
+      .eq("id", r.id);
 
     if(error){
       alert("Erro ao confirmar pagamento");
       return;
+    }
+
+    // 2️⃣ VERIFICA SE JÁ EXISTE LANÇAMENTO (evita duplicar)
+    const { data: existente } = await supabase
+      .from("lancamentos")
+      .select("id")
+      .eq("recebimento_id", r.id)
+      .maybeSingle();
+
+    if(!existente){
+
+      // 3️⃣ CRIA LANÇAMENTO FINANCEIRO
+      await supabase.from("lancamentos").insert([
+        {
+          empresa_id: empresaId,
+          cliente_id: r.cliente_id,
+          recebimento_id: r.id,
+          tipo: "receita",
+          descricao: `Recebimento - ${r.cliente_nome}`,
+          valor: r.valor,
+          data: new Date(),
+          status: "recebido"
+        }
+      ]);
+
     }
 
     await carregar();
@@ -203,7 +229,6 @@ Aguardo 👍`;
         )
         .map(r => {
 
-          // 🔥 AVISO AUTOMÁTICO
           const hoje = new Date();
           const venc = new Date(r.data_vencimento);
 
@@ -235,28 +260,16 @@ Aguardo 👍`;
 
         <div key={r.id} style={card}>
 
-          <strong style={{fontSize:16}}>
-            👤 {r.cliente_nome}
-          </strong>
+          <strong>👤 {r.cliente_nome}</strong>
 
-          <div style={{marginTop:5}}>
-            📅 Vencimento: {new Date(r.data_vencimento).toLocaleDateString()}
-          </div>
+          <div>📅 {new Date(r.data_vencimento).toLocaleDateString()}</div>
+          <div>💵 R$ {Number(r.valor).toFixed(2)}</div>
 
-          <div>
-            💵 Valor: R$ {Number(r.valor).toFixed(2)}
-          </div>
-
-          <div style={{color:cor, fontWeight:"bold", marginTop:5}}>
-            {aviso}
-          </div>
+          <div style={{color:cor,fontWeight:"bold"}}>{aviso}</div>
 
           <div style={{display:"flex",gap:10,marginTop:10}}>
 
-            <button
-              onClick={()=>enviarWhatsapp(r)}
-              style={botaoWhats}
-            >
+            <button onClick={()=>enviarWhatsapp(r)} style={botaoWhats}>
               📲 WhatsApp
             </button>
 
@@ -265,13 +278,13 @@ Aguardo 👍`;
                 ↩️ Reabrir
               </button>
             ) : (
-              <button onClick={()=>receber(r.id)} style={botaoReceber}>
+              <button onClick={()=>receber(r)} style={botaoReceber}>
                 ✔ Receber
               </button>
             )}
 
             <button onClick={()=>excluir(r.id)} style={botaoExcluir}>
-              🗑 Excluir
+              🗑
             </button>
 
           </div>
@@ -286,18 +299,17 @@ Aguardo 👍`;
   );
 }
 
-// 🎨 estilos
-
+// estilos
 const card={ background:"#111827", padding:15, borderRadius:10, marginBottom:10 };
 const cardPix={ background:"#1f2937", padding:15, borderRadius:10, marginBottom:20 };
 const input={ padding:10, width:"100%", borderRadius:6, border:"none", marginBottom:10 };
 
 const botaoSalvarPix={ padding:"10px", width:"100%", background:"#22c55e", border:"none", borderRadius:6, color:"#fff" };
 
-const botaoWhats={ padding:"10px 16px", background:"#16a34a", border:"none", borderRadius:6, color:"#fff", cursor:"pointer" };
+const botaoWhats={ padding:"10px 16px", background:"#16a34a", border:"none", borderRadius:6, color:"#fff" };
 
 const botaoReceber={ padding:"10px 16px", background:"#2563eb", border:"none", borderRadius:6, color:"#fff" };
 
-const botaoPago={ padding:"10px 16px", background:"#f59e0b", border:"none", borderRadius:6, color:"#fff", fontWeight:"bold" };
+const botaoPago={ padding:"10px 16px", background:"#f59e0b", border:"none", borderRadius:6, color:"#fff" };
 
 const botaoExcluir={ padding:"10px 16px", background:"#dc2626", border:"none", borderRadius:6, color:"#fff" };
