@@ -90,26 +90,22 @@ setPixEmpresa(data.pix_chave || "");
 // ================= DADOS
 async function buscarDados(empresa_id){
 
-const { data:clientesData, error:e1 } = await supabase
+const { data:clientesData } = await supabase
 .from("clientes")
 .select("*")
 .eq("empresa_id",empresa_id)
 .order("nome");
 
-const { data:produtosData, error:e2 } = await supabase
+const { data:produtosData } = await supabase
 .from("produtos")
 .select("*")
 .eq("empresa_id",empresa_id);
 
-const { data:vendasData, error:e3 } = await supabase
+const { data:vendasData } = await supabase
 .from("vendas")
 .select("*")
 .eq("empresa_id",empresa_id)
 .order("data_venda",{ascending:false});
-
-if(e1 || e2 || e3){
-console.error("Erro dados:", e1 || e2 || e3);
-}
 
 setClientes(clientesData || []);
 setProdutos(produtosData || []);
@@ -139,6 +135,15 @@ const { data:{ user } } = await supabase.auth.getUser();
 
 if(!user) return alert("Usuário não autenticado");
 
+// 🔥 DEBUG (AQUI VAI MOSTRAR O PROBLEMA REAL)
+console.log("DEBUG ENVIO:", {
+empresa_id: empresaId,
+cliente_id: clienteId,
+user_id: user?.id,
+qtd,
+valorTotal
+});
+
 // 🔥 CRIAR CLIENTE
 let clienteFinalId = clienteId;
 
@@ -155,17 +160,18 @@ empresa_id: empresaId
 
 if(erroCliente){
 console.error("ERRO CLIENTE:", erroCliente);
-alert("Erro ao criar cliente: " + erroCliente.message);
+alert("Erro cliente: " + erroCliente.message);
 return;
 }
 
 clienteFinalId = novoCliente?.id;
 
-if(!clienteFinalId){
-alert("Erro ao gerar cliente");
-return;
 }
 
+// 🔥 GARANTIA FINAL
+if(!clienteFinalId){
+alert("Cliente inválido");
+return;
 }
 
 // 🔥 SALVAR VENDA
@@ -186,8 +192,8 @@ user_id:user.id
 .single();
 
 if(error){
-console.error("ERRO VENDA:", error);
-alert("Erro ao salvar venda: " + error.message);
+console.error("ERRO COMPLETO VENDA:", error);
+alert("Erro ao salvar venda:\n" + error.message);
 return;
 }
 
@@ -215,11 +221,10 @@ const { error:erroRec } = await supabase
 
 if(erroRec){
 console.error("ERRO RECEBIMENTOS:", erroRec);
-alert("Venda salva, mas erro nos recebimentos");
 }
 
 // FINAL
-alert("Venda registrada com sucesso!");
+alert("Venda salva com sucesso!");
 
 setQuantidade("");
 setPrecoUnitario("");
@@ -244,8 +249,6 @@ return(
 
 <h1>🛒 Registrar Venda</h1>
 
-<label>Data</label><br/>
-
 <input
 type="date"
 value={dataVenda}
@@ -256,7 +259,7 @@ onChange={e=>setDataVenda(e.target.value)}
 
 <input
 list="lista-clientes"
-placeholder="Digite ou selecione cliente"
+placeholder="Cliente"
 value={clienteNome}
 onChange={e=>{
 setClienteNome(e.target.value);
@@ -265,7 +268,6 @@ const cliente = clientes.find(c=>c.nome === e.target.value);
 
 if(cliente){
 setClienteId(cliente.id);
-setClienteWhatsapp(cliente.whatsapp || "");
 }else{
 setClienteId("");
 }
@@ -282,7 +284,7 @@ setClienteId("");
 
 <input
 list="lista-produtos"
-placeholder="Digite ou selecione produto"
+placeholder="Produto"
 value={produtoId}
 onChange={e=>setProdutoId(e.target.value)}
 />
@@ -315,7 +317,6 @@ onChange={e=>setPrecoUnitario(e.target.value)}
 
 <input
 type="number"
-placeholder="Parcelas"
 value={parcelas}
 onChange={e=>setParcelas(Number(e.target.value))}
 min="1"
@@ -323,13 +324,12 @@ min="1"
 
 <br/><br/>
 
-<div style={{marginBottom:20}}>
-<strong>Total:</strong> R$ {valorTotal.toFixed(2)}
-<br/>
-<strong>Comissão:</strong> R$ {comissao.toFixed(2)}
-<br/>
-<strong>Valor da parcela:</strong> R$ {valorParcela.toFixed(2)}
+<div>
+Total: R$ {valorTotal.toFixed(2)} <br/>
+Comissão: R$ {comissao.toFixed(2)}
 </div>
+
+<br/>
 
 <button onClick={salvarVenda}>
 Salvar Venda
@@ -337,19 +337,11 @@ Salvar Venda
 
 <hr/>
 
-<h2>📋 Vendas</h2>
-
 {vendas.map(v=>(
 
-<div key={v.id} style={{
-border:"1px solid #ccc",
-padding:10,
-borderRadius:6,
-marginBottom:10
-}}>
+<div key={v.id}>
 
-📅 {new Date(v.data_venda).toLocaleDateString("pt-BR")}
-<br/>
+{new Date(v.data_venda).toLocaleDateString("pt-BR")}  
 R$ {Number(v.valor_total).toFixed(2)}
 
 </div>
