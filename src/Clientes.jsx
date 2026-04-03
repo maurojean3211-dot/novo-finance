@@ -73,6 +73,7 @@ export default function Clientes() {
     const qtd = Number(quantidade) || 1;
     const valorUnitario = Number(valor) || 0;
 
+    // 🔥 SALVA CLIENTE
     const { data:cliente, error:erroCliente } = await supabase
       .from("clientes")
       .insert([{
@@ -85,45 +86,53 @@ export default function Clientes() {
       .single();
 
     if(erroCliente){
+      console.error(erroCliente);
       alert("Erro ao salvar cliente");
       return;
     }
 
+    // 🔥 SE TEM VENDA
     if(valorUnitario > 0){
 
       const valorTotal = valorUnitario * qtd;
+      const parcelasNum = Number(parcelas) || 1;
 
+      const dataVendaFormatada = dataVenda
+        ? new Date(dataVenda).toISOString()
+        : new Date().toISOString();
+
+      // 🔥 SALVA VENDA (CORRIGIDO)
       const { data:venda, error:erroVenda } = await supabase
         .from("vendas")
         .insert([{
           empresa_id: empresaId,
           cliente_id: cliente.id,
-          produto: produto || null,
+          produto: produto || "",
           quantidade: qtd,
-          valor_total: valorTotal,
-          parcelas: parcelas,
-          data_venda: dataVenda || new Date()
+          valor_total: Number(valorTotal),
+          parcelas: parcelasNum,
+          data_venda: dataVendaFormatada
         }])
         .select()
         .single();
 
       if(erroVenda){
-        console.error(erroVenda);
+        console.error("ERRO VENDA 👉", erroVenda);
         alert("Erro ao salvar venda");
         return;
       }
 
-      // 🔒 TRAVA INTERVALO
+      // 🔒 INTERVALO SEGURO
       let intervaloSeguro = Number(intervalo) || 1;
       if(intervaloSeguro < 1) intervaloSeguro = 1;
       if(intervaloSeguro > 30) intervaloSeguro = 30;
 
       const listaRecebimentos = [];
 
-      const valorParcela = valorTotal / parcelas;
-      const dataBase = new Date(dataVenda || new Date());
+      const valorParcela = valorTotal / parcelasNum;
+      const dataBase = new Date(dataVendaFormatada);
 
-      for(let i = 0; i < parcelas; i++){
+      for(let i = 0; i < parcelasNum; i++){
 
         const vencimento = new Date(dataBase);
         vencimento.setDate(vencimento.getDate() + (i * intervaloSeguro));
@@ -132,8 +141,8 @@ export default function Clientes() {
           empresa_id: empresaId,
           cliente_id: cliente.id,
           venda_id: venda.id,
-          valor: valorParcela,
-          data_vencimento: vencimento,
+          valor: Number(valorParcela),
+          data_vencimento: vencimento.toISOString(),
           status: "pendente"
         });
       }
@@ -143,10 +152,11 @@ export default function Clientes() {
         .insert(listaRecebimentos);
 
       if(erroReceb){
-        console.error("Erro recebimentos", erroReceb);
+        console.error("ERRO RECEBIMENTOS 👉", erroReceb);
       }
     }
 
+    // 🔥 LIMPA
     setNome("");
     setTelefone("");
     setEmail("");
@@ -212,7 +222,6 @@ export default function Clientes() {
           onChange={(e)=>setParcelas(e.target.value)}
         />
 
-        {/* 🔥 INTERVALO TRAVADO */}
         <input 
           style={inputStyle} 
           type="number" 

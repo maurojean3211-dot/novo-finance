@@ -26,15 +26,14 @@ new Date().toISOString().split("T")[0]
 );
 
 const [empresaId,setEmpresaId] = useState(null);
-
 const [userEmail,setUserEmail] = useState(null);
 
+// ================= INIT
 useEffect(()=>{
 buscarEmpresa();
 },[]);
 
 // ================= EMPRESA
-
 async function buscarEmpresa(){
 
 const { data:{ user } } = await supabase.auth.getUser();
@@ -49,7 +48,10 @@ const { data,error } = await supabase
 .eq("id",user.id)
 .single();
 
-if(error) return;
+if(error){
+console.error("Erro empresa:", error);
+return;
+}
 
 if(!data?.empresa_id) return;
 
@@ -66,14 +68,18 @@ return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 }
 
 // ================= PIX
-
 async function buscarPix(empresa_id){
 
-const { data } = await supabase
+const { data,error } = await supabase
 .from("empresas")
 .select("pix_chave")
 .eq("id",empresa_id)
 .single();
+
+if(error){
+console.error("Erro PIX:", error);
+return;
+}
 
 if(data){
 setPixEmpresa(data.pix_chave || "");
@@ -82,25 +88,28 @@ setPixEmpresa(data.pix_chave || "");
 }
 
 // ================= DADOS
-
 async function buscarDados(empresa_id){
 
-const { data:clientesData } = await supabase
+const { data:clientesData, error:e1 } = await supabase
 .from("clientes")
 .select("*")
 .eq("empresa_id",empresa_id)
 .order("nome");
 
-const { data:produtosData } = await supabase
+const { data:produtosData, error:e2 } = await supabase
 .from("produtos")
 .select("*")
 .eq("empresa_id",empresa_id);
 
-const { data:vendasData } = await supabase
+const { data:vendasData, error:e3 } = await supabase
 .from("vendas")
 .select("*")
 .eq("empresa_id",empresa_id)
 .order("data_venda",{ascending:false});
+
+if(e1 || e2 || e3){
+console.error("Erro dados:", e1 || e2 || e3);
+}
 
 setClientes(clientesData || []);
 setProdutos(produtosData || []);
@@ -109,7 +118,6 @@ setVendas(vendasData || []);
 }
 
 // ================= CALCULOS
-
 const qtd = parseFloat(quantidade) || 0;
 const preco = parseFloat(precoUnitario) || 0;
 
@@ -119,23 +127,24 @@ const valorParcela = parcelas > 0 ? valorTotal / parcelas : valorTotal;
 const comissao = qtd * 0.05;
 
 // ================= SALVAR
-
 async function salvarVenda(){
 
+try{
+
 if(!empresaId) return alert("Empresa não carregada");
-
 if(!clienteNome) return alert("Informe o cliente");
-
 if(qtd <= 0) return alert("Quantidade inválida");
 
 const { data:{ user } } = await supabase.auth.getUser();
 
-// 🔥 CRIA CLIENTE SE NÃO EXISTIR
+if(!user) return alert("Usuário não autenticado");
+
+// 🔥 CRIAR CLIENTE
 let clienteFinalId = clienteId;
 
 if(!clienteId){
 
-const { data:novoCliente } = await supabase
+const { data:novoCliente, error:erroCliente } = await supabase
 .from("clientes")
 .insert([{
 nome: clienteNome,
@@ -144,20 +153,32 @@ empresa_id: empresaId
 .select()
 .single();
 
-clienteFinalId = novoCliente?.id;
+if(erroCliente){
+console.error("ERRO CLIENTE:", erroCliente);
+alert("Erro ao criar cliente: " + erroCliente.message);
+return;
 }
 
-// 🔥 SALVA VENDA
+clienteFinalId = novoCliente?.id;
+
+if(!clienteFinalId){
+alert("Erro ao gerar cliente");
+return;
+}
+
+}
+
+// 🔥 SALVAR VENDA
 const { data:venda, error } = await supabase
 .from("vendas")
 .insert([{
 empresa_id:empresaId,
 cliente_id:clienteFinalId,
 produto: produtoId || null,
-kilos:qtd,
-preco_unitario:preco,
-valor_total:valorTotal,
-comissao:comissao,
+kilos:Number(qtd),
+preco_unitario:Number(preco),
+valor_total:Number(valorTotal),
+comissao:Number(comissao),
 data_venda:dataVenda,
 user_id:user.id
 }])
@@ -165,20 +186,17 @@ user_id:user.id
 .single();
 
 if(error){
-console.log(error);
-alert("Erro ao salvar venda");
+console.error("ERRO VENDA:", error);
+alert("Erro ao salvar venda: " + error.message);
 return;
 }
 
-// ================= 🔥 NOVO: GERAR RECEBIMENTOS
-
+// 🔥 RECEBIMENTOS
 let listaRecebimentos = [];
 
 for(let i=1;i<=parcelas;i++){
 
 let dataParcela = new Date(dataVenda);
-
-// intervalo padrão 30 dias (depois melhoramos)
 dataParcela.setDate(dataParcela.getDate() + ((i-1)*30));
 
 listaRecebimentos.push({
@@ -191,11 +209,17 @@ status: "pendente"
 });
 }
 
-await supabase.from("recebimentos").insert(listaRecebimentos);
+const { error:erroRec } = await supabase
+.from("recebimentos")
+.insert(listaRecebimentos);
 
-// ================= FINAL
+if(erroRec){
+console.error("ERRO RECEBIMENTOS:", erroRec);
+alert("Venda salva, mas erro nos recebimentos");
+}
 
-alert("Venda registrada!");
+// FINAL
+alert("Venda registrada com sucesso!");
 
 setQuantidade("");
 setPrecoUnitario("");
@@ -206,10 +230,14 @@ setProdutoId("");
 
 buscarDados(empresaId);
 
+}catch(err){
+console.error("ERRO GERAL:", err);
+alert("Erro inesperado: " + err.message);
+}
+
 }
 
 // ================= TELA
-
 return(
 
 <div style={{padding:20}}>
@@ -321,9 +349,7 @@ marginBottom:10
 }}>
 
 📅 {new Date(v.data_venda).toLocaleDateString("pt-BR")}
-
 <br/>
-
 R$ {Number(v.valor_total).toFixed(2)}
 
 </div>
