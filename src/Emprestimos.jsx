@@ -4,14 +4,15 @@ import { supabase } from "./supabase";
 export default function Emprestimos({ empresaId }) {
 
   const [cliente, setCliente] = useState("");
-  const [valor, setValor] = useState(""); // 🔥 corrigido aqui
-  const [juros, setJuros] = useState(30);
+  const [valor, setValor] = useState("");
+  const [juros, setJuros] = useState(""); // 🔥 corrigido
   const [prazo, setPrazo] = useState(30);
 
-  // 🔥 converter valor corretamente
+  // 🔥 conversões corretas
   const valorNumero = Number(valor || 0);
+  const jurosNumero = Number(juros || 0);
 
-  const total = valorNumero + (valorNumero * (juros / 100));
+  const total = valorNumero + (valorNumero * (jurosNumero / 100));
 
   const dataVencimento = new Date();
   dataVencimento.setDate(dataVencimento.getDate() + prazo);
@@ -29,7 +30,7 @@ export default function Emprestimos({ empresaId }) {
         empresa_id: empresaId,
         cliente,
         valor: valorNumero,
-        juros,
+        juros: jurosNumero,
         total,
         prazo,
         data_vencimento: dataVencimento,
@@ -38,16 +39,16 @@ export default function Emprestimos({ empresaId }) {
 
     if(error){
       console.log(error);
-      alert("Erro ao salvar");
+      alert("Erro: " + error.message);
       return;
     }
 
     alert("Empréstimo salvo com sucesso!");
 
-    // 🔥 limpar campos corretamente
+    // 🔥 limpar campos
     setCliente("");
     setValor("");
-    setJuros(30);
+    setJuros("");
     setPrazo(30);
   }
 
@@ -75,7 +76,7 @@ export default function Emprestimos({ empresaId }) {
         type="number"
         placeholder="Ex: 2000"
         value={valor}
-        onChange={(e)=>setValor(e.target.value)} // 🔥 corrigido aqui
+        onChange={(e)=>setValor(e.target.value)}
       />
 
       <label>Juros (%)</label>
@@ -84,7 +85,7 @@ export default function Emprestimos({ empresaId }) {
         type="number"
         placeholder="Ex: 30"
         value={juros}
-        onChange={(e)=>setJuros(Number(e.target.value))}
+        onChange={(e)=>setJuros(e.target.value)}
       />
 
       <label>Prazo (dias)</label>
