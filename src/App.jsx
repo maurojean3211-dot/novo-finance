@@ -19,8 +19,6 @@ import Compras from "./Compras.jsx";
 
 import Emprestimos from "./Emprestimos.jsx";
 import Atrasos from "./Atrasos.jsx";
-
-// 🔥 NOVO
 import EmprestimosLista from "./EmprestimosLista.jsx";
 
 export default function App(){
@@ -28,6 +26,8 @@ export default function App(){
 const [session,setSession] = useState(null);
 const [loadingSession,setLoadingSession] = useState(true);
 const [pagina,setPagina] = useState("dashboard");
+const [subPaginaEmprestimo,setSubPaginaEmprestimo] = useState("cadastro");
+
 const [role,setRole] = useState(null);
 const [empresaId,setEmpresaId] = useState(null);
 const [isMobile,setIsMobile] = useState(window.innerWidth < 768);
@@ -50,14 +50,12 @@ useEffect(()=>{
 async function carregarSessao(){
 
 try{
-
 const { data } = await supabase.auth.getUser();
 const user = data?.user || null;
 
 setSession(user ? { user } : null);
 
 if(user){
-
 let { data:usuario } = await supabase
 .from("usuarios")
 .select("role,empresa_id")
@@ -69,15 +67,13 @@ if(usuario?.empresa_id){
 }
 
 setRole(usuario?.role || "cliente");
-
 }
 
 }catch(err){
-console.log("Erro sessão:",err);
+console.log(err);
 } finally {
 setLoadingSession(false);
 }
-
 }
 
 carregarSessao();
@@ -88,7 +84,6 @@ supabase.auth.onAuthStateChange(async (_event,newSession)=>{
 setSession(newSession);
 
 if(newSession?.user){
-
 let { data:usuario } = await supabase
 .from("usuarios")
 .select("role,empresa_id")
@@ -100,14 +95,10 @@ if(usuario?.empresa_id){
 }
 
 setRole(usuario?.role || "cliente");
-
 }
-
 });
 
-return ()=>{
-subscription?.unsubscribe();
-};
+return ()=> subscription?.unsubscribe();
 
 },[]);
 
@@ -117,7 +108,7 @@ async function sair(){
 }
 
 if(loadingSession){
-return <div style={{color:"#fff",padding:20}}>Iniciando sistema...</div>;
+return <div style={{color:"#fff",padding:20}}>Carregando...</div>;
 }
 
 if(!session){
@@ -145,12 +136,9 @@ color:"#fff"
 <div style={{
 width: isMobile ? "100%" : 230,
 background:"#020617",
-borderRight: isMobile ? "none" : "1px solid #1e293b",
-borderBottom: isMobile ? "1px solid #1e293b" : "none",
 padding:15,
 display:"flex",
-flexDirection: isMobile ? "row" : "column",
-flexWrap: isMobile ? "wrap" : "nowrap",
+flexDirection:"column",
 gap:10
 }}>
 
@@ -164,17 +152,9 @@ gap:10
 <button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>💰 Recebimentos</button>
 <button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>👥 Clientes</button>
 
+{/* 🔥 EMPRESTIMOS ÚNICO */}
 <button onClick={()=>setPagina("emprestimos")} style={pagina==="emprestimos" ? botaoAtivo : botaoMenu}>
 💸 Empréstimos
-</button>
-
-{/* 🔥 NOVO BOTÃO DE COBRANÇA */}
-<button onClick={()=>setPagina("listaEmprestimos")} style={pagina==="listaEmprestimos" ? botaoAtivo : botaoMenu}>
-📋 Cobrança
-</button>
-
-<button onClick={()=>setPagina("atrasos")} style={pagina==="atrasos" ? botaoAtivo : botaoMenu}>
-🚨 Atrasos
 </button>
 
 {role === "admin" && (
@@ -191,10 +171,6 @@ gap:10
 <button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>💳 Pessoal</button>
 <button onClick={()=>setPagina("relatorio")} style={pagina==="relatorio" ? botaoAtivo : botaoMenu}>📄 Relatórios</button>
 
-{role === "admin" && (
-<button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>👑 Master</button>
-)}
-
 <button onClick={sair} style={{...botaoMenu, background:"#ef4444"}}>
 🚪 Sair
 </button>
@@ -209,9 +185,24 @@ gap:10
 {pagina==="recebimentos" && <Recebimentos empresaId={empresaId} />}
 {pagina==="clientes" && <Clientes />}
 
-{pagina==="emprestimos" && <Emprestimos empresaId={empresaId} />}
-{pagina==="listaEmprestimos" && <EmprestimosLista empresaId={empresaId} />}
-{pagina==="atrasos" && <Atrasos empresaId={empresaId} />}
+{/* 🔥 TELA ÚNICA DE EMPRESTIMOS */}
+{pagina==="emprestimos" && (
+  <div>
+
+    <h2>💸 Empréstimos</h2>
+
+    <div style={{display:"flex",gap:10,marginBottom:20}}>
+      <button onClick={()=>setSubPaginaEmprestimo("cadastro")} style={botaoMenu}>➕ Novo</button>
+      <button onClick={()=>setSubPaginaEmprestimo("lista")} style={botaoMenu}>📋 Cobrança</button>
+      <button onClick={()=>setSubPaginaEmprestimo("atrasos")} style={botaoMenu}>🚨 Atrasos</button>
+    </div>
+
+    {subPaginaEmprestimo==="cadastro" && <Emprestimos empresaId={empresaId} />}
+    {subPaginaEmprestimo==="lista" && <EmprestimosLista empresaId={empresaId} />}
+    {subPaginaEmprestimo==="atrasos" && <Atrasos empresaId={empresaId} />}
+
+  </div>
+)}
 
 {pagina==="lucro" && role==="admin" && <Lucro />}
 
@@ -226,9 +217,7 @@ gap:10
 </div>
 
 </div>
-
 );
-
 }
 
 const botaoMenu={
