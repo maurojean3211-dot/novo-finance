@@ -5,36 +5,34 @@ export default function Emprestimos({ empresaId }) {
 
   const [cliente, setCliente] = useState("");
   const [valor, setValor] = useState(0);
-  const [parcelas, setParcelas] = useState(1);
-  const [prazo, setPrazo] = useState(1);
-  const [juros, setJuros] = useState(30); // 🔥 NOVO
+  const [juros, setJuros] = useState(30);
+  const [prazo, setPrazo] = useState(30);
 
-  // 🔥 CÁLCULO DINÂMICO
+  // 🔥 cálculo
   const total = valor + (valor * (juros / 100));
-  const valorParcela = parcelas > 0 ? total / parcelas : 0;
 
-  async function salvarEmprestimo(){
+  const dataVencimento = new Date();
+  dataVencimento.setDate(dataVencimento.getDate() + prazo);
+
+  async function salvar(){
 
     if(!cliente || !valor){
       alert("Preencha os campos!");
       return;
     }
 
-    // 🔥 SALVA EMPRESTIMO
-    const { data:emprestimo, error } = await supabase
+    const { error } = await supabase
       .from("emprestimos")
       .insert([{
         empresa_id: empresaId,
         cliente,
         valor,
+        juros,
         total,
-        parcelas,
-        valor_parcela: valorParcela,
         prazo,
-        juros // 🔥 SALVA JUROS
-      }])
-      .select()
-      .single();
+        data_vencimento: dataVencimento,
+        status: "pendente"
+      }]);
 
     if(error){
       console.log(error);
@@ -42,90 +40,95 @@ export default function Emprestimos({ empresaId }) {
       return;
     }
 
-    // 🔥 GERAR PARCELAS AUTOMÁTICO (AJUSTADO PRO SEU BANCO)
-    const parcelasArray = [];
-
-    for(let i = 1; i <= parcelas; i++){
-
-      const vencimento = new Date();
-      vencimento.setDate(vencimento.getDate() + prazo * i);
-
-      parcelasArray.push({
-        emprestimo_id: emprestimo.id,
-        empresa_id: empresaId,
-        valor: valorParcela,
-        data_vencimento: vencimento,
-        status: "pendente",
-        numero_parcela: i
-      });
-    }
-
-    const { error: erroParcelas } = await supabase
-      .from("parcelas")
-      .insert(parcelasArray);
-
-    if(erroParcelas){
-      console.log(erroParcelas);
-      alert("Erro ao salvar parcelas");
-      return;
-    }
-
     alert("Empréstimo salvo com sucesso!");
 
-    // 🔥 LIMPAR CAMPOS
+    // limpar campos
     setCliente("");
     setValor(0);
-    setParcelas(1);
-    setPrazo(1);
     setJuros(30);
+    setPrazo(30);
   }
 
   return (
-    <div>
-      <h2>💸 Empréstimos</h2>
+    <div style={{
+      maxWidth:500,
+      background:"#020617",
+      padding:20,
+      borderRadius:10
+    }}>
 
+      <h2>💸 Empréstimo</h2>
+
+      <label>Cliente</label>
       <input
-        placeholder="Cliente"
+        style={input}
+        placeholder="Nome do cliente"
         value={cliente}
         onChange={(e)=>setCliente(e.target.value)}
       />
 
+      <label>Valor (R$)</label>
       <input
+        style={input}
         type="number"
-        placeholder="Valor"
+        placeholder="Ex: 2000"
         value={valor}
         onChange={(e)=>setValor(Number(e.target.value))}
       />
 
+      <label>Juros (%)</label>
       <input
+        style={input}
         type="number"
-        placeholder="Juros (%)"
+        placeholder="Ex: 30"
         value={juros}
         onChange={(e)=>setJuros(Number(e.target.value))}
       />
 
+      <label>Prazo (dias)</label>
       <input
+        style={input}
         type="number"
-        placeholder="Parcelas"
-        value={parcelas}
-        onChange={(e)=>setParcelas(Number(e.target.value))}
-      />
-
-      <input
-        type="number"
-        min="1"
-        max="30"
-        placeholder="Prazo (dias)"
+        placeholder="Ex: 30"
         value={prazo}
         onChange={(e)=>setPrazo(Number(e.target.value))}
       />
 
-      <h3>Total: R$ {total.toFixed(2)}</h3>
-      <h3>Parcela: R$ {valorParcela.toFixed(2)}</h3>
+      <div style={{
+        marginTop:20,
+        padding:15,
+        background:"#111827",
+        borderRadius:8
+      }}>
+        <p><b>Total a receber:</b> R$ {total.toFixed(2)}</p>
+        <p><b>Vencimento:</b> {dataVencimento.toLocaleDateString()}</p>
+      </div>
 
-      <button onClick={salvarEmprestimo}>
-        💾 Salvar
+      <button style={botao} onClick={salvar}>
+        💾 Salvar Empréstimo
       </button>
+
     </div>
   );
 }
+
+// 🔥 estilos
+const input = {
+  width:"100%",
+  padding:10,
+  marginTop:5,
+  marginBottom:10,
+  borderRadius:6,
+  border:"none"
+};
+
+const botao = {
+  marginTop:15,
+  width:"100%",
+  padding:12,
+  background:"#2563eb",
+  color:"#fff",
+  border:"none",
+  borderRadius:8,
+  cursor:"pointer"
+};
