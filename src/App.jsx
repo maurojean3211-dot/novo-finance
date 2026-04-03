@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-// 🔥 GARANTE CSS NO BUILD
 import "./index.css";
 
 import Login from "./Login";
@@ -15,15 +14,14 @@ import Relatorio from "./Relatorio.jsx";
 import Clientes from "./Clientes.jsx";
 import Recebimentos from "./Recebimentos.jsx";
 
-// 🔥 NOVOS
 import Vendas from "./Vendas.jsx";
 import Compras from "./Compras.jsx";
 
-// 🔥 EMPRESTIMOS
 import Emprestimos from "./Emprestimos.jsx";
-
-// 🔥 NOVO ATRASOS
 import Atrasos from "./Atrasos.jsx";
+
+// 🔥 NOVO
+import EmprestimosLista from "./EmprestimosLista.jsx";
 
 export default function App(){
 
@@ -34,13 +32,11 @@ const [role,setRole] = useState(null);
 const [empresaId,setEmpresaId] = useState(null);
 const [isMobile,setIsMobile] = useState(window.innerWidth < 768);
 
-// 🔥 REMOVE SPLASH
 useEffect(() => {
   const splash = document.getElementById("splash");
   if (splash) splash.style.display = "none";
 }, []);
 
-// RESPONSIVO
 useEffect(()=>{
   function handleResize(){
     setIsMobile(window.innerWidth < 768);
@@ -49,7 +45,6 @@ useEffect(()=>{
   return ()=> window.removeEventListener("resize",handleResize);
 },[]);
 
-// SESSÃO
 useEffect(()=>{
 
 async function carregarSessao(){
@@ -116,31 +111,25 @@ subscription?.unsubscribe();
 
 },[]);
 
-// LOGOUT
 async function sair(){
   await supabase.auth.signOut();
   setSession(null);
 }
 
-// LOADING
 if(loadingSession){
 return <div style={{color:"#fff",padding:20}}>Iniciando sistema...</div>;
 }
 
-// LOGIN
 if(!session){
 return <Login />;
 }
 
-// EMPRESA
 if(session && empresaId === null){
 return <div style={{color:"#fff",padding:20}}>Carregando empresa...</div>;
 }
 
-// IDENTIFICA VOCÊ
 const isMauro = session?.user?.email === "maurojean3211@gmail.com";
 
-// APP
 return(
 
 <div style={{
@@ -179,7 +168,11 @@ gap:10
 💸 Empréstimos
 </button>
 
-{/* 🔥 NOVO ATRASOS */}
+{/* 🔥 NOVO BOTÃO DE COBRANÇA */}
+<button onClick={()=>setPagina("listaEmprestimos")} style={pagina==="listaEmprestimos" ? botaoAtivo : botaoMenu}>
+📋 Cobrança
+</button>
+
 <button onClick={()=>setPagina("atrasos")} style={pagina==="atrasos" ? botaoAtivo : botaoMenu}>
 🚨 Atrasos
 </button>
@@ -217,6 +210,7 @@ gap:10
 {pagina==="clientes" && <Clientes />}
 
 {pagina==="emprestimos" && <Emprestimos empresaId={empresaId} />}
+{pagina==="listaEmprestimos" && <EmprestimosLista empresaId={empresaId} />}
 {pagina==="atrasos" && <Atrasos empresaId={empresaId} />}
 
 {pagina==="lucro" && role==="admin" && <Lucro />}
@@ -237,7 +231,6 @@ gap:10
 
 }
 
-// ESTILO
 const botaoMenu={
 width:"100%",
 padding:10,
