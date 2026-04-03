@@ -4,19 +4,21 @@ import { supabase } from "./supabase";
 export default function Emprestimos({ empresaId }) {
 
   const [cliente, setCliente] = useState("");
-  const [valor, setValor] = useState(0);
+  const [valor, setValor] = useState(""); // 🔥 corrigido aqui
   const [juros, setJuros] = useState(30);
   const [prazo, setPrazo] = useState(30);
 
-  // 🔥 cálculo
-  const total = valor + (valor * (juros / 100));
+  // 🔥 converter valor corretamente
+  const valorNumero = Number(valor || 0);
+
+  const total = valorNumero + (valorNumero * (juros / 100));
 
   const dataVencimento = new Date();
   dataVencimento.setDate(dataVencimento.getDate() + prazo);
 
   async function salvar(){
 
-    if(!cliente || !valor){
+    if(!cliente || !valorNumero){
       alert("Preencha os campos!");
       return;
     }
@@ -26,7 +28,7 @@ export default function Emprestimos({ empresaId }) {
       .insert([{
         empresa_id: empresaId,
         cliente,
-        valor,
+        valor: valorNumero,
         juros,
         total,
         prazo,
@@ -42,9 +44,9 @@ export default function Emprestimos({ empresaId }) {
 
     alert("Empréstimo salvo com sucesso!");
 
-    // limpar campos
+    // 🔥 limpar campos corretamente
     setCliente("");
-    setValor(0);
+    setValor("");
     setJuros(30);
     setPrazo(30);
   }
@@ -73,7 +75,7 @@ export default function Emprestimos({ empresaId }) {
         type="number"
         placeholder="Ex: 2000"
         value={valor}
-        onChange={(e)=>setValor(Number(e.target.value))}
+        onChange={(e)=>setValor(e.target.value)} // 🔥 corrigido aqui
       />
 
       <label>Juros (%)</label>
