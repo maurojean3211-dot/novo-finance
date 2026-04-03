@@ -32,11 +32,15 @@ export default function EmprestimosLista({ empresaId }) {
     return dias > 0 ? dias : 0;
   }
 
-  async function marcarPago(id){
+  // 🔥 BOTÃO PAGO (AGORA ALTERNA)
+  async function togglePago(p){
+
+    const novoStatus = p.status === "pago" ? "pendente" : "pago";
+
     await supabase
       .from("emprestimos")
-      .update({ status:"pago" })
-      .eq("id", id);
+      .update({ status: novoStatus })
+      .eq("id", p.id);
 
     carregar();
   }
@@ -52,7 +56,13 @@ export default function EmprestimosLista({ empresaId }) {
     carregar();
   }
 
+  // 🔥 WHATSAPP COM TELEFONE
   function cobrar(p){
+
+    if(!p.telefone){
+      alert("Cliente sem telefone cadastrado!");
+      return;
+    }
 
     const mensagem = `Olá ${p.cliente},
 
@@ -64,7 +74,10 @@ Vencimento: ${new Date(p.data_vencimento).toLocaleDateString()}
 
 PIX: SUA_CHAVE_AQUI`;
 
-    const url = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+    const telefone = p.telefone.replace(/\D/g, "");
+
+    const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+
     window.open(url, "_blank");
   }
 
@@ -91,6 +104,10 @@ PIX: SUA_CHAVE_AQUI`;
           }}>
 
             <p><b>Cliente:</b> {p.cliente}</p>
+            <p><b>Telefone:</b> {p.telefone || "-"}</p>
+            <p><b>CPF:</b> {p.cpf || "-"}</p>
+            <p><b>Endereço:</b> {p.endereco || "-"}</p>
+
             <p><b>Valor:</b> R$ {p.valor}</p>
             <p><b>Total:</b> R$ {p.total}</p>
             <p><b>Vencimento:</b> {new Date(p.data_vencimento).toLocaleDateString()}</p>
@@ -109,8 +126,8 @@ PIX: SUA_CHAVE_AQUI`;
                 💰 PIX
               </button>
 
-              <button onClick={()=>marcarPago(p.id)}>
-                ✅ Pago
+              <button onClick={()=>togglePago(p)}>
+                {p.status === "pago" ? "↩️ Desfazer" : "✅ Pago"}
               </button>
 
               <button onClick={()=>excluir(p.id)}>
