@@ -19,6 +19,12 @@ import Recebimentos from "./Recebimentos.jsx";
 import Vendas from "./Vendas.jsx";
 import Compras from "./Compras.jsx";
 
+// 🔥 EMPRESTIMOS
+import Emprestimos from "./Emprestimos.jsx";
+
+// 🔥 NOVO ATRASOS
+import Atrasos from "./Atrasos.jsx";
+
 export default function App(){
 
 const [session,setSession] = useState(null);
@@ -110,7 +116,7 @@ subscription?.unsubscribe();
 
 },[]);
 
-// 🔥 LOGOUT
+// LOGOUT
 async function sair(){
   await supabase.auth.signOut();
   setSession(null);
@@ -128,14 +134,10 @@ return <Login />;
 
 // EMPRESA
 if(session && empresaId === null){
-return (
-<div style={{color:"#fff",padding:20}}>
-Carregando empresa... (aguarde)
-</div>
-);
+return <div style={{color:"#fff",padding:20}}>Carregando empresa...</div>;
 }
 
-// 🔥 IDENTIFICA SE É VOCÊ
+// IDENTIFICA VOCÊ
 const isMauro = session?.user?.email === "maurojean3211@gmail.com";
 
 // APP
@@ -163,69 +165,41 @@ flexWrap: isMobile ? "wrap" : "nowrap",
 gap:10
 }}>
 
-{/* LOGO */}
-<div style={{
-display:"flex",
-alignItems:"center",
-gap:10,
-marginBottom:10,
-width:"100%"
-}}>
+<div style={{display:"flex",alignItems:"center",gap:10}}>
 <img src="/logo.png" width={40} />
-<h2 style={{margin:0}}>Cunha Finance</h2>
+<h2>Cunha Finance</h2>
 </div>
 
-<button onClick={()=>setPagina("dashboard")} style={pagina==="dashboard" ? botaoAtivo : botaoMenu}>
-📊 Dashboard
+<button onClick={()=>setPagina("dashboard")} style={pagina==="dashboard" ? botaoAtivo : botaoMenu}>📊 Dashboard</button>
+<button onClick={()=>setPagina("financeiro")} style={pagina==="financeiro" ? botaoAtivo : botaoMenu}>💰 Financeiro</button>
+<button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>💰 Recebimentos</button>
+<button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>👥 Clientes</button>
+
+<button onClick={()=>setPagina("emprestimos")} style={pagina==="emprestimos" ? botaoAtivo : botaoMenu}>
+💸 Empréstimos
 </button>
 
-<button onClick={()=>setPagina("financeiro")} style={pagina==="financeiro" ? botaoAtivo : botaoMenu}>
-💰 Financeiro
-</button>
-
-<button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>
-💰 Recebimentos
-</button>
-
-<button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>
-👥 Clientes
+{/* 🔥 NOVO ATRASOS */}
+<button onClick={()=>setPagina("atrasos")} style={pagina==="atrasos" ? botaoAtivo : botaoMenu}>
+🚨 Atrasos
 </button>
 
 {role === "admin" && (
-<button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>
-📈 Lucro
-</button>
+<button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>📈 Lucro</button>
 )}
 
-{/* 🔥 NOVO MENU SÓ PRA VOCÊ */}
 {isMauro && (
 <>
-<button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>
-📦 Vendas
-</button>
-
-<button onClick={()=>setPagina("compras")} style={pagina==="compras" ? botaoAtivo : botaoMenu}>
-🧱 Compras
-</button>
+<button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>📦 Vendas</button>
+<button onClick={()=>setPagina("compras")} style={pagina==="compras" ? botaoAtivo : botaoMenu}>🧱 Compras</button>
 </>
 )}
 
-<button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>
-💳 Pessoal
-</button>
-
-<button onClick={()=>setPagina("relatorio")} style={pagina==="relatorio" ? botaoAtivo : botaoMenu}>
-📄 Relatórios
-</button>
-
-<button onClick={()=>setPagina("admin")} style={pagina==="admin" ? botaoAtivo : botaoMenu}>
-⚙ Sistema
-</button>
+<button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>💳 Pessoal</button>
+<button onClick={()=>setPagina("relatorio")} style={pagina==="relatorio" ? botaoAtivo : botaoMenu}>📄 Relatórios</button>
 
 {role === "admin" && (
-<button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>
-👑 Master Admin
-</button>
+<button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>👑 Master</button>
 )}
 
 <button onClick={sair} style={{...botaoMenu, background:"#ef4444"}}>
@@ -235,18 +209,18 @@ width:"100%"
 </div>
 
 {/* CONTEÚDO */}
-<div style={{
-flex:1,
-padding:20
-}}>
+<div style={{flex:1,padding:20}}>
 
 {pagina==="dashboard" && <Dashboard />}
 {pagina==="financeiro" && <Financeiro empresaId={empresaId} />}
 {pagina==="recebimentos" && <Recebimentos empresaId={empresaId} />}
 {pagina==="clientes" && <Clientes />}
+
+{pagina==="emprestimos" && <Emprestimos empresaId={empresaId} />}
+{pagina==="atrasos" && <Atrasos empresaId={empresaId} />}
+
 {pagina==="lucro" && role==="admin" && <Lucro />}
 
-{/* 🔥 NOVAS TELAS */}
 {pagina==="vendas" && isMauro && <Vendas empresaId={empresaId} />}
 {pagina==="compras" && isMauro && <Compras empresaId={empresaId} />}
 
@@ -263,9 +237,8 @@ padding:20
 
 }
 
-// ESTILOS
+// ESTILO
 const botaoMenu={
-display:"block",
 width:"100%",
 padding:10,
 background:"#111827",
@@ -276,7 +249,6 @@ cursor:"pointer"
 };
 
 const botaoAtivo={
-display:"block",
 width:"100%",
 padding:10,
 background:"#2563eb",
