@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
@@ -27,13 +26,21 @@ async function carregarEmpresa(){
 
 const { data:{ user } } = await supabase.auth.getUser();
 
-if(!user) return;
+if(!user){
+console.log("Sem usuário");
+return;
+}
 
-const { data:usuario } = await supabase
+const { data:usuario, error } = await supabase
 .from("usuarios")
 .select("empresa_id")
 .eq("id", user.id)
 .single();
+
+if(error){
+console.error("Erro usuario:", error);
+return;
+}
 
 if(!usuario?.empresa_id){
 alert("Sem empresa vinculada");
@@ -50,24 +57,33 @@ carregarPix(usuario.empresa_id);
 // ================= DADOS
 async function carregarDados(empresa_id){
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("emprestimos")
 .select("*")
 .eq("empresa_id", empresa_id)
 .order("data_vencimento",{ascending:true});
 
+if(error){
+console.error("Erro dados:", error);
+}
+
 setDados(data || []);
 
 }
 
-// ================= PIX
+// ================= PIX (CORRIGIDO)
 async function carregarPix(empresa_id){
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("empresas")
-.select("*")
+.select("pix_chave")
 .eq("id", empresa_id)
 .single();
+
+if(error){
+console.error("Erro carregar PIX:", error);
+return;
+}
 
 if(data){
 setPixChave(data.pix_chave || "");
@@ -78,24 +94,35 @@ setPixEdit(data.pix_chave || "");
 
 async function salvarPix(){
 
-if(!empresaRealId) return alert("Empresa não carregada");
-
-const { error } = await supabase
-.from("empresas")
-.update({ pix_chave: pixEdit })
-.eq("id", empresaRealId);
-
-if(error){
-alert(error.message);
+if(!empresaRealId){
+alert("Empresa não carregada");
 return;
 }
 
-alert("PIX salvo!");
-carregarPix(empresaRealId);
+const { data, error } = await supabase
+.from("empresas")
+.update({ pix_chave: pixEdit })
+.eq("id", empresaRealId)
+.select();
+
+if(error){
+alert("Erro PIX: " + error.message);
+return;
+}
+
+if(!data || data.length === 0){
+alert("RLS bloqueando leitura do PIX");
+return;
+}
+
+// 🔥 ATUALIZA NA HORA
+setPixChave(pixEdit);
+
+alert("PIX salvo com sucesso!");
 
 }
 
-// ================= SALVAR
+// ================= SALVAR EMPRÉSTIMO
 async function salvar(){
 
 if(!empresaRealId) return alert("Empresa não carregada");
@@ -142,9 +169,9 @@ carregarDados(empresaRealId);
 // ================= TELA
 return(
 
-<div style={{padding:20, color:"#fff"}}>
+<div style={{padding:20, color:"#fff", maxWidth:600, margin:"auto"}}>
 
-<h2>💰 Empréstimos</h2>
+<h2 style={{marginBottom:20}}>💰 Empréstimos</h2>
 
 {/* PIX */}
 <div style={{
@@ -156,12 +183,14 @@ marginBottom:20
 
 <h3>Minha chave PIX</h3>
 
-<div>{pixChave || "Nenhuma chave cadastrada"}</div>
+<div style={{marginBottom:10}}>
+{pixChave || "Nenhuma chave cadastrada"}
+</div>
 
 <input
 value={pixEdit}
 onChange={e=>setPixEdit(e.target.value)}
-style={{width:"100%", marginTop:10}}
+style={{width:"100%", padding:8}}
 />
 
 <button onClick={salvarPix} style={{marginTop:10}}>
