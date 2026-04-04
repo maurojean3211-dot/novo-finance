@@ -11,7 +11,7 @@ export default function EmprestimosLista({ empresaId }) {
   // PIX EMPRESA
   const [pixChave, setPixChave] = useState("");
   const [pixEdit, setPixEdit] = useState("");
-  const [empresaRealId, setEmpresaRealId] = useState(null); // 🔥 NOVO
+  const [empresaRealId, setEmpresaRealId] = useState(null);
 
   // PIX DO EMPRÉSTIMO
   const [pixCobranca, setPixCobranca] = useState("");
@@ -40,31 +40,25 @@ export default function EmprestimosLista({ empresaId }) {
     setDados(data || []);
   }
 
-  // 🔥 CARREGAR PIX CORRIGIDO
+  // 🔥 CARREGA EMPRESA REAL
   async function carregarPix(){
-
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("empresas")
       .select("*")
       .limit(1);
 
-    if(error){
-      console.log(error);
-      return;
-    }
-
     if(data && data.length > 0){
-      setEmpresaRealId(data[0].id); // 👈 GUARDA ID REAL
+      setEmpresaRealId(data[0].id);
       setPixChave(data[0].pix_chave || "");
       setPixEdit(data[0].pix_chave || "");
     }
   }
 
-  // 🔥 SALVAR PIX FUNCIONANDO
+  // 🔥 SALVA PIX
   async function salvarPix(){
 
     if(!empresaRealId){
-      alert("Empresa não encontrada");
+      alert("Empresa não carregada");
       return;
     }
 
@@ -188,6 +182,11 @@ PIX: ${pixFinal}`;
       return;
     }
 
+    if(!empresaRealId){
+      alert("Empresa não carregada ainda");
+      return;
+    }
+
     const valorBase = Number(valor);
     const jurosPercentual = Number(juros || 0);
 
@@ -212,6 +211,7 @@ PIX: ${pixFinal}`;
       await supabase
         .from("emprestimos")
         .insert([{
+          empresa_id: empresaRealId, // 🔥 AQUI ESTA A CORREÇÃO
           cliente,
           telefone,
           cpf,
@@ -224,6 +224,8 @@ PIX: ${pixFinal}`;
           status: "pendente"
         }]);
     }
+
+    alert("Salvo!");
 
     setEditandoId(null);
     setCliente("");
