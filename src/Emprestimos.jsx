@@ -6,6 +6,8 @@ export default function EmprestimosLista({ empresaId }) {
   const [dados, setDados] = useState([]);
   const [aba, setAba] = useState("lista");
 
+  const [editandoId, setEditandoId] = useState(null);
+
   // FORM
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -29,7 +31,6 @@ export default function EmprestimosLista({ empresaId }) {
       .order("data_vencimento", { ascending: true });
 
     if(error){
-      console.log(error);
       alert("Erro ao carregar");
       return;
     }
@@ -37,12 +38,26 @@ export default function EmprestimosLista({ empresaId }) {
     setDados(data || []);
   }
 
+  // ✅ CORREÇÃO DO ATRASO (FUSO BRASIL)
   function calcularAtraso(data_vencimento){
+
     const hoje = new Date();
-    const venc = new Date(data_vencimento);
+    hoje.setHours(0,0,0,0);
+
+    const partes = data_vencimento.split("-");
+    const venc = new Date(partes[0], partes[1]-1, partes[2]);
+
+    venc.setHours(0,0,0,0);
 
     const dias = Math.floor((hoje - venc) / (1000*60*60*24));
+
     return dias > 0 ? dias : 0;
+  }
+
+  // ✅ FORMATAR DATA CORRETA
+  function formatarData(data){
+    const partes = data.split("-");
+    return new Date(partes[0], partes[1]-1, partes[2]).toLocaleDateString();
   }
 
   async function togglePago(p){
@@ -70,17 +85,25 @@ export default function EmprestimosLista({ empresaId }) {
       .eq("id", id);
 
     if(error){
-      alert("Erro ao excluir");
+      alert("Erro ao excluir: " + error.message);
       return;
     }
 
+    alert("Excluído!");
     carregar();
   }
 
+  // ✅ PIX CORRIGIDO
   function cobrar(p){
     if(!p.telefone){
       alert("Cliente sem telefone!");
       return;
+    }
+
+    let telefone = p.telefone.replace(/\D/g, "");
+
+    if(telefone.length === 11 || telefone.length === 10){
+      telefone = "55" + telefone;
     }
 
     const mensagem = `Olá ${p.cliente},
@@ -88,17 +111,30 @@ export default function EmprestimosLista({ empresaId }) {
 Você tem um pagamento pendente.
 
 Valor: R$ ${p.total}
-Vencimento: ${new Date(p.data_vencimento).toLocaleDateString()}
+Vencimento: ${formatarData(p.data_vencimento)}
 
 PIX: SUA_CHAVE_AQUI`;
 
-    const telefone = p.telefone.replace(/\D/g, "");
-    const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
+    const url = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
 
     window.open(url, "_blank");
   }
 
-  // ✅ SALVAR NOVO
+  // ✅ EDITAR
+  function editar(p){
+    setCliente(p.cliente);
+    setTelefone(p.telefone);
+    setCpf(p.cpf);
+    setEndereco(p.endereco);
+    setValor(p.valor);
+    setTotal(p.total);
+    setDataVencimento(p.data_vencimento);
+
+    setEditandoId(p.id);
+    setAba("novo");
+  }
+
+  // ✅ SALVAR / EDITAR
   async function salvar(){
 
     if(!cliente || !valor || !dataVencimento){
@@ -108,29 +144,52 @@ PIX: SUA_CHAVE_AQUI`;
 
     const totalFinal = total ? Number(total) : Number(valor);
 
-    const { error } = await supabase
-      .from("emprestimos")
-      .insert([{
-        empresa_id: empresaId,
-        cliente,
-        telefone,
-        cpf,
-        endereco,
-        valor: Number(valor),
-        total: totalFinal,
-        data_vencimento: dataVencimento,
-        status: "pendente"
-      }]);
+    let error;
+
+    if(editandoId){
+
+      const res = await supabase
+        .from("emprestimos")
+        .update({
+          cliente,
+          telefone,
+          cpf,
+          endereco,
+          valor: Number(valor),
+          total: totalFinal,
+          data_vencimento: dataVencimento
+        })
+        .eq("id", editandoId);
+
+      error = res.error;
+
+    } else {
+
+      const res = await supabase
+        .from("emprestimos")
+        .insert([{
+          empresa_id: empresaId,
+          cliente,
+          telefone,
+          cpf,
+          endereco,
+          valor: Number(valor),
+          total: totalFinal,
+          data_vencimento: dataVencimento,
+          status: "pendente"
+        }]);
+
+      error = res.error;
+    }
 
     if(error){
-      console.log(error);
-      alert("Erro ao salvar: " + error.message);
+      alert("Erro: " + error.message);
       return;
     }
 
     alert("Salvo com sucesso!");
 
-    // limpa campos
+    setEditandoId(null);
     setCliente("");
     setTelefone("");
     setCpf("");
@@ -157,7 +216,7 @@ PIX: SUA_CHAVE_AQUI`;
       {aba === "novo" && (
         <div style={{background:"#111827", padding:15, borderRadius:8}}>
 
-          <h3>Novo Empréstimo</h3>
+          <h3>{editandoId ? "Editar" : "Novo"} Empréstimo</h3>
 
           <input placeholder="Cliente" value={cliente} onChange={e=>setCliente(e.target.value)} />
           <input placeholder="Telefone" value={telefone} onChange={e=>setTelefone(e.target.value)} />
@@ -196,7 +255,7 @@ PIX: SUA_CHAVE_AQUI`;
 
             <p><b>Valor:</b> R$ {p.valor}</p>
             <p><b>Total:</b> R$ {p.total}</p>
-            <p><b>Vencimento:</b> {new Date(p.data_vencimento).toLocaleDateString()}</p>
+            <p><b>Vencimento:</b> {formatarData(p.data_vencimento)}</p>
 
             {p.status === "pago" ? (
               <p style={{color:"#22c55e"}}>✅ Pago</p>
@@ -208,6 +267,7 @@ PIX: SUA_CHAVE_AQUI`;
 
             <div style={{marginTop:10, display:"flex", gap:10}}>
               <button onClick={()=>cobrar(p)}>💰 PIX</button>
+              <button onClick={()=>editar(p)}>✏️</button>
               <button onClick={()=>togglePago(p)}>
                 {p.status === "pago" ? "↩️" : "✅"}
               </button>
