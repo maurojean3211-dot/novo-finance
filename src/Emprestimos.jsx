@@ -8,6 +8,13 @@ export default function EmprestimosLista({ empresaId }) {
 
   const [editandoId, setEditandoId] = useState(null);
 
+  // PIX EMPRESA
+  const [pixChave, setPixChave] = useState("");
+  const [pixEdit, setPixEdit] = useState("");
+
+  // PIX DO EMPRÉSTIMO
+  const [pixCobranca, setPixCobranca] = useState("");
+
   // FORM
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -20,41 +27,60 @@ export default function EmprestimosLista({ empresaId }) {
   useEffect(()=>{
     if(empresaId){
       carregar();
+      carregarPix();
     }
   },[empresaId]);
 
   async function carregar(){
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("emprestimos")
       .select("*")
       .eq("empresa_id", empresaId)
       .order("data_vencimento", { ascending: true });
 
-    if(error){
-      alert("Erro ao carregar");
-      return;
-    }
-
     setDados(data || []);
   }
 
-  // ✅ CORREÇÃO DO ATRASO (FUSO BRASIL)
-  function calcularAtraso(data_vencimento){
+  async function carregarPix(){
+    const { data } = await supabase
+      .from("empresas")
+      .select("pix_chave")
+      .eq("id", empresaId)
+      .single();
 
+    if(data){
+      setPixChave(data.pix_chave || "");
+      setPixEdit(data.pix_chave || "");
+    }
+  }
+
+  async function salvarPix(){
+    const { error } = await supabase
+      .from("empresas")
+      .update({ pix_chave: pixEdit })
+      .eq("id", empresaId);
+
+    if(error){
+      alert("Erro ao salvar PIX");
+      return;
+    }
+
+    alert("PIX salvo!");
+    carregarPix();
+  }
+
+  function calcularAtraso(data_vencimento){
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
 
     const partes = data_vencimento.split("-");
     const venc = new Date(partes[0], partes[1]-1, partes[2]);
-
     venc.setHours(0,0,0,0);
 
     const dias = Math.floor((hoje - venc) / (1000*60*60*24));
-
     return dias > 0 ? dias : 0;
   }
 
-  // ✅ FORMATAR DATA CORRETA
   function formatarData(data){
     const partes = data.split("-");
     return new Date(partes[0], partes[1]-1, partes[2]).toLocaleDateString();
@@ -63,29 +89,30 @@ export default function EmprestimosLista({ empresaId }) {
   async function togglePago(p){
     const novoStatus = p.status === "pago" ? "pendente" : "pago";
 
-    const { error } = await supabase
+    await supabase
       .from("emprestimos")
       .update({ status: novoStatus })
       .eq("id", p.id);
-
-    if(error){
-      alert("Erro ao atualizar");
-      return;
-    }
 
     carregar();
   }
 
   async function excluir(id){
-    if(!confirm("Deseja excluir esse empréstimo?")) return;
+    if(!confirm("Deseja excluir?")) return;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("emprestimos")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .select();
 
     if(error){
       alert("Erro ao excluir: " + error.message);
+      return;
+    }
+
+    if(!data || data.length === 0){
+      alert("Bloqueado pelo banco (RLS)");
       return;
     }
 
@@ -93,10 +120,17 @@ export default function EmprestimosLista({ empresaId }) {
     carregar();
   }
 
-  // ✅ PIX CORRIGIDO
+  // 🔥 COBRANÇA COM PIX INTELIGENTE
   function cobrar(p){
     if(!p.telefone){
       alert("Cliente sem telefone!");
+      return;
+    }
+
+    const pixFinal = p.pix_cobranca || pixChave;
+
+    if(!pixFinal){
+      alert("Cadastre um PIX!");
       return;
     }
 
@@ -106,21 +140,23 @@ export default function EmprestimosLista({ empresaId }) {
       telefone = "55" + telefone;
     }
 
+    const valorBase = Number(p.valor);
+    const jurosPercentual = Number(p.juros || 0);
+
+    const totalComJuros = valorBase + (valorBase * jurosPercentual / 100);
+
     const mensagem = `Olá ${p.cliente},
 
-Você tem um pagamento pendente.
-
-Valor: R$ ${p.total}
+Valor: R$ ${totalComJuros.toFixed(2)}
 Vencimento: ${formatarData(p.data_vencimento)}
 
-PIX: SUA_CHAVE_AQUI`;
+PIX: ${pixFinal}`;
 
     const url = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
 
     window.open(url, "_blank");
   }
 
-  // ✅ EDITAR
   function editar(p){
     setCliente(p.cliente);
     setTelefone(p.telefone);
@@ -129,26 +165,23 @@ PIX: SUA_CHAVE_AQUI`;
     setValor(p.valor);
     setTotal(p.total);
     setDataVencimento(p.data_vencimento);
+    setPixCobranca(p.pix_cobranca || "");
 
     setEditandoId(p.id);
     setAba("novo");
   }
 
-  // ✅ SALVAR / EDITAR
   async function salvar(){
 
     if(!cliente || !valor || !dataVencimento){
-      alert("Preencha os campos obrigatórios");
+      alert("Preencha os campos");
       return;
     }
 
     const totalFinal = total ? Number(total) : Number(valor);
 
-    let error;
-
     if(editandoId){
-
-      const res = await supabase
+      await supabase
         .from("emprestimos")
         .update({
           cliente,
@@ -157,15 +190,12 @@ PIX: SUA_CHAVE_AQUI`;
           endereco,
           valor: Number(valor),
           total: totalFinal,
-          data_vencimento: dataVencimento
+          data_vencimento: dataVencimento,
+          pix_cobranca: pixCobranca
         })
         .eq("id", editandoId);
-
-      error = res.error;
-
     } else {
-
-      const res = await supabase
+      await supabase
         .from("emprestimos")
         .insert([{
           empresa_id: empresaId,
@@ -176,18 +206,10 @@ PIX: SUA_CHAVE_AQUI`;
           valor: Number(valor),
           total: totalFinal,
           data_vencimento: dataVencimento,
+          pix_cobranca: pixCobranca,
           status: "pendente"
         }]);
-
-      error = res.error;
     }
-
-    if(error){
-      alert("Erro: " + error.message);
-      return;
-    }
-
-    alert("Salvo com sucesso!");
 
     setEditandoId(null);
     setCliente("");
@@ -197,6 +219,7 @@ PIX: SUA_CHAVE_AQUI`;
     setValor("");
     setTotal("");
     setDataVencimento("");
+    setPixCobranca("");
 
     setAba("lista");
     carregar();
@@ -207,96 +230,71 @@ PIX: SUA_CHAVE_AQUI`;
 
       <h2>💰 Empréstimos</h2>
 
-      <div style={{display:"flex", gap:10, marginBottom:20}}>
-        <button onClick={()=>setAba("lista")}>📋 Lista</button>
-        <button onClick={()=>setAba("novo")}>➕ Novo</button>
-        <button onClick={()=>setAba("atrasados")}>⚠️ Atrasos</button>
+      {/* PIX EMPRESA */}
+      <div style={{background:"#1f2937", padding:15, borderRadius:8, marginBottom:20}}>
+        <h3>🔑 Minha chave PIX</h3>
+
+        <div style={{background:"#111827", padding:10, borderRadius:6, marginBottom:10}}>
+          {pixChave || "Nenhuma chave cadastrada"}
+        </div>
+
+        <input
+          value={pixEdit}
+          onChange={e=>setPixEdit(e.target.value)}
+          style={{width:"100%", marginBottom:10}}
+        />
+
+        <button onClick={salvarPix}>💾 Salvar PIX</button>
       </div>
 
+      {/* FORM */}
       {aba === "novo" && (
-        <div style={{background:"#111827", padding:15, borderRadius:8}}>
-
-          <h3>{editandoId ? "Editar" : "Novo"} Empréstimo</h3>
+        <div style={{background:"#111827", padding:15}}>
 
           <input placeholder="Cliente" value={cliente} onChange={e=>setCliente(e.target.value)} />
           <input placeholder="Telefone" value={telefone} onChange={e=>setTelefone(e.target.value)} />
-          <input placeholder="CPF" value={cpf} onChange={e=>setCpf(e.target.value)} />
-          <input placeholder="Endereço" value={endereco} onChange={e=>setEndereco(e.target.value)} />
 
           <input placeholder="Valor" value={valor} onChange={e=>setValor(e.target.value)} />
-          <input placeholder="Total com juros" value={total} onChange={e=>setTotal(e.target.value)} />
+          <input placeholder="Total" value={total} onChange={e=>setTotal(e.target.value)} />
 
           <input type="date" value={dataVencimento} onChange={e=>setDataVencimento(e.target.value)} />
+
+          {/* 🔥 PIX DO EMPRÉSTIMO */}
+          <input 
+            placeholder="PIX cobrança (opcional)"
+            value={pixCobranca}
+            onChange={e=>setPixCobranca(e.target.value)}
+          />
 
           <button onClick={salvar}>💾 Salvar</button>
 
         </div>
       )}
 
-      {aba === "lista" && dados.map(p=>{
+      {/* LISTA */}
+      {dados.map(p=>{
 
         const atraso = calcularAtraso(p.data_vencimento);
 
-        let cor = "#22c55e";
-        if(atraso > 5) cor = "#f59e0b";
-        if(atraso > 10) cor = "#ef4444";
-
         return (
-          <div key={p.id} style={{
-            background:"#111827",
-            padding:15,
-            marginTop:10,
-            borderLeft:`5px solid ${cor}`,
-            borderRadius:8
-          }}>
+          <div key={p.id} style={{background:"#111827", padding:15, marginTop:10}}>
 
-            <p><b>Cliente:</b> {p.cliente}</p>
-            <p><b>Telefone:</b> {p.telefone || "-"}</p>
+            <p><b>{p.cliente}</b></p>
+            <p>R$ {p.total}</p>
+            <p>{formatarData(p.data_vencimento)}</p>
 
-            <p><b>Valor:</b> R$ {p.valor}</p>
-            <p><b>Total:</b> R$ {p.total}</p>
-            <p><b>Vencimento:</b> {formatarData(p.data_vencimento)}</p>
+            {atraso > 0 && <p style={{color:"red"}}>Atrasado {atraso} dias</p>}
 
-            {p.status === "pago" ? (
-              <p style={{color:"#22c55e"}}>✅ Pago</p>
-            ) : atraso > 0 ? (
-              <p style={{color:"#ef4444"}}>🔴 Atrasado {atraso} dias</p>
-            ) : (
-              <p style={{color:"#22c55e"}}>🟢 Em dia</p>
-            )}
-
-            <div style={{marginTop:10, display:"flex", gap:10}}>
+            <div style={{display:"flex", gap:10}}>
               <button onClick={()=>cobrar(p)}>💰 PIX</button>
               <button onClick={()=>editar(p)}>✏️</button>
-              <button onClick={()=>togglePago(p)}>
-                {p.status === "pago" ? "↩️" : "✅"}
-              </button>
+              <button onClick={()=>togglePago(p)}>✅</button>
               <button onClick={()=>excluir(p.id)}>🗑️</button>
             </div>
 
           </div>
         );
       })}
-
-      {aba === "atrasados" && dados
-        .filter(p => calcularAtraso(p.data_vencimento) > 0)
-        .map(p=>{
-
-          const atraso = calcularAtraso(p.data_vencimento);
-
-          return (
-            <div key={p.id} style={{
-              background:"#111827",
-              padding:15,
-              marginTop:10,
-              borderLeft:`5px solid red`,
-              borderRadius:8
-            }}>
-              <p><b>{p.cliente}</b></p>
-              <p>🔴 {atraso} dias de atraso</p>
-            </div>
-          );
-        })}
 
     </div>
   );
