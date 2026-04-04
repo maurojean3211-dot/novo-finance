@@ -16,8 +16,10 @@ export default function EmprestimosLista({ empresaId }) {
   const [dataVencimento, setDataVencimento] = useState("");
 
   useEffect(()=>{
-    carregar();
-  },[]);
+    if(empresaId){
+      carregar();
+    }
+  },[empresaId]);
 
   async function carregar(){
     const { data, error } = await supabase
@@ -28,6 +30,7 @@ export default function EmprestimosLista({ empresaId }) {
 
     if(error){
       console.log(error);
+      alert("Erro ao carregar");
       return;
     }
 
@@ -45,10 +48,15 @@ export default function EmprestimosLista({ empresaId }) {
   async function togglePago(p){
     const novoStatus = p.status === "pago" ? "pendente" : "pago";
 
-    await supabase
+    const { error } = await supabase
       .from("emprestimos")
       .update({ status: novoStatus })
       .eq("id", p.id);
+
+    if(error){
+      alert("Erro ao atualizar");
+      return;
+    }
 
     carregar();
   }
@@ -56,10 +64,15 @@ export default function EmprestimosLista({ empresaId }) {
   async function excluir(id){
     if(!confirm("Deseja excluir esse empréstimo?")) return;
 
-    await supabase
+    const { error } = await supabase
       .from("emprestimos")
       .delete()
       .eq("id", id);
+
+    if(error){
+      alert("Erro ao excluir");
+      return;
+    }
 
     carregar();
   }
@@ -93,6 +106,8 @@ PIX: SUA_CHAVE_AQUI`;
       return;
     }
 
+    const totalFinal = total ? Number(total) : Number(valor);
+
     const { error } = await supabase
       .from("emprestimos")
       .insert([{
@@ -102,14 +117,14 @@ PIX: SUA_CHAVE_AQUI`;
         cpf,
         endereco,
         valor: Number(valor),
-        total: Number(total),
+        total: totalFinal,
         data_vencimento: dataVencimento,
         status: "pendente"
       }]);
 
     if(error){
       console.log(error);
-      alert("Erro ao salvar");
+      alert("Erro ao salvar: " + error.message);
       return;
     }
 
@@ -133,14 +148,12 @@ PIX: SUA_CHAVE_AQUI`;
 
       <h2>💰 Empréstimos</h2>
 
-      {/* 🔥 ABAS */}
       <div style={{display:"flex", gap:10, marginBottom:20}}>
         <button onClick={()=>setAba("lista")}>📋 Lista</button>
         <button onClick={()=>setAba("novo")}>➕ Novo</button>
         <button onClick={()=>setAba("atrasados")}>⚠️ Atrasos</button>
       </div>
 
-      {/* 🔥 NOVO */}
       {aba === "novo" && (
         <div style={{background:"#111827", padding:15, borderRadius:8}}>
 
@@ -161,7 +174,6 @@ PIX: SUA_CHAVE_AQUI`;
         </div>
       )}
 
-      {/* 🔥 LISTA */}
       {aba === "lista" && dados.map(p=>{
 
         const atraso = calcularAtraso(p.data_vencimento);
@@ -206,7 +218,6 @@ PIX: SUA_CHAVE_AQUI`;
         );
       })}
 
-      {/* 🔥 ATRASADOS */}
       {aba === "atrasados" && dados
         .filter(p => calcularAtraso(p.data_vencimento) > 0)
         .map(p=>{
