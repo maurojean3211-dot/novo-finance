@@ -11,6 +11,7 @@ export default function EmprestimosLista({ empresaId }) {
   // PIX EMPRESA
   const [pixChave, setPixChave] = useState("");
   const [pixEdit, setPixEdit] = useState("");
+  const [empresaRealId, setEmpresaRealId] = useState(null); // 🔥 NOVO
 
   // PIX DO EMPRÉSTIMO
   const [pixCobranca, setPixCobranca] = useState("");
@@ -21,47 +22,65 @@ export default function EmprestimosLista({ empresaId }) {
   const [cpf, setCpf] = useState("");
   const [endereco, setEndereco] = useState("");
   const [valor, setValor] = useState("");
+  const [juros, setJuros] = useState("");
   const [total, setTotal] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
 
   useEffect(()=>{
-    if(empresaId){
-      carregar();
-      carregarPix();
-    }
-  },[empresaId]);
+    carregar();
+    carregarPix();
+  },[]);
 
   async function carregar(){
     const { data } = await supabase
       .from("emprestimos")
       .select("*")
-      .eq("empresa_id", empresaId)
       .order("data_vencimento", { ascending: true });
 
     setDados(data || []);
   }
 
+  // 🔥 CARREGAR PIX CORRIGIDO
   async function carregarPix(){
-    const { data } = await supabase
-      .from("empresas")
-      .select("pix_chave")
-      .eq("id", empresaId)
-      .single();
 
-    if(data){
-      setPixChave(data.pix_chave || "");
-      setPixEdit(data.pix_chave || "");
+    const { data, error } = await supabase
+      .from("empresas")
+      .select("*")
+      .limit(1);
+
+    if(error){
+      console.log(error);
+      return;
+    }
+
+    if(data && data.length > 0){
+      setEmpresaRealId(data[0].id); // 👈 GUARDA ID REAL
+      setPixChave(data[0].pix_chave || "");
+      setPixEdit(data[0].pix_chave || "");
     }
   }
 
+  // 🔥 SALVAR PIX FUNCIONANDO
   async function salvarPix(){
-    const { error } = await supabase
+
+    if(!empresaRealId){
+      alert("Empresa não encontrada");
+      return;
+    }
+
+    const { data, error } = await supabase
       .from("empresas")
       .update({ pix_chave: pixEdit })
-      .eq("id", empresaId);
+      .eq("id", empresaRealId)
+      .select();
 
     if(error){
-      alert("Erro ao salvar PIX");
+      alert("Erro PIX: " + error.message);
+      return;
+    }
+
+    if(!data || data.length === 0){
+      alert("RLS bloqueando PIX");
       return;
     }
 
@@ -87,11 +106,9 @@ export default function EmprestimosLista({ empresaId }) {
   }
 
   async function togglePago(p){
-    const novoStatus = p.status === "pago" ? "pendente" : "pago";
-
     await supabase
       .from("emprestimos")
-      .update({ status: novoStatus })
+      .update({ status: p.status === "pago" ? "pendente" : "pago" })
       .eq("id", p.id);
 
     carregar();
@@ -107,12 +124,12 @@ export default function EmprestimosLista({ empresaId }) {
       .select();
 
     if(error){
-      alert("Erro ao excluir: " + error.message);
+      alert("Erro: " + error.message);
       return;
     }
 
     if(!data || data.length === 0){
-      alert("Bloqueado pelo banco (RLS)");
+      alert("RLS bloqueando exclusão");
       return;
     }
 
@@ -120,12 +137,7 @@ export default function EmprestimosLista({ empresaId }) {
     carregar();
   }
 
-  // 🔥 COBRANÇA COM PIX INTELIGENTE
   function cobrar(p){
-    if(!p.telefone){
-      alert("Cliente sem telefone!");
-      return;
-    }
 
     const pixFinal = p.pix_cobranca || pixChave;
 
@@ -135,8 +147,7 @@ export default function EmprestimosLista({ empresaId }) {
     }
 
     let telefone = p.telefone.replace(/\D/g, "");
-
-    if(telefone.length === 11 || telefone.length === 10){
+    if(telefone.length >= 10){
       telefone = "55" + telefone;
     }
 
@@ -152,19 +163,18 @@ Vencimento: ${formatarData(p.data_vencimento)}
 
 PIX: ${pixFinal}`;
 
-    const url = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
-
-    window.open(url, "_blank");
+    window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`);
   }
 
   function editar(p){
-    setCliente(p.cliente);
-    setTelefone(p.telefone);
-    setCpf(p.cpf);
-    setEndereco(p.endereco);
-    setValor(p.valor);
-    setTotal(p.total);
-    setDataVencimento(p.data_vencimento);
+    setCliente(p.cliente || "");
+    setTelefone(p.telefone || "");
+    setCpf(p.cpf || "");
+    setEndereco(p.endereco || "");
+    setValor(p.valor || "");
+    setJuros(p.juros || "");
+    setTotal(p.total || "");
+    setDataVencimento(p.data_vencimento || "");
     setPixCobranca(p.pix_cobranca || "");
 
     setEditandoId(p.id);
@@ -178,7 +188,10 @@ PIX: ${pixFinal}`;
       return;
     }
 
-    const totalFinal = total ? Number(total) : Number(valor);
+    const valorBase = Number(valor);
+    const jurosPercentual = Number(juros || 0);
+
+    const totalFinal = valorBase + (valorBase * jurosPercentual / 100);
 
     if(editandoId){
       await supabase
@@ -188,7 +201,8 @@ PIX: ${pixFinal}`;
           telefone,
           cpf,
           endereco,
-          valor: Number(valor),
+          valor: valorBase,
+          juros: jurosPercentual,
           total: totalFinal,
           data_vencimento: dataVencimento,
           pix_cobranca: pixCobranca
@@ -198,12 +212,12 @@ PIX: ${pixFinal}`;
       await supabase
         .from("emprestimos")
         .insert([{
-          empresa_id: empresaId,
           cliente,
           telefone,
           cpf,
           endereco,
-          valor: Number(valor),
+          valor: valorBase,
+          juros: jurosPercentual,
           total: totalFinal,
           data_vencimento: dataVencimento,
           pix_cobranca: pixCobranca,
@@ -217,6 +231,7 @@ PIX: ${pixFinal}`;
     setCpf("");
     setEndereco("");
     setValor("");
+    setJuros("");
     setTotal("");
     setDataVencimento("");
     setPixCobranca("");
@@ -230,67 +245,31 @@ PIX: ${pixFinal}`;
 
       <h2>💰 Empréstimos</h2>
 
-      {/* PIX EMPRESA */}
-      <div style={{background:"#1f2937", padding:15, borderRadius:8, marginBottom:20}}>
-        <h3>🔑 Minha chave PIX</h3>
+      <div style={{background:"#1f2937", padding:15, marginBottom:20}}>
+        <h3>Minha chave PIX</h3>
 
-        <div style={{background:"#111827", padding:10, borderRadius:6, marginBottom:10}}>
-          {pixChave || "Nenhuma chave cadastrada"}
-        </div>
+        <div>{pixChave || "Nenhuma chave cadastrada"}</div>
 
-        <input
-          value={pixEdit}
-          onChange={e=>setPixEdit(e.target.value)}
-          style={{width:"100%", marginBottom:10}}
-        />
-
-        <button onClick={salvarPix}>💾 Salvar PIX</button>
+        <input value={pixEdit} onChange={e=>setPixEdit(e.target.value)} />
+        <button onClick={salvarPix}>Salvar PIX</button>
       </div>
 
-      {/* FORM */}
-      {aba === "novo" && (
-        <div style={{background:"#111827", padding:15}}>
-
-          <input placeholder="Cliente" value={cliente} onChange={e=>setCliente(e.target.value)} />
-          <input placeholder="Telefone" value={telefone} onChange={e=>setTelefone(e.target.value)} />
-
-          <input placeholder="Valor" value={valor} onChange={e=>setValor(e.target.value)} />
-          <input placeholder="Total" value={total} onChange={e=>setTotal(e.target.value)} />
-
-          <input type="date" value={dataVencimento} onChange={e=>setDataVencimento(e.target.value)} />
-
-          {/* 🔥 PIX DO EMPRÉSTIMO */}
-          <input 
-            placeholder="PIX cobrança (opcional)"
-            value={pixCobranca}
-            onChange={e=>setPixCobranca(e.target.value)}
-          />
-
-          <button onClick={salvar}>💾 Salvar</button>
-
-        </div>
-      )}
-
-      {/* LISTA */}
       {dados.map(p=>{
 
         const atraso = calcularAtraso(p.data_vencimento);
 
         return (
-          <div key={p.id} style={{background:"#111827", padding:15, marginTop:10}}>
+          <div key={p.id} style={{marginTop:10}}>
 
-            <p><b>{p.cliente}</b></p>
+            <p>{p.cliente}</p>
             <p>R$ {p.total}</p>
-            <p>{formatarData(p.data_vencimento)}</p>
 
-            {atraso > 0 && <p style={{color:"red"}}>Atrasado {atraso} dias</p>}
+            {atraso > 0 && <p style={{color:"red"}}>Atrasado {atraso}</p>}
 
-            <div style={{display:"flex", gap:10}}>
-              <button onClick={()=>cobrar(p)}>💰 PIX</button>
-              <button onClick={()=>editar(p)}>✏️</button>
-              <button onClick={()=>togglePago(p)}>✅</button>
-              <button onClick={()=>excluir(p.id)}>🗑️</button>
-            </div>
+            <button onClick={()=>cobrar(p)}>PIX</button>
+            <button onClick={()=>editar(p)}>Editar</button>
+            <button onClick={()=>togglePago(p)}>Pago</button>
+            <button onClick={()=>excluir(p.id)}>Excluir</button>
 
           </div>
         );
