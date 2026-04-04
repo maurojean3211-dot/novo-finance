@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-export default function EmprestimosLista({ empresaId }) {
+export default function EmprestimosLista() {
 
   const [dados, setDados] = useState([]);
-  const [aba, setAba] = useState("lista");
-
   const [editandoId, setEditandoId] = useState(null);
 
   const [pixChave, setPixChave] = useState("");
@@ -20,43 +18,89 @@ export default function EmprestimosLista({ empresaId }) {
   const [endereco, setEndereco] = useState("");
   const [valor, setValor] = useState("");
   const [juros, setJuros] = useState("");
-  const [total, setTotal] = useState("");
   const [dataVencimento, setDataVencimento] = useState("");
 
   useEffect(()=>{
-    carregar();
-    carregarPix();
+    carregarEmpresa();
   },[]);
 
-  async function carregar(){
+  // ================= EMPRESA CORRIGIDO
+  async function carregarEmpresa(){
+
+    try{
+
+      const { data:{ user } } = await supabase.auth.getUser();
+
+      if(!user){
+        console.log("Sem usuário");
+        return;
+      }
+
+      const { data:usuario, error } = await supabase
+        .from("usuarios")
+        .select("empresa_id")
+        .eq("id", user.id)
+        .single();
+
+      if(error){
+        console.error("Erro usuario:", error);
+        return;
+      }
+
+      if(!usuario?.empresa_id){
+        alert("Usuário sem empresa");
+        return;
+      }
+
+      const empresaId = usuario.empresa_id;
+      setEmpresaRealId(empresaId);
+
+      console.log("EMPRESA:", empresaId);
+
+      carregarDados(empresaId);
+      carregarPix(empresaId);
+
+    }catch(err){
+      console.error("Erro geral:", err);
+    }
+
+  }
+
+  // ================= DADOS
+  async function carregarDados(empresa_id){
+
     const { data, error } = await supabase
       .from("emprestimos")
       .select("*")
+      .eq("empresa_id", empresa_id)
       .order("data_vencimento", { ascending: true });
 
     if(error){
-      console.error("Erro carregar:", error);
+      console.error("Erro dados:", error);
     }
 
     setDados(data || []);
   }
 
-  async function carregarPix(){
+  // ================= PIX
+  async function carregarPix(empresa_id){
+
     const { data, error } = await supabase
       .from("empresas")
       .select("*")
-      .limit(1);
+      .eq("id", empresa_id)
+      .single();
 
     if(error){
       console.error("Erro empresa:", error);
       return;
     }
 
-    if(data && data.length > 0){
-      setEmpresaRealId(data[0].id);
-      setPixChave(data[0].pix_chave || "");
-      setPixEdit(data[0].pix_chave || "");
+    if(data){
+      setPixChave(data.pix_chave || "");
+      setPixEdit(data.pix_chave || "");
     }
+
   }
 
   async function salvarPix(){
@@ -83,16 +127,16 @@ export default function EmprestimosLista({ empresaId }) {
     }
 
     alert("PIX salvo!");
-    carregarPix();
+    carregarPix(empresaRealId);
   }
 
+  // ================= FUNÇÕES
   function calcularAtraso(data_vencimento){
     const hoje = new Date();
     hoje.setHours(0,0,0,0);
 
     const partes = data_vencimento.split("-");
     const venc = new Date(partes[0], partes[1]-1, partes[2]);
-    venc.setHours(0,0,0,0);
 
     const dias = Math.floor((hoje - venc) / (1000*60*60*24));
     return dias > 0 ? dias : 0;
@@ -103,69 +147,20 @@ export default function EmprestimosLista({ empresaId }) {
     return new Date(partes[0], partes[1]-1, partes[2]).toLocaleDateString();
   }
 
-  async function togglePago(p){
+  async function excluir(id){
+    if(!confirm("Excluir?")) return;
+
     const { error } = await supabase
       .from("emprestimos")
-      .update({ status: p.status === "pago" ? "pendente" : "pago" })
-      .eq("id", p.id);
-
-    if(error){
-      alert("Erro: " + error.message);
-      return;
-    }
-
-    carregar();
-  }
-
-  async function excluir(id){
-    if(!confirm("Deseja excluir?")) return;
-
-    const { data, error } = await supabase
-      .from("emprestimos")
       .delete()
-      .eq("id", id)
-      .select();
+      .eq("id", id);
 
     if(error){
-      alert("Erro: " + error.message);
+      alert(error.message);
       return;
     }
 
-    if(!data || data.length === 0){
-      alert("RLS bloqueando exclusão");
-      return;
-    }
-
-    alert("Excluído!");
-    carregar();
-  }
-
-  function cobrar(p){
-
-    const pixFinal = p.pix_cobranca || pixChave;
-
-    if(!pixFinal){
-      alert("Cadastre um PIX!");
-      return;
-    }
-
-    let telefone = (p.telefone || "").replace(/\D/g, "");
-    if(telefone.length >= 10){
-      telefone = "55" + telefone;
-    }
-
-    const valorBase = Number(p.valor);
-    const jurosPercentual = Number(p.juros || 0);
-    const totalComJuros = valorBase + (valorBase * jurosPercentual / 100);
-
-    const mensagem = `Olá ${p.cliente},
-
-Valor: R$ ${totalComJuros.toFixed(2)}
-Vencimento: ${formatarData(p.data_vencimento)}
-
-PIX: ${pixFinal}`;
-
-    window.open(`https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`);
+    carregarDados(empresaRealId);
   }
 
   function editar(p){
@@ -175,140 +170,153 @@ PIX: ${pixFinal}`;
     setEndereco(p.endereco || "");
     setValor(p.valor || "");
     setJuros(p.juros || "");
-    setTotal(p.total || "");
     setDataVencimento(p.data_vencimento || "");
     setPixCobranca(p.pix_cobranca || "");
 
     setEditandoId(p.id);
-    setAba("novo");
   }
 
+  // ================= SALVAR CORRIGIDO
   async function salvar(){
 
     try{
 
-    if(!cliente || !valor || !dataVencimento){
-      alert("Preencha os campos");
-      return;
-    }
+      if(!empresaRealId){
+        alert("Empresa não carregada");
+        return;
+      }
 
-    if(!empresaRealId){
-      alert("Empresa não carregada ainda");
-      return;
-    }
+      if(!cliente || !valor || !dataVencimento){
+        alert("Preencha os campos");
+        return;
+      }
 
-    const valorBase = Number(valor);
-    const jurosPercentual = Number(juros || 0);
-    const totalFinal = valorBase + (valorBase * jurosPercentual / 100);
+      const valorBase = Number(valor);
+      const jurosPercentual = Number(juros || 0);
+      const totalFinal = valorBase + (valorBase * jurosPercentual / 100);
 
-    console.log("SALVANDO:", {
-      empresa_id: empresaRealId,
-      cliente,
-      valor: valorBase
-    });
+      console.log("SALVANDO:", {
+        empresa_id: empresaRealId,
+        cliente
+      });
 
-    let resposta;
+      let resposta;
 
-    if(editandoId){
-      resposta = await supabase
-        .from("emprestimos")
-        .update({
-          cliente,
-          telefone,
-          cpf,
-          endereco,
-          valor: valorBase,
-          juros: jurosPercentual,
-          total: totalFinal,
-          data_vencimento: dataVencimento,
-          pix_cobranca: pixCobranca
-        })
-        .eq("id", editandoId)
-        .select();
-    } else {
-      resposta = await supabase
-        .from("emprestimos")
-        .insert([{
-          empresa_id: empresaRealId,
-          cliente,
-          telefone,
-          cpf,
-          endereco,
-          valor: valorBase,
-          juros: jurosPercentual,
-          total: totalFinal,
-          data_vencimento: dataVencimento,
-          pix_cobranca: pixCobranca,
-          status: "pendente"
-        }])
-        .select();
-    }
+      if(editandoId){
 
-    const { data, error } = resposta;
+        resposta = await supabase
+          .from("emprestimos")
+          .update({
+            cliente,
+            telefone,
+            cpf,
+            endereco,
+            valor: valorBase,
+            juros: jurosPercentual,
+            total: totalFinal,
+            data_vencimento: dataVencimento,
+            pix_cobranca: pixCobranca
+          })
+          .eq("id", editandoId)
+          .select();
 
-    if(error){
-      console.error("ERRO EMPRESTIMO:", error);
-      alert("Erro ao salvar: " + error.message);
-      return;
-    }
+      } else {
 
-    if(!data || data.length === 0){
-      alert("RLS bloqueando (sem retorno)");
-      return;
-    }
+        resposta = await supabase
+          .from("emprestimos")
+          .insert([{
+            empresa_id: empresaRealId,
+            cliente,
+            telefone,
+            cpf,
+            endereco,
+            valor: valorBase,
+            juros: jurosPercentual,
+            total: totalFinal,
+            data_vencimento: dataVencimento,
+            pix_cobranca: pixCobranca,
+            status: "pendente"
+          }])
+          .select();
 
-    alert("Salvo com sucesso!");
+      }
 
-    setEditandoId(null);
-    setCliente("");
-    setTelefone("");
-    setCpf("");
-    setEndereco("");
-    setValor("");
-    setJuros("");
-    setTotal("");
-    setDataVencimento("");
-    setPixCobranca("");
+      const { data, error } = resposta;
 
-    setAba("lista");
-    carregar();
+      if(error){
+        console.error("ERRO:", error);
+        alert(error.message);
+        return;
+      }
+
+      if(!data || data.length === 0){
+        alert("RLS bloqueando");
+        return;
+      }
+
+      alert("Salvo!");
+
+      setCliente("");
+      setTelefone("");
+      setCpf("");
+      setEndereco("");
+      setValor("");
+      setJuros("");
+      setDataVencimento("");
+      setPixCobranca("");
+      setEditandoId(null);
+
+      carregarDados(empresaRealId);
 
     }catch(err){
-      console.error("ERRO GERAL:", err);
-      alert("Erro inesperado: " + err.message);
+      console.error(err);
+      alert(err.message);
     }
 
   }
 
+  // ================= TELA
   return (
-    <div>
+    <div style={{padding:20}}>
 
       <h2>💰 Empréstimos</h2>
 
-      <div style={{background:"#1f2937", padding:15, marginBottom:20}}>
-        <h3>Minha chave PIX</h3>
+      <input placeholder="Cliente" value={cliente} onChange={e=>setCliente(e.target.value)} />
+      <br/><br/>
 
-        <div>{pixChave || "Nenhuma chave cadastrada"}</div>
+      <input placeholder="Telefone" value={telefone} onChange={e=>setTelefone(e.target.value)} />
+      <br/><br/>
 
-        <input value={pixEdit} onChange={e=>setPixEdit(e.target.value)} />
-        <button onClick={salvarPix}>Salvar PIX</button>
-      </div>
+      <input placeholder="Valor" value={valor} onChange={e=>setValor(e.target.value)} />
+      <br/><br/>
+
+      <input placeholder="Juros %" value={juros} onChange={e=>setJuros(e.target.value)} />
+      <br/><br/>
+
+      <input type="date" value={dataVencimento} onChange={e=>setDataVencimento(e.target.value)} />
+      <br/><br/>
+
+      <button onClick={salvar}>
+        {editandoId ? "Atualizar" : "Salvar"}
+      </button>
+
+      <hr/>
 
       {dados.map(p=>{
 
         const atraso = calcularAtraso(p.data_vencimento);
 
         return (
-          <div key={p.id} style={{marginTop:10}}>
+          <div key={p.id} style={{marginBottom:10}}>
 
-            <p>{p.cliente}</p>
-            <p>R$ {p.total}</p>
+            <strong>{p.cliente}</strong><br/>
+            R$ {p.total}
 
-            {atraso > 0 && <p style={{color:"red"}}>Atrasado {atraso}</p>}
+            {atraso > 0 && <div style={{color:"red"}}>Atrasado {atraso} dias</div>}
 
-            <button onClick={()=>cobrar(p)}>PIX</button>
+            <br/>
+
             <button onClick={()=>editar(p)}>Editar</button>
-            <button onClick={()=>togglePago(p)}>Pago</button>
             <button onClick={()=>excluir(p.id)}>Excluir</button>
 
           </div>
