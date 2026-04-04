@@ -4,6 +4,16 @@ import { supabase } from "./supabase";
 export default function EmprestimosLista({ empresaId }) {
 
   const [dados, setDados] = useState([]);
+  const [aba, setAba] = useState("lista");
+
+  // FORM
+  const [cliente, setCliente] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [endereco, setEndereco] = useState("");
+  const [valor, setValor] = useState("");
+  const [total, setTotal] = useState("");
+  const [dataVencimento, setDataVencimento] = useState("");
 
   useEffect(()=>{
     carregar();
@@ -32,9 +42,7 @@ export default function EmprestimosLista({ empresaId }) {
     return dias > 0 ? dias : 0;
   }
 
-  // 🔥 BOTÃO PAGO (AGORA ALTERNA)
   async function togglePago(p){
-
     const novoStatus = p.status === "pago" ? "pendente" : "pago";
 
     await supabase
@@ -56,11 +64,9 @@ export default function EmprestimosLista({ empresaId }) {
     carregar();
   }
 
-  // 🔥 WHATSAPP COM TELEFONE
   function cobrar(p){
-
     if(!p.telefone){
-      alert("Cliente sem telefone cadastrado!");
+      alert("Cliente sem telefone!");
       return;
     }
 
@@ -69,24 +75,94 @@ export default function EmprestimosLista({ empresaId }) {
 Você tem um pagamento pendente.
 
 Valor: R$ ${p.total}
-
 Vencimento: ${new Date(p.data_vencimento).toLocaleDateString()}
 
 PIX: SUA_CHAVE_AQUI`;
 
     const telefone = p.telefone.replace(/\D/g, "");
-
     const url = `https://wa.me/55${telefone}?text=${encodeURIComponent(mensagem)}`;
 
     window.open(url, "_blank");
   }
 
+  // ✅ SALVAR NOVO
+  async function salvar(){
+
+    if(!cliente || !valor || !dataVencimento){
+      alert("Preencha os campos obrigatórios");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("emprestimos")
+      .insert([{
+        empresa_id: empresaId,
+        cliente,
+        telefone,
+        cpf,
+        endereco,
+        valor: Number(valor),
+        total: Number(total),
+        data_vencimento: dataVencimento,
+        status: "pendente"
+      }]);
+
+    if(error){
+      console.log(error);
+      alert("Erro ao salvar");
+      return;
+    }
+
+    alert("Salvo com sucesso!");
+
+    // limpa campos
+    setCliente("");
+    setTelefone("");
+    setCpf("");
+    setEndereco("");
+    setValor("");
+    setTotal("");
+    setDataVencimento("");
+
+    setAba("lista");
+    carregar();
+  }
+
   return (
     <div>
 
-      <h2>📋 Cobrança de Empréstimos</h2>
+      <h2>💰 Empréstimos</h2>
 
-      {dados.map(p=>{
+      {/* 🔥 ABAS */}
+      <div style={{display:"flex", gap:10, marginBottom:20}}>
+        <button onClick={()=>setAba("lista")}>📋 Lista</button>
+        <button onClick={()=>setAba("novo")}>➕ Novo</button>
+        <button onClick={()=>setAba("atrasados")}>⚠️ Atrasos</button>
+      </div>
+
+      {/* 🔥 NOVO */}
+      {aba === "novo" && (
+        <div style={{background:"#111827", padding:15, borderRadius:8}}>
+
+          <h3>Novo Empréstimo</h3>
+
+          <input placeholder="Cliente" value={cliente} onChange={e=>setCliente(e.target.value)} />
+          <input placeholder="Telefone" value={telefone} onChange={e=>setTelefone(e.target.value)} />
+          <input placeholder="CPF" value={cpf} onChange={e=>setCpf(e.target.value)} />
+          <input placeholder="Endereço" value={endereco} onChange={e=>setEndereco(e.target.value)} />
+
+          <input placeholder="Valor" value={valor} onChange={e=>setValor(e.target.value)} />
+          <input placeholder="Total com juros" value={total} onChange={e=>setTotal(e.target.value)} />
+
+          <input type="date" value={dataVencimento} onChange={e=>setDataVencimento(e.target.value)} />
+
+          <button onClick={salvar}>💾 Salvar</button>
+
+        </div>
+      )}
+
+      {/* 🔥 LISTA */}
+      {aba === "lista" && dados.map(p=>{
 
         const atraso = calcularAtraso(p.data_vencimento);
 
@@ -105,8 +181,6 @@ PIX: SUA_CHAVE_AQUI`;
 
             <p><b>Cliente:</b> {p.cliente}</p>
             <p><b>Telefone:</b> {p.telefone || "-"}</p>
-            <p><b>CPF:</b> {p.cpf || "-"}</p>
-            <p><b>Endereço:</b> {p.endereco || "-"}</p>
 
             <p><b>Valor:</b> R$ {p.valor}</p>
             <p><b>Total:</b> R$ {p.total}</p>
@@ -121,24 +195,37 @@ PIX: SUA_CHAVE_AQUI`;
             )}
 
             <div style={{marginTop:10, display:"flex", gap:10}}>
-
-              <button onClick={()=>cobrar(p)}>
-                💰 PIX
-              </button>
-
+              <button onClick={()=>cobrar(p)}>💰 PIX</button>
               <button onClick={()=>togglePago(p)}>
-                {p.status === "pago" ? "↩️ Desfazer" : "✅ Pago"}
+                {p.status === "pago" ? "↩️" : "✅"}
               </button>
-
-              <button onClick={()=>excluir(p.id)}>
-                🗑️ Excluir
-              </button>
-
+              <button onClick={()=>excluir(p.id)}>🗑️</button>
             </div>
 
           </div>
         );
       })}
+
+      {/* 🔥 ATRASADOS */}
+      {aba === "atrasados" && dados
+        .filter(p => calcularAtraso(p.data_vencimento) > 0)
+        .map(p=>{
+
+          const atraso = calcularAtraso(p.data_vencimento);
+
+          return (
+            <div key={p.id} style={{
+              background:"#111827",
+              padding:15,
+              marginTop:10,
+              borderLeft:`5px solid red`,
+              borderRadius:8
+            }}>
+              <p><b>{p.cliente}</b></p>
+              <p>🔴 {atraso} dias de atraso</p>
+            </div>
+          );
+        })}
 
     </div>
   );
