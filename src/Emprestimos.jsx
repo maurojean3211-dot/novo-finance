@@ -8,15 +8,12 @@ export default function EmprestimosLista({ empresaId }) {
 
   const [editandoId, setEditandoId] = useState(null);
 
-  // PIX EMPRESA
   const [pixChave, setPixChave] = useState("");
   const [pixEdit, setPixEdit] = useState("");
   const [empresaRealId, setEmpresaRealId] = useState(null);
 
-  // PIX DO EMPRÉSTIMO
   const [pixCobranca, setPixCobranca] = useState("");
 
-  // FORM
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
   const [cpf, setCpf] = useState("");
@@ -32,20 +29,28 @@ export default function EmprestimosLista({ empresaId }) {
   },[]);
 
   async function carregar(){
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("emprestimos")
       .select("*")
       .order("data_vencimento", { ascending: true });
 
+    if(error){
+      console.error("Erro carregar:", error);
+    }
+
     setDados(data || []);
   }
 
-  // 🔥 CARREGA EMPRESA REAL
   async function carregarPix(){
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("empresas")
       .select("*")
       .limit(1);
+
+    if(error){
+      console.error("Erro empresa:", error);
+      return;
+    }
 
     if(data && data.length > 0){
       setEmpresaRealId(data[0].id);
@@ -54,7 +59,6 @@ export default function EmprestimosLista({ empresaId }) {
     }
   }
 
-  // 🔥 SALVA PIX
   async function salvarPix(){
 
     if(!empresaRealId){
@@ -100,10 +104,15 @@ export default function EmprestimosLista({ empresaId }) {
   }
 
   async function togglePago(p){
-    await supabase
+    const { error } = await supabase
       .from("emprestimos")
       .update({ status: p.status === "pago" ? "pendente" : "pago" })
       .eq("id", p.id);
+
+    if(error){
+      alert("Erro: " + error.message);
+      return;
+    }
 
     carregar();
   }
@@ -140,14 +149,13 @@ export default function EmprestimosLista({ empresaId }) {
       return;
     }
 
-    let telefone = p.telefone.replace(/\D/g, "");
+    let telefone = (p.telefone || "").replace(/\D/g, "");
     if(telefone.length >= 10){
       telefone = "55" + telefone;
     }
 
     const valorBase = Number(p.valor);
     const jurosPercentual = Number(p.juros || 0);
-
     const totalComJuros = valorBase + (valorBase * jurosPercentual / 100);
 
     const mensagem = `Olá ${p.cliente},
@@ -177,6 +185,8 @@ PIX: ${pixFinal}`;
 
   async function salvar(){
 
+    try{
+
     if(!cliente || !valor || !dataVencimento){
       alert("Preencha os campos");
       return;
@@ -189,11 +199,18 @@ PIX: ${pixFinal}`;
 
     const valorBase = Number(valor);
     const jurosPercentual = Number(juros || 0);
-
     const totalFinal = valorBase + (valorBase * jurosPercentual / 100);
 
+    console.log("SALVANDO:", {
+      empresa_id: empresaRealId,
+      cliente,
+      valor: valorBase
+    });
+
+    let resposta;
+
     if(editandoId){
-      await supabase
+      resposta = await supabase
         .from("emprestimos")
         .update({
           cliente,
@@ -206,12 +223,13 @@ PIX: ${pixFinal}`;
           data_vencimento: dataVencimento,
           pix_cobranca: pixCobranca
         })
-        .eq("id", editandoId);
+        .eq("id", editandoId)
+        .select();
     } else {
-      await supabase
+      resposta = await supabase
         .from("emprestimos")
         .insert([{
-          empresa_id: empresaRealId, // 🔥 AQUI ESTA A CORREÇÃO
+          empresa_id: empresaRealId,
           cliente,
           telefone,
           cpf,
@@ -222,10 +240,24 @@ PIX: ${pixFinal}`;
           data_vencimento: dataVencimento,
           pix_cobranca: pixCobranca,
           status: "pendente"
-        }]);
+        }])
+        .select();
     }
 
-    alert("Salvo!");
+    const { data, error } = resposta;
+
+    if(error){
+      console.error("ERRO EMPRESTIMO:", error);
+      alert("Erro ao salvar: " + error.message);
+      return;
+    }
+
+    if(!data || data.length === 0){
+      alert("RLS bloqueando (sem retorno)");
+      return;
+    }
+
+    alert("Salvo com sucesso!");
 
     setEditandoId(null);
     setCliente("");
@@ -240,6 +272,12 @@ PIX: ${pixFinal}`;
 
     setAba("lista");
     carregar();
+
+    }catch(err){
+      console.error("ERRO GERAL:", err);
+      alert("Erro inesperado: " + err.message);
+    }
+
   }
 
   return (
