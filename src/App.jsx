@@ -56,17 +56,24 @@ const user = data?.user || null;
 setSession(user ? { user } : null);
 
 if(user){
+
 let { data:usuario } = await supabase
 .from("usuarios")
 .select("role,empresa_id")
-.eq("id",user.id)
-.maybeSingle();
+.ilike("email", user.email); // 🔥 MAIS FORTE
+
+usuario = usuario?.[0];
+
+console.log("EMAIL:", user.email);
+console.log("USUARIO BANCO:", usuario);
+console.log("ROLE:", usuario?.role);
 
 if(usuario?.empresa_id){
   setEmpresaId(usuario.empresa_id);
 }
 
-setRole(usuario?.role || "cliente");
+setRole(usuario?.role); // 🔥 sem fallback
+
 }
 
 }catch(err){
@@ -84,17 +91,24 @@ supabase.auth.onAuthStateChange(async (_event,newSession)=>{
 setSession(newSession);
 
 if(newSession?.user){
+
 let { data:usuario } = await supabase
 .from("usuarios")
 .select("role,empresa_id")
-.eq("id",newSession.user.id)
-.maybeSingle();
+.ilike("email", newSession.user.email);
+
+usuario = usuario?.[0];
+
+console.log("SESSION EMAIL:", newSession.user.email);
+console.log("USUARIO BANCO:", usuario);
+console.log("ROLE:", usuario?.role);
 
 if(usuario?.empresa_id){
   setEmpresaId(usuario.empresa_id);
 }
 
-setRole(usuario?.role || "cliente");
+setRole(usuario?.role);
+
 }
 });
 
@@ -115,9 +129,10 @@ if(!session){
 return <Login />;
 }
 
-if(session && empresaId === null){
-return <div style={{color:"#fff",padding:20}}>Carregando empresa...</div>;
-}
+// 🔥 NÃO BLOQUEIA MAIS A TELA
+// if(session && empresaId === null){
+// return <div style={{color:"#fff",padding:20}}>Carregando empresa...</div>;
+// }
 
 const isMauro = session?.user?.email === "maurojean3211@gmail.com";
 
@@ -152,15 +167,23 @@ gap:10
 <button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>💰 Recebimentos</button>
 <button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>👥 Clientes</button>
 
-{/* 🔥 EMPRESTIMOS ÚNICO */}
 <button onClick={()=>setPagina("emprestimos")} style={pagina==="emprestimos" ? botaoAtivo : botaoMenu}>
 💸 Empréstimos
 </button>
 
+{/* 👑 MASTER */}
+{role === "master" && (
+<button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>
+👑 Master Admin
+</button>
+)}
+
+{/* ADMIN */}
 {role === "admin" && (
 <button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>📈 Lucro</button>
 )}
 
+{/* EXTRA */}
 {isMauro && (
 <>
 <button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>📦 Vendas</button>
@@ -185,7 +208,6 @@ gap:10
 {pagina==="recebimentos" && <Recebimentos empresaId={empresaId} />}
 {pagina==="clientes" && <Clientes />}
 
-{/* 🔥 TELA ÚNICA DE EMPRESTIMOS */}
 {pagina==="emprestimos" && (
   <div>
 
@@ -212,7 +234,7 @@ gap:10
 {pagina==="despesas" && <DespesasPessoais />}
 {pagina==="relatorio" && <Relatorio empresaId={empresaId} />}
 {pagina==="admin" && <Admin />}
-{pagina==="master" && role==="admin" && <MasterAdmin />}
+{pagina==="master" && role==="master" && <MasterAdmin />}
 
 </div>
 
