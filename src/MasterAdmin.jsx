@@ -4,6 +4,7 @@ import { supabase } from "./supabase";
 export default function MasterAdmin(){
 
 const [clientes,setClientes]=useState([]);
+const [usuario,setUsuario]=useState(null);
 
 // FORM CLIENTE
 const [tipo,setTipo]=useState("Empresa");
@@ -23,9 +24,48 @@ const [pixSistema,setPixSistema]=useState("");
 
 // INIT
 useEffect(()=>{
+verificarUsuario();
+},[]);
+
+// 🔐 VERIFICA MASTER
+async function verificarUsuario(){
+
+const { data: userData } = await supabase.auth.getUser();
+
+if(!userData?.user){
+alert("Usuário não logado");
+window.location.href = "/";
+return;
+}
+
+const emailUser = userData.user.email;
+
+const { data, error } = await supabase
+.from("usuarios")
+.select("*")
+.eq("email", emailUser)
+.single();
+
+if(error || !data){
+alert("Usuário não encontrado");
+window.location.href = "/";
+return;
+}
+
+// 🔥 BLOQUEIA SE NÃO FOR MASTER
+if(data.role !== "master"){
+alert("Acesso negado - somente master");
+window.location.href = "/";
+return;
+}
+
+setUsuario(data);
+
+// Só carrega depois que validar
 carregarClientes();
 buscarPix();
-},[]);
+
+}
 
 // CARREGAR
 async function carregarClientes(){
@@ -275,6 +315,11 @@ window.open(url, "_blank");
 
 }
 
+// BLOQUEIA RENDER ATÉ VALIDAR
+if(!usuario){
+return <div style={{color:"#fff",padding:20}}>🔒 Verificando acesso...</div>;
+}
+
 // UI
 return(
 
@@ -282,9 +327,7 @@ return(
 
 <h2 style={{marginBottom:20}}>👑 Painel Master Admin</h2>
 
-{/* PIX */}
 <div style={{background:"#111827",padding:15,borderRadius:10,marginBottom:20}}>
-
 <h3>💰 PIX do Sistema</h3>
 
 <input
@@ -297,10 +340,8 @@ style={{width:"100%",marginBottom:10}}
 <button onClick={salvarPix} style={btnPrincipal}>
 Salvar PIX
 </button>
-
 </div>
 
-{/* FORM */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -323,7 +364,6 @@ gap:10
 
 </div>
 
-{/* TABELA */}
 <table style={{width:"100%",background:"#111827",borderRadius:10}}>
 
 <thead>
@@ -340,13 +380,10 @@ gap:10
 
 {clientes.map(c=>(
 
-<tr 
-key={c.id} 
-style={{
+<tr key={c.id} style={{
 textAlign:"center",
 background: c.isento ? "#1e3a8a" : "transparent"
-}}
->
+}}>
 
 <td>{c.name}</td>
 
@@ -365,11 +402,8 @@ background: c.isento ? "#1e3a8a" : "transparent"
 <td style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"center"}}>
 
 <button style={btn} onClick={()=>editarCliente(c)}>Editar</button>
-
 <button style={btn} onClick={()=>enviarPixWhatsApp(c)}>PIX</button>
-
 <button style={btn} onClick={()=>marcarPago(c)}>Pago</button>
-
 <button style={btn} onClick={()=>marcarPendente(c)}>Pendente</button>
 
 <button style={btn} onClick={()=>alterarStatus(c)}>
@@ -377,10 +411,7 @@ background: c.isento ? "#1e3a8a" : "transparent"
 </button>
 
 <button 
-style={{
-...btn,
-background: c.isento ? "#2563eb" : "#374151"
-}}
+style={{...btn,background: c.isento ? "#2563eb" : "#374151"}}
 onClick={()=>alternarIsencao(c)}
 >
 {c.isento ? "Isento ✔" : "Isentar"}
@@ -401,7 +432,6 @@ Excluir
 </table>
 
 </div>
-
 );
 
 }
