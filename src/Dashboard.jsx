@@ -1,57 +1,20 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import {
-PieChart,
-Pie,
-Cell,
-Tooltip,
-Legend,
-ResponsiveContainer,
-BarChart,
-Bar,
-XAxis,
-YAxis,
-CartesianGrid
-} from "recharts";
 
 export default function Dashboard(){
 
+const [dados,setDados] = useState([]);
 const [receitas,setReceitas] = useState(0);
 const [pendente,setPendente] = useState(0);
-const [dadosGrafico,setDadosGrafico] = useState([]);
-
 const [totalClientes,setTotalClientes] = useState(0);
 const [totalPagos,setTotalPagos] = useState(0);
 const [totalBloqueados,setTotalBloqueados] = useState(0);
 
-const [isMaster,setIsMaster] = useState(false);
-const [carregando,setCarregando] = useState(true);
-
 useEffect(()=>{
-iniciar();
+carregar();
 },[]);
 
-async function iniciar(){
-
-const { data:{ user } } = await supabase.auth.getUser();
-
-if(!user){
-setCarregando(false);
-return;
-}
-
-if(user.email === "maurojean3211@gmail.com"){
-setIsMaster(true);
-await carregarDadosMaster();
-}else{
-setIsMaster(false);
-}
-
-setCarregando(false);
-}
-
-// ================= MASTER
-async function carregarDadosMaster(){
+async function carregar(){
 
 const { data, error } = await supabase
 .from("empresas")
@@ -62,181 +25,62 @@ alert(error.message);
 return;
 }
 
-let totalReceita = 0;
-let totalPend = 0;
+console.log("DADOS DO BANCO:", data); // 🔥 DEBUG
+
+setDados(data || []);
+
+let recebido = 0;
+let pend = 0;
 let pagos = 0;
 let bloqueados = 0;
 
 (data || []).forEach(c=>{
 
-if(c.status === "Bloqueado") bloqueados++;
-
-// ignora isento
-if(c.isento === true) return;
-
 const valor = Number(c.valor || 0);
 
-// 🔥 CORREÇÃO DEFINITIVA AQUI
+// 🔥 MOSTRA O QUE ESTÁ VINDO
+console.log("CLIENTE:", c.name, "PAGOU:", c.pagou, "VALOR:", valor);
+
+if(c.status === "Bloqueado") bloqueados++;
+
+// 🔥 TRATAMENTO UNIVERSAL
 const pagou =
 c.pagou === true ||
 c.pagou === "true" ||
 c.pagou === 1 ||
 c.pagou === "1" ||
-c.pagou === "Pago";
+c.pagou === "Pago" ||
+c.pagou === "pago";
 
-// cálculo
 if(pagou){
-totalReceita += valor;
+recebido += valor;
 pagos++;
 }else{
-totalPend += valor;
+pend += valor;
 }
 
 });
 
-setReceitas(totalReceita);
-setPendente(totalPend);
+setReceitas(recebido);
+setPendente(pend);
 setTotalClientes(data.length);
 setTotalPagos(pagos);
 setTotalBloqueados(bloqueados);
-
-// gráfico
-const dados = [
-{ name:"Recebido", valor: totalReceita },
-{ name:"Pendente", valor: totalPend }
-];
-
-const temValor = dados.some(d => d.valor > 0);
-
-setDadosGrafico(
-temValor ? dados : [
-{ name:"Recebido", valor: 1 },
-{ name:"Pendente", valor: 1 }
-]
-);
-
-}
-
-// =================
-
-const cores=["#22c55e","#f59e0b"];
-
-if(carregando){
-return <div style={{padding:20,color:"#fff"}}>Carregando...</div>;
 }
 
 return(
 
-<div style={{padding:15,color:"#fff"}}>
+<div style={{padding:20,color:"#fff"}}>
 
-<h2>📊 Dashboard</h2>
+<h2>📊 Dashboard (DEBUG)</h2>
 
-{/* NORMAL */}
-{!isMaster && (
-<div style={{background:"#111827",padding:20,borderRadius:10}}>
-<h3>Bem-vindo 👋</h3>
-<p>Seu painel será exibido conforme seu plano.</p>
-</div>
-)}
-
-{/* MASTER */}
-{isMaster && (
-
-<>
-
-<div style={{
-display:"grid",
-gridTemplateColumns:"repeat(2,1fr)",
-gap:15,
-marginBottom:20
-}}>
-
-<Card titulo="💰 Recebido" valor={receitas} tipo="dinheiro"/>
-<Card titulo="⏳ Pendente" valor={pendente} tipo="dinheiro"/>
-<Card titulo="📊 Total" valor={receitas + pendente} tipo="dinheiro"/>
-
-<Card titulo="👥 Clientes" valor={totalClientes} tipo="numero"/>
-<Card titulo="✅ Pagos" valor={totalPagos} tipo="numero"/>
-<Card titulo="🚫 Bloqueados" valor={totalBloqueados} tipo="numero"/>
+<p>💰 Recebido: R$ {receitas}</p>
+<p>⏳ Pendente: R$ {pendente}</p>
+<p>👥 Clientes: {totalClientes}</p>
+<p>✅ Pagos: {totalPagos}</p>
+<p>🚫 Bloqueados: {totalBloqueados}</p>
 
 </div>
 
-<div style={{
-background:"#111827",
-padding:15,
-borderRadius:10,
-marginBottom:20
-}}>
-
-<h3>Distribuição Financeira</h3>
-
-<ResponsiveContainer width="100%" height={300}>
-<PieChart>
-<Pie data={dadosGrafico} dataKey="valor" outerRadius={90}>
-{dadosGrafico.map((e,i)=>(
-<Cell key={i} fill={cores[i]} />
-))}
-</Pie>
-<Tooltip/>
-<Legend/>
-</PieChart>
-</ResponsiveContainer>
-
-</div>
-
-<div style={{
-background:"#111827",
-padding:15,
-borderRadius:10
-}}>
-
-<h3>Comparativo</h3>
-
-<ResponsiveContainer width="100%" height={300}>
-<BarChart data={dadosGrafico}>
-<CartesianGrid strokeDasharray="3 3" />
-<XAxis dataKey="name"/>
-<YAxis/>
-<Tooltip/>
-<Legend/>
-<Bar dataKey="valor" fill="#3b82f6" />
-</BarChart>
-</ResponsiveContainer>
-
-</div>
-
-</>
-)}
-
-</div>
-
-);
-
-}
-
-// ================= CARD
-function Card({titulo,valor,tipo="dinheiro"}){
-
-return(
-<div style={{
-background:"#111827",
-padding:15,
-borderRadius:10
-}}>
-<h4>{titulo}</h4>
-
-<p style={{
-fontSize:20,
-fontWeight:"bold",
-color:"#22c55e"
-}}>
-
-{tipo === "dinheiro"
-? `R$ ${Number(valor || 0).toFixed(2)}`
-: valor}
-
-</p>
-
-</div>
 );
 }
