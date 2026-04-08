@@ -40,7 +40,6 @@ setCarregando(false);
 return;
 }
 
-// 🔥 MASTER
 if(user.email === "maurojean3211@gmail.com"){
 setIsMaster(true);
 await carregarDadosMaster();
@@ -49,7 +48,6 @@ setIsMaster(false);
 }
 
 setCarregando(false);
-
 }
 
 // ================= MASTER
@@ -136,7 +134,7 @@ return(
 
 <>
 
-{/* CARDS PRINCIPAIS */}
+{/* CARDS */}
 <div style={{
 display:"grid",
 gridTemplateColumns:"repeat(2,1fr)",
@@ -144,17 +142,17 @@ gap:15,
 marginBottom:20
 }}>
 
-<Card titulo="💰 Recebido" valor={receitas}/>
-<Card titulo="⏳ Pendente" valor={pendente}/>
-<Card titulo="📊 Total" valor={receitas + pendente}/>
-<Card titulo="👥 Clientes" valor={totalClientes}/>
+<Card titulo="💰 Recebido" valor={receitas} tipo="dinheiro"/>
+<Card titulo="⏳ Pendente" valor={pendente} tipo="dinheiro"/>
+<Card titulo="📊 Total" valor={receitas + pendente} tipo="dinheiro"/>
 
-<Card titulo="✅ Pagos" valor={totalPagos}/>
-<Card titulo="🚫 Bloqueados" valor={totalBloqueados}/>
+<Card titulo="👥 Clientes" valor={totalClientes} tipo="numero"/>
+<Card titulo="✅ Pagos" valor={totalPagos} tipo="numero"/>
+<Card titulo="🚫 Bloqueados" valor={totalBloqueados} tipo="numero"/>
 
 </div>
 
-{/* GRÁFICO PIZZA */}
+{/* PIZZA */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -178,7 +176,7 @@ marginBottom:20
 
 </div>
 
-{/* GRÁFICO BARRA */}
+{/* BARRAS */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -209,8 +207,8 @@ borderRadius:10
 
 }
 
-// ================= CARD
-function Card({titulo,valor}){
+// ================= CARD CORRIGIDO
+function Card({titulo,valor,tipo="dinheiro"}){
 
 return(
 <div style={{
@@ -219,15 +217,19 @@ padding:15,
 borderRadius:10
 }}>
 <h4>{titulo}</h4>
+
 <p style={{
 fontSize:20,
 fontWeight:"bold",
 color:"#22c55e"
 }}>
-{typeof valor === "number"
-? `R$ ${valor.toFixed(2)}`
+
+{tipo === "dinheiro"
+? `R$ ${Number(valor || 0).toFixed(2)}`
 : valor}
+
 </p>
+
 </div>
 );
 }
