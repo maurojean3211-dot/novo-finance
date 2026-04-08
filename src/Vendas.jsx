@@ -14,6 +14,7 @@ new Date().toISOString().split("T")[0]
 );
 
 const [empresaId,setEmpresaId] = useState(null);
+const [carregandoEmpresa,setCarregandoEmpresa] = useState(true);
 const [loading,setLoading] = useState(false);
 
 // ================= INIT
@@ -27,8 +28,10 @@ async function carregarEmpresa(){
 try{
 
 const { data:{ user } } = await supabase.auth.getUser();
+
 if(!user){
-console.log("Sem usuário");
+alert("Usuário não logado");
+setCarregandoEmpresa(false);
 return;
 }
 
@@ -39,22 +42,30 @@ const { data, error } = await supabase
 .single();
 
 if(error){
-console.log("Erro empresa:", error);
+console.log(error);
+alert("Erro ao carregar empresa");
+setCarregandoEmpresa(false);
 return;
 }
 
 if(!data?.empresa_id){
 alert("Empresa não encontrada");
+setCarregandoEmpresa(false);
 return;
 }
 
-setEmpresaId(data.empresa_id);
+// 🔥 DEFINE E USA NA HORA
+const empId = data.empresa_id;
 
-// 🔥 chama com valor direto (evita delay do state)
-await carregarVendas(data.empresa_id);
+setEmpresaId(empId);
+
+await carregarVendas(empId);
+
+setCarregandoEmpresa(false);
 
 }catch(err){
-console.log("Erro geral empresa:", err);
+console.log(err);
+setCarregandoEmpresa(false);
 }
 
 }
@@ -69,7 +80,7 @@ const { data, error } = await supabase
 .order("id",{ascending:false});
 
 if(error){
-console.log("Erro ao carregar vendas:", error);
+console.log(error);
 return;
 }
 
@@ -85,42 +96,28 @@ async function salvarVenda(){
 
 try{
 
-if(loading) return; // 🔥 evita duplo clique
-setLoading(true);
+if(carregandoEmpresa){
+return alert("Aguarde carregar a empresa...");
+}
 
 if(!empresaId){
-alert("Empresa não carregada");
-setLoading(false);
-return;
+return alert("Empresa não carregada");
 }
 
 if(!produto){
-alert("Informe o produto");
-setLoading(false);
-return;
+return alert("Informe o produto");
 }
 
 if(kg <= 0){
-alert("Kilos inválido");
-setLoading(false);
-return;
+return alert("Kilos inválido");
 }
 
 const { data:{ user } } = await supabase.auth.getUser();
 if(!user){
-alert("Usuário não logado");
-setLoading(false);
-return;
+return alert("Usuário não logado");
 }
 
-// 🔥 DEBUG
-console.log("SALVANDO:", {
-empresaId,
-cliente,
-produto,
-kg,
-comissao
-});
+setLoading(true);
 
 const { error } = await supabase
 .from("vendas")
@@ -135,30 +132,33 @@ user_id: user.id
 }]);
 
 if(error){
-console.error("ERRO SUPABASE:", error);
-alert("Erro ao salvar:\n" + error.message);
+console.log(error);
+alert("Erro: " + error.message);
 setLoading(false);
 return;
 }
 
 alert("Venda salva!");
 
-// limpar
 setCliente("");
 setProduto("");
 setKilos("");
 
-// 🔥 recarrega lista corretamente
 await carregarVendas(empresaId);
 
 setLoading(false);
 
 }catch(err){
-console.error("ERRO GERAL:", err);
-alert("Erro inesperado: " + err.message);
+console.log(err);
+alert("Erro inesperado");
 setLoading(false);
 }
 
+}
+
+// ================= LOADING
+if(carregandoEmpresa){
+return <div style={{padding:20}}>Carregando empresa...</div>;
 }
 
 // ================= TELA
@@ -208,8 +208,6 @@ onChange={e=>setKilos(e.target.value)}
 </button>
 
 <hr/>
-
-<h3>📊 Vendas</h3>
 
 {vendas.map(v=>(
 
