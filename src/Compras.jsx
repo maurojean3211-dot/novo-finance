@@ -6,7 +6,7 @@ export default function Compras() {
 const [compras, setCompras] = useState([]);
 
 const [fornecedor, setFornecedor] = useState("");
-const [produto, setProduto] = useState(""); // 🔥 LIVRE
+const [produto, setProduto] = useState("");
 const [kilos, setKilos] = useState("");
 
 const [dataCompra, setDataCompra] = useState(
@@ -31,16 +31,26 @@ if(!user) return;
 
 setUserEmail(user.email);
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("usuarios")
 .select("empresa_id")
 .eq("id",user.id)
 .single();
 
-if(!data?.empresa_id) return;
+if(error){
+console.log("ERRO EMPRESA:", error);
+return;
+}
+
+if(!data?.empresa_id){
+console.log("SEM EMPRESA_ID");
+return;
+}
 
 setEmpresaId(data.empresa_id);
-carregarCompras(data.empresa_id);
+
+// 🔥 AGORA COM AWAIT
+await carregarCompras(data.empresa_id);
 }
 
 // 🔒 BLOQUEIO
@@ -51,11 +61,19 @@ return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 // ================= COMPRAS
 async function carregarCompras(empresa_id) {
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("compras")
 .select("*")
 .eq("empresa_id",empresa_id)
 .order("id",{ascending:false});
+
+if(error){
+console.log("ERRO AO BUSCAR:", error);
+return;
+}
+
+// 🔥 DEBUG
+console.log("COMPRAS CARREGADAS:", data);
 
 setCompras(data || []);
 }
@@ -91,9 +109,11 @@ if(!kilos) return alert("Informe os kilos");
 
 const comissao = calcularComissao();
 
+let error;
+
 if(editandoId){
 
-await supabase
+({ error } = await supabase
 .from("compras")
 .update({
 fornecedor,
@@ -102,24 +122,28 @@ kilos:Number(kilos),
 comissao,
 data_compra:dataCompra
 })
-.eq("id",editandoId);
+.eq("id",editandoId));
+
+if(error) return alert(error.message);
 
 alert("Atualizado!");
 setEditandoId(null);
 
 }else{
 
-await supabase
+({ error } = await supabase
 .from("compras")
 .insert([{
-empresa_id:empresaId,
+empresa_id:empresaId, // 🔥 GARANTIDO
 fornecedor,
 produto,
 kilos:Number(kilos),
 comissao,
 data_compra:dataCompra,
 user_id:user.id
-}]);
+}]));
+
+if(error) return alert(error.message);
 
 alert("Salvo!");
 }
@@ -129,7 +153,8 @@ setFornecedor("");
 setProduto("");
 setKilos("");
 
-carregarCompras(empresaId);
+// 🔥 AGORA COM AWAIT
+await carregarCompras(empresaId);
 }
 
 // ================= EDITAR
@@ -150,7 +175,8 @@ if(!confirm("Excluir?")) return;
 
 await supabase.from("compras").delete().eq("id",id);
 
-carregarCompras(empresaId);
+// 🔥 ATUALIZA LISTA
+await carregarCompras(empresaId);
 }
 
 // ================= PREVIEW
