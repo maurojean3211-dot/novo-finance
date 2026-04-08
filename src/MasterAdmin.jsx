@@ -34,7 +34,6 @@ const { data: userData } = await supabase.auth.getUser();
 
 if(!userData?.user){
 alert("Usuário não logado");
-window.location.href = "/";
 return;
 }
 
@@ -47,24 +46,20 @@ const { data, error } = await supabase
 .single();
 
 if(error || !data){
+console.log(error);
 alert("Usuário não encontrado");
-window.location.href = "/";
 return;
 }
 
-// 🔥 BLOQUEIA SE NÃO FOR MASTER
 if(data.role !== "master"){
 alert("Acesso negado - somente master");
-window.location.href = "/";
 return;
 }
 
 setUsuario(data);
 
-// Só carrega depois que validar
 carregarClientes();
 buscarPix();
-
 }
 
 // CARREGAR
@@ -76,27 +71,30 @@ const { data, error } = await supabase
 .order("created_at",{ascending:false});
 
 if(error){
-console.log(error);
-alert("Erro ao carregar clientes");
+console.log("ERRO CARREGAR:", error);
+alert(error.message);
 }
 
 setClientes(data || []);
-
 }
 
 // BUSCAR PIX
 async function buscarPix(){
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("configuracoes")
 .select("*")
 .eq("chave","pix_sistema")
 .single();
 
+if(error){
+console.log(error);
+return;
+}
+
 if(data){
 setPixSistema(data.valor);
 }
-
 }
 
 // SALVAR PIX
@@ -110,14 +108,14 @@ valor:pixSistema
 });
 
 if(error){
-alert("Erro ao salvar PIX");
+console.log(error);
+alert(error.message);
 }else{
 alert("PIX salvo com sucesso!");
 }
-
 }
 
-// CADASTRAR
+// CADASTRAR / EDITAR
 async function cadastrarCliente(){
 
 if(!nome){
@@ -136,10 +134,12 @@ cpf,
 whatsapp,
 valor:Number(valor)
 })
-.eq("id",editandoId);
+.eq("id",editandoId)
+.select();
 
 if(error){
-alert("Erro ao atualizar: " + error.message);
+console.log(error);
+alert(error.message);
 return;
 }
 
@@ -161,10 +161,12 @@ tipo,
 tipo_sistema:"financeiro",
 pagou:false,
 isento:false
-}]);
+}])
+.select();
 
 if(error){
-alert("Erro ao cadastrar");
+console.log(error);
+alert(error.message);
 return;
 }
 
@@ -172,7 +174,6 @@ return;
 
 limpar();
 carregarClientes();
-
 }
 
 // LIMPAR
@@ -186,16 +187,13 @@ setValor("");
 
 // EDITAR
 function editarCliente(c){
-
 setEditandoId(c.id);
 setNome(c.name || "");
 setEmail(c.email || "");
 setCpf(c.cpf || "");
 setWhatsapp(c.whatsapp || "");
 setValor(c.valor || "");
-
 window.scrollTo({top:0,behavior:"smooth"});
-
 }
 
 // EXCLUIR
@@ -204,14 +202,15 @@ async function excluirCliente(id){
 const { error } = await supabase
 .from("empresas")
 .delete()
-.eq("id",id);
+.eq("id",id)
+.select();
 
 if(error){
-alert("Erro ao excluir");
+console.log(error);
+alert(error.message);
 }else{
 carregarClientes();
 }
-
 }
 
 // STATUS
@@ -222,14 +221,15 @@ const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
 const { error } = await supabase
 .from("empresas")
 .update({status:novo})
-.eq("id",c.id);
+.eq("id",c.id)
+.select();
 
 if(error){
-alert("Erro ao alterar status");
+console.log(error);
+alert(error.message);
 }else{
 carregarClientes();
 }
-
 }
 
 // ISENÇÃO
@@ -238,14 +238,15 @@ async function alternarIsencao(c){
 const { error } = await supabase
 .from("empresas")
 .update({isento:!c.isento})
-.eq("id",c.id);
+.eq("id",c.id)
+.select();
 
 if(error){
-alert("Erro na isenção");
+console.log(error);
+alert(error.message);
 }else{
 carregarClientes();
 }
-
 }
 
 // PAGO
@@ -259,14 +260,15 @@ const { error } = await supabase
 pagou:true,
 mes_pagamento:mes
 })
-.eq("id",c.id);
+.eq("id",c.id)
+.select();
 
 if(error){
-alert("Erro ao marcar pago");
+console.log(error);
+alert(error.message);
 }else{
 carregarClientes();
 }
-
 }
 
 // PENDENTE
@@ -275,21 +277,22 @@ async function marcarPendente(c){
 const { error } = await supabase
 .from("empresas")
 .update({pagou:false})
-.eq("id",c.id);
+.eq("id",c.id)
+.select();
 
 if(error){
-alert("Erro ao marcar pendente");
+console.log(error);
+alert(error.message);
 }else{
 carregarClientes();
 }
-
 }
 
-// PIX + WHATSAPP
+// PIX WHATSAPP
 function enviarPixWhatsApp(cliente){
 
 if(!pixSistema){
-alert("Cadastre seu PIX no topo");
+alert("Cadastre seu PIX");
 return;
 }
 
@@ -302,20 +305,17 @@ const numero = cliente.whatsapp.replace(/\D/g, "");
 
 const mensagem = `Olá ${cliente.name || ""}!
 
-Valor do aluguel: ${cliente.isento ? "ISENTO" : `R$ ${cliente.valor || 0}`}
+Valor: ${cliente.isento ? "ISENTO" : `R$ ${cliente.valor || 0}`}
 
-Segue o PIX para pagamento:
-${pixSistema}
-
-Após pagar, me envie o comprovante 👍`;
+PIX:
+${pixSistema}`;
 
 const url = `https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`;
 
 window.open(url, "_blank");
-
 }
 
-// BLOQUEIA RENDER ATÉ VALIDAR
+// BLOQUEIA RENDER
 if(!usuario){
 return <div style={{color:"#fff",padding:20}}>🔒 Verificando acesso...</div>;
 }
@@ -325,102 +325,43 @@ return(
 
 <div style={{padding:20,color:"#fff"}}>
 
-<h2 style={{marginBottom:20}}>👑 Painel Master Admin</h2>
-
-<div style={{background:"#111827",padding:15,borderRadius:10,marginBottom:20}}>
-<h3>💰 PIX do Sistema</h3>
+<h2>👑 Painel Master Admin</h2>
 
 <input
-placeholder="Seu PIX"
+placeholder="PIX"
 value={pixSistema}
 onChange={e=>setPixSistema(e.target.value)}
-style={{width:"100%",marginBottom:10}}
 />
+<button onClick={salvarPix}>Salvar PIX</button>
 
-<button onClick={salvarPix} style={btnPrincipal}>
-Salvar PIX
-</button>
-</div>
-
-<div style={{
-background:"#111827",
-padding:15,
-borderRadius:10,
-marginBottom:20,
-display:"grid",
-gridTemplateColumns:"1fr 1fr",
-gap:10
-}}>
+<br/><br/>
 
 <input placeholder="Nome" value={nome} onChange={e=>setNome(e.target.value)}/>
 <input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
 <input placeholder="CPF" value={cpf} onChange={e=>setCpf(e.target.value)}/>
 <input placeholder="WhatsApp" value={whatsapp} onChange={e=>setWhatsapp(e.target.value)}/>
-<input placeholder="Valor do aluguel" value={valor} onChange={e=>setValor(e.target.value)}/>
+<input placeholder="Valor" value={valor} onChange={e=>setValor(e.target.value)}/>
 
-<button onClick={cadastrarCliente} style={btnPrincipal}>
+<button onClick={cadastrarCliente}>
 {editandoId ? "Salvar" : "Cadastrar"}
 </button>
 
-</div>
-
-<table style={{width:"100%",background:"#111827",borderRadius:10}}>
-
-<thead>
-<tr>
-<th>Nome</th>
-<th>Valor</th>
-<th>Status</th>
-<th>Pagamento</th>
-<th>Ações</th>
-</tr>
-</thead>
-
+<table>
 <tbody>
 
 {clientes.map(c=>(
 
-<tr key={c.id} style={{
-textAlign:"center",
-background: c.isento ? "#1e3a8a" : "transparent"
-}}>
-
+<tr key={c.id}>
 <td>{c.name}</td>
+<td>{c.valor}</td>
 
-<td style={{color: c.isento ? "#93c5fd" : "#fff"}}>
-{c.isento ? "Isento" : `R$ ${c.valor || 0}`}
-</td>
-
-<td style={{color:c.status==="Ativo"?"#22c55e":"#ef4444"}}>
-{c.status}
-</td>
-
-<td style={{color:c.pagou?"#22c55e":"#ef4444"}}>
-{c.pagou ? "Pago" : "Pendente"}
-</td>
-
-<td style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"center"}}>
-
-<button style={btn} onClick={()=>editarCliente(c)}>Editar</button>
-<button style={btn} onClick={()=>enviarPixWhatsApp(c)}>PIX</button>
-<button style={btn} onClick={()=>marcarPago(c)}>Pago</button>
-<button style={btn} onClick={()=>marcarPendente(c)}>Pendente</button>
-
-<button style={btn} onClick={()=>alterarStatus(c)}>
-{c.status==="Ativo"?"Bloquear":"Ativar"}
-</button>
-
-<button 
-style={{...btn,background: c.isento ? "#2563eb" : "#374151"}}
-onClick={()=>alternarIsencao(c)}
->
-{c.isento ? "Isento ✔" : "Isentar"}
-</button>
-
-<button style={btnDanger} onClick={()=>excluirCliente(c.id)}>
-Excluir
-</button>
-
+<td>
+<button onClick={()=>editarCliente(c)}>Editar</button>
+<button onClick={()=>marcarPago(c)}>Pago</button>
+<button onClick={()=>marcarPendente(c)}>Pendente</button>
+<button onClick={()=>alterarStatus(c)}>Status</button>
+<button onClick={()=>alternarIsencao(c)}>Isentar</button>
+<button onClick={()=>excluirCliente(c.id)}>Excluir</button>
 </td>
 
 </tr>
@@ -428,38 +369,8 @@ Excluir
 ))}
 
 </tbody>
-
 </table>
 
 </div>
 );
-
 }
-
-// ESTILOS
-const btn = {
-padding:"6px 10px",
-border:"none",
-borderRadius:6,
-background:"#374151",
-color:"#fff",
-cursor:"pointer"
-};
-
-const btnPrincipal = {
-padding:"10px",
-border:"none",
-borderRadius:6,
-background:"#22c55e",
-color:"#fff",
-cursor:"pointer"
-};
-
-const btnDanger = {
-padding:"6px 10px",
-border:"none",
-borderRadius:6,
-background:"#ef4444",
-color:"#fff",
-cursor:"pointer"
-};

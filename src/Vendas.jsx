@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import { QRCodeCanvas } from "qrcode.react";
 
 export default function Vendas(){
 
@@ -10,7 +9,6 @@ const [vendas,setVendas] = useState([]);
 
 const [clienteId,setClienteId] = useState("");
 const [clienteNome,setClienteNome] = useState("");
-const [clienteWhatsapp,setClienteWhatsapp] = useState("");
 
 const [produtoId,setProdutoId] = useState("");
 
@@ -19,14 +17,15 @@ const [precoUnitario,setPrecoUnitario] = useState("");
 
 const [parcelas,setParcelas] = useState(1);
 
-const [pixEmpresa,setPixEmpresa] = useState("");
-
 const [dataVenda,setDataVenda] = useState(
 new Date().toISOString().split("T")[0]
 );
 
 const [empresaId,setEmpresaId] = useState(null);
 const [userEmail,setUserEmail] = useState(null);
+
+// 🔥 NOVO (EDIÇÃO)
+const [editandoId,setEditandoId] = useState(null);
 
 // ================= INIT
 useEffect(()=>{
@@ -48,43 +47,15 @@ const { data,error } = await supabase
 .eq("id",user.id)
 .single();
 
-if(error){
-console.error("Erro empresa:", error);
-return;
-}
-
 if(!data?.empresa_id) return;
 
 setEmpresaId(data.empresa_id);
-
-buscarPix(data.empresa_id);
 buscarDados(data.empresa_id);
-
 }
 
-// 🔥 BLOQUEIO
+// 🔒 BLOQUEIO
 if(userEmail && userEmail !== "maurojean3211@gmail.com"){
 return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
-}
-
-// ================= PIX
-async function buscarPix(empresa_id){
-
-const { data,error } = await supabase
-.from("empresas")
-.select("pix_chave")
-.eq("id",empresa_id)
-.single();
-
-if(error){
-console.error("Erro PIX:", error);
-return;
-}
-
-if(data){
-setPixEmpresa(data.pix_chave || "");
-}
-
 }
 
 // ================= DADOS
@@ -110,7 +81,6 @@ const { data:vendasData } = await supabase
 setClientes(clientesData || []);
 setProdutos(produtosData || []);
 setVendas(vendasData || []);
-
 }
 
 // ================= CALCULOS
@@ -118,9 +88,50 @@ const qtd = parseFloat(quantidade) || 0;
 const preco = parseFloat(precoUnitario) || 0;
 
 const valorTotal = preco * qtd;
-const valorParcela = parcelas > 0 ? valorTotal / parcelas : valorTotal;
-
 const comissao = qtd * 0.05;
+
+const totalComissao = vendas.reduce((acc,v)=>{
+return acc + Number(v.comissao || 0);
+},0);
+
+// ================= EDITAR
+function iniciarEdicao(v){
+
+setEditandoId(v.id);
+
+setClienteId(v.cliente_id || "");
+setProdutoId(v.produto || "");
+setQuantidade(v.kilos || "");
+setPrecoUnitario(v.preco_unitario || "");
+setDataVenda(v.data_venda || "");
+
+}
+
+// ================= EXCLUIR
+async function excluirVenda(id){
+
+const confirma = confirm("Deseja excluir esta venda?");
+if(!confirma) return;
+
+// excluir recebimentos
+await supabase.from("recebimentos")
+.delete()
+.eq("venda_id",id);
+
+// excluir venda
+const { error } = await supabase
+.from("vendas")
+.delete()
+.eq("id",id);
+
+if(error){
+alert("Erro ao excluir: " + error.message);
+return;
+}
+
+alert("Venda excluída!");
+buscarDados(empresaId);
+}
 
 // ================= SALVAR
 async function salvarVenda(){
@@ -135,16 +146,7 @@ const { data:{ user } } = await supabase.auth.getUser();
 
 if(!user) return alert("Usuário não autenticado");
 
-// 🔥 DEBUG (AQUI VAI MOSTRAR O PROBLEMA REAL)
-console.log("DEBUG ENVIO:", {
-empresa_id: empresaId,
-cliente_id: clienteId,
-user_id: user?.id,
-qtd,
-valorTotal
-});
-
-// 🔥 CRIAR CLIENTE
+// criar cliente se não existir
 let clienteFinalId = clienteId;
 
 if(!clienteId){
@@ -159,22 +161,39 @@ empresa_id: empresaId
 .single();
 
 if(erroCliente){
-console.error("ERRO CLIENTE:", erroCliente);
 alert("Erro cliente: " + erroCliente.message);
 return;
 }
 
 clienteFinalId = novoCliente?.id;
-
 }
 
-// 🔥 GARANTIA FINAL
-if(!clienteFinalId){
-alert("Cliente inválido");
+// 🔥 EDITAR OU INSERT
+if(editandoId){
+
+const { error } = await supabase
+.from("vendas")
+.update({
+cliente_id: clienteFinalId,
+produto: produtoId || null,
+kilos:Number(qtd),
+preco_unitario:Number(preco),
+valor_total:Number(valorTotal),
+comissao:Number(comissao),
+data_venda:dataVenda
+})
+.eq("id",editandoId);
+
+if(error){
+alert("Erro ao atualizar: " + error.message);
 return;
 }
 
-// 🔥 SALVAR VENDA
+alert("Venda atualizada!");
+setEditandoId(null);
+
+}else{
+
 const { data:venda, error } = await supabase
 .from("vendas")
 .insert([{
@@ -192,12 +211,11 @@ user_id:user.id
 .single();
 
 if(error){
-console.error("ERRO COMPLETO VENDA:", error);
 alert("Erro ao salvar venda:\n" + error.message);
 return;
 }
 
-// 🔥 RECEBIMENTOS
+// recebimentos
 let listaRecebimentos = [];
 
 for(let i=1;i<=parcelas;i++){
@@ -215,17 +233,12 @@ status: "pendente"
 });
 }
 
-const { error:erroRec } = await supabase
-.from("recebimentos")
-.insert(listaRecebimentos);
+await supabase.from("recebimentos").insert(listaRecebimentos);
 
-if(erroRec){
-console.error("ERRO RECEBIMENTOS:", erroRec);
+alert("Venda salva com sucesso!");
 }
 
-// FINAL
-alert("Venda salva com sucesso!");
-
+// limpar
 setQuantidade("");
 setPrecoUnitario("");
 setParcelas(1);
@@ -236,8 +249,7 @@ setProdutoId("");
 buscarDados(empresaId);
 
 }catch(err){
-console.error("ERRO GERAL:", err);
-alert("Erro inesperado: " + err.message);
+alert("Erro: " + err.message);
 }
 
 }
@@ -247,7 +259,7 @@ return(
 
 <div style={{padding:20}}>
 
-<h1>🛒 Registrar Venda</h1>
+<h1>🛒 {editandoId ? "Editar Venda" : "Registrar Venda"}</h1>
 
 <input
 type="date"
@@ -299,7 +311,7 @@ onChange={e=>setProdutoId(e.target.value)}
 
 <input
 type="number"
-placeholder="Quantidade"
+placeholder="Peso (KG)"
 value={quantidade}
 onChange={e=>setQuantidade(e.target.value)}
 />
@@ -308,7 +320,7 @@ onChange={e=>setQuantidade(e.target.value)}
 
 <input
 type="number"
-placeholder="Valor unitário"
+placeholder="Valor por KG"
 value={precoUnitario}
 onChange={e=>setPrecoUnitario(e.target.value)}
 />
@@ -325,24 +337,48 @@ min="1"
 <br/><br/>
 
 <div>
-Total: R$ {valorTotal.toFixed(2)} <br/>
-Comissão: R$ {comissao.toFixed(2)}
+<strong>Total:</strong> R$ {valorTotal.toFixed(2)} <br/>
+<strong>Comissão:</strong> R$ {comissao.toFixed(2)}
 </div>
 
 <br/>
 
 <button onClick={salvarVenda}>
-Salvar Venda
+{editandoId ? "Atualizar Venda" : "Salvar Venda"}
 </button>
+
+<hr/>
+
+<h3>📊 Total de Comissão: R$ {totalComissao.toFixed(2)}</h3>
 
 <hr/>
 
 {vendas.map(v=>(
 
-<div key={v.id}>
+<div key={v.id} style={{
+marginBottom:10,
+padding:10,
+border:"1px solid #ccc",
+borderRadius:5
+}}>
 
-{new Date(v.data_venda).toLocaleDateString("pt-BR")}  
-R$ {Number(v.valor_total).toFixed(2)}
+📅 {new Date(v.data_venda).toLocaleDateString("pt-BR")} <br/>
+💰 R$ {Number(v.valor_total).toFixed(2)} <br/>
+⚖️ {v.kilos} kg <br/>
+💸 Comissão: R$ {Number(v.comissao || 0).toFixed(2)}
+
+<br/><br/>
+
+<button onClick={()=>iniciarEdicao(v)}>
+✏️ Editar
+</button>
+
+<button
+onClick={()=>excluirVenda(v.id)}
+style={{marginLeft:10,background:"red",color:"#fff"}}
+>
+🗑️ Excluir
+</button>
 
 </div>
 

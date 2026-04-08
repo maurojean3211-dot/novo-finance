@@ -60,7 +60,7 @@ if(user){
 let { data:usuario } = await supabase
 .from("usuarios")
 .select("role,empresa_id")
-.ilike("email", user.email); // 🔥 MAIS FORTE
+.ilike("email", user.email);
 
 usuario = usuario?.[0];
 
@@ -68,11 +68,8 @@ console.log("EMAIL:", user.email);
 console.log("USUARIO BANCO:", usuario);
 console.log("ROLE:", usuario?.role);
 
-if(usuario?.empresa_id){
-  setEmpresaId(usuario.empresa_id);
-}
-
-setRole(usuario?.role); // 🔥 sem fallback
+setEmpresaId(usuario?.empresa_id || null); // 🔥 GARANTIDO
+setRole(usuario?.role || null);
 
 }
 
@@ -103,11 +100,8 @@ console.log("SESSION EMAIL:", newSession.user.email);
 console.log("USUARIO BANCO:", usuario);
 console.log("ROLE:", usuario?.role);
 
-if(usuario?.empresa_id){
-  setEmpresaId(usuario.empresa_id);
-}
-
-setRole(usuario?.role);
+setEmpresaId(usuario?.empresa_id || null);
+setRole(usuario?.role || null);
 
 }
 });
@@ -128,11 +122,6 @@ return <div style={{color:"#fff",padding:20}}>Carregando...</div>;
 if(!session){
 return <Login />;
 }
-
-// 🔥 NÃO BLOQUEIA MAIS A TELA
-// if(session && empresaId === null){
-// return <div style={{color:"#fff",padding:20}}>Carregando empresa...</div>;
-// }
 
 const isMauro = session?.user?.email === "maurojean3211@gmail.com";
 
