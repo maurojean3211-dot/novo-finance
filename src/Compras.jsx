@@ -3,7 +3,6 @@ import { supabase } from "./supabase";
 
 export default function Compras() {
 
-const [role, setRole] = useState("cliente");
 const [compras, setCompras] = useState([]);
 const [produtos, setProdutos] = useState([]);
 
@@ -17,18 +16,15 @@ new Date().toISOString().split("T")[0]
 );
 
 const [empresaId,setEmpresaId] = useState(null);
-
-// 🔥 CONTROLE DE ACESSO
 const [userEmail,setUserEmail] = useState(null);
 
+// 🔥 NOVO
+const [editandoId,setEditandoId] = useState(null);
+const [busca,setBusca] = useState("");
+
 useEffect(() => {
-iniciar();
+carregarEmpresa();
 }, []);
-
-async function iniciar() {
-await carregarEmpresa();
-}
-
 
 // ================= EMPRESA
 async function carregarEmpresa(){
@@ -36,40 +32,29 @@ async function carregarEmpresa(){
 const { data:{ user } } = await supabase.auth.getUser();
 if(!user) return;
 
-// 🔥 SALVA EMAIL
 setUserEmail(user.email);
 
-const { data, error } = await supabase
+const { data } = await supabase
 .from("usuarios")
-.select("empresa_id, role")
+.select("empresa_id")
 .eq("id",user.id)
 .single();
 
-if(error){
-console.log("Erro empresa:",error);
-return;
-}
+if(!data?.empresa_id) return;
 
-if(data){
 setEmpresaId(data.empresa_id);
-setRole(data.role || "cliente");
 
 await carregarProdutos(data.empresa_id);
 await carregarCompras(data.empresa_id);
 }
 
-}
-
-// 🔥 BLOQUEIO
+// 🔒 BLOQUEIO
 if(userEmail && userEmail !== "maurojean3211@gmail.com"){
 return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 }
 
-
 // ================= PRODUTOS
 async function carregarProdutos(empresa_id) {
-
-if(!empresa_id) return;
 
 const { data } = await supabase
 .from("produtos")
@@ -78,30 +63,21 @@ const { data } = await supabase
 .order("nome");
 
 setProdutos(data || []);
-
 }
-
 
 // ================= COMPRAS
 async function carregarCompras(empresa_id) {
 
-if(!empresa_id) return;
-
 const { data } = await supabase
 .from("compras")
-.select(`*,
-produtos (
-nome
-)`)
+.select(`*, produtos(nome)`)
 .eq("empresa_id",empresa_id)
 .order("id", { ascending:false });
 
 setCompras(data || []);
-
 }
 
-
-// ================= CALCULO COMISSÃO
+// ================= COMISSÃO
 function calcularComissao(){
 
 const produto = produtos.find(p => p.id == produtoId);
@@ -109,81 +85,75 @@ const nome = (produto?.nome || "").toUpperCase();
 
 const kg = Number(kilos || 0);
 
-if(nome.includes("SUCATA")){
-return kg * 0.05;
-}
-
-if(nome.includes("CAVACO")){
-return kg * 0.07;
-}
+if(nome.includes("SUCATA")) return kg * 0.05;
+if(nome.includes("CAVACO") || nome.includes("LIMALHA")) return kg * 0.07;
 
 return 0;
-
 }
 
+// ================= FILTRO
+const comprasFiltradas = compras.filter(c =>
+(c.fornecedor || "").toLowerCase().includes(busca.toLowerCase())
+);
 
-// ================= SALVAR COMPRA
+// ================= SALVAR
 async function salvarCompra() {
 
-if(!empresaId){
-alert("Empresa não carregada");
-return;
-}
+if(!empresaId) return alert("Empresa não carregada");
 
 const { data: { user } } = await supabase.auth.getUser();
 if (!user) return;
 
-if (!produtoId) {
-alert("Selecione um produto");
-return;
-}
-
-if (!kilos) {
-alert("Informe os kilos");
-return;
-}
-
-if (!preco) {
-alert("Informe o preço");
-return;
-}
+if (!produtoId) return alert("Selecione o produto");
+if (!kilos) return alert("Informe os kilos");
+if (!preco) return alert("Informe o preço");
 
 const produto = produtos.find(p => p.id === produtoId);
 
 const valorTotal = Number(kilos) * Number(preco);
-
-// 🔥 COMISSÃO
 const comissao = calcularComissao();
 
+// 🔥 EDITAR OU NOVO
+if(editandoId){
 
-// ================= SALVAR COMPRA
 const { error } = await supabase
 .from("compras")
-.insert([
-{
-empresa_id:empresaId,
-fornecedor: fornecedor,
+.update({
+fornecedor,
 produto_id: produtoId,
 kilos: Number(kilos),
 preco_compra: Number(preco),
 valor_total: valorTotal,
-comissao: comissao, // 🔥 NOVO
+comissao,
+data_compra: dataCompra
+})
+.eq("id",editandoId);
+
+if(error) return alert(error.message);
+
+alert("Compra atualizada!");
+setEditandoId(null);
+
+}else{
+
+const { error } = await supabase
+.from("compras")
+.insert([{
+empresa_id:empresaId,
+fornecedor,
+produto_id: produtoId,
+kilos: Number(kilos),
+preco_compra: Number(preco),
+valor_total: valorTotal,
+comissao,
 data_compra: dataCompra,
 user_id: user.id
-}
-]);
+}]);
 
-if (error) {
-alert(error.message);
-return;
-}
+if (error) return alert(error.message);
 
-
-// ================= FINANCEIRO
-await supabase
-.from("lancamentos")
-.insert([
-{
+// financeiro
+await supabase.from("lancamentos").insert([{
 empresa_id:empresaId,
 tipo: "despesa",
 categoria: "Compras",
@@ -192,54 +162,53 @@ valor: valorTotal,
 data_lancamento: new Date(dataCompra).toISOString(),
 mes: new Date(dataCompra).getMonth() + 1,
 ano: new Date(dataCompra).getFullYear()
+}]);
+
+alert("Compra salva!");
 }
-]);
 
-
+// limpar
 setFornecedor("");
 setProdutoId("");
 setKilos("");
 setPreco("");
 
-await carregarCompras(empresaId);
-
+carregarCompras(empresaId);
 }
 
+// ================= EDITAR
+function editarCompra(c){
+
+setEditandoId(c.id);
+setFornecedor(c.fornecedor);
+setProdutoId(c.produto_id);
+setKilos(c.kilos);
+setPreco(c.preco_compra);
+setDataCompra(c.data_compra);
+}
 
 // ================= EXCLUIR
 async function excluirCompra(id) {
 
-if (!window.confirm("Deseja excluir esta compra?")) return;
+if (!window.confirm("Excluir compra?")) return;
 
 await supabase
 .from("compras")
 .delete()
-.eq("id", id)
-.eq("empresa_id",empresaId);
+.eq("id", id);
 
 carregarCompras(empresaId);
-
 }
-
 
 // ================= PREVIEW
 const comissaoPreview = calcularComissao();
 
-
 // ================= TELA
-const titulo =
-role === "admin"
-? "♻️ Compras / Sucata"
-: "🛒 Compras";
-
-
 return (
 
 <div style={{ padding:20 }}>
 
-<h1>{titulo}</h1>
-
-<label>Data da Compra</label><br/>
+<h1>📦 Compras</h1>
 
 <input
 type="date"
@@ -261,15 +230,12 @@ onChange={(e)=>setFornecedor(e.target.value)}
 value={produtoId}
 onChange={(e)=>setProdutoId(e.target.value)}
 >
-
 <option value="">Selecione o produto</option>
-
 {produtos.map(p => (
 <option key={p.id} value={p.id}>
 {p.nome}
 </option>
 ))}
-
 </select>
 
 <br/><br/>
@@ -292,53 +258,55 @@ onChange={(e)=>setPreco(e.target.value)}
 
 <br/><br/>
 
-{/* 🔥 MOSTRA COMISSÃO */}
 <p>💵 Comissão: R$ {comissaoPreview.toFixed(2)}</p>
 
 <button onClick={salvarCompra}>
-Salvar Compra
+{editandoId ? "Atualizar Compra" : "Salvar Compra"}
 </button>
 
 <hr/>
 
-{compras.map((c) => (
+<h3>🔍 Buscar fornecedor</h3>
 
-<div
-key={c.id}
-style={{
+<input
+placeholder="Digite o nome"
+value={busca}
+onChange={(e)=>setBusca(e.target.value)}
+/>
+
+<hr/>
+
+{comprasFiltradas.map((c) => (
+
+<div key={c.id} style={{
 marginBottom:10,
 padding:10,
-border:"1px solid #ccc",
-borderRadius:6
-}}
->
+border:"1px solid #ccc"
+}}>
 
-<strong>{c.produtos?.nome || "Produto"}</strong>
-{" — "}
-{c.fornecedor}
+<strong>{c.produtos?.nome}</strong> — {c.fornecedor}
 
 <br/>
 
-📅 {c.data_compra || "-"}
+📅 {c.data_compra}
 
 <br/>
 
-Kg: {c.kilos} | R$ {Number(c.preco_compra || 0).toFixed(2)}
+⚖️ {c.kilos} kg | R$ {Number(c.preco_compra).toFixed(2)}
 
 <br/>
+
+💸 Comissão: R$ {Number(c.comissao || 0).toFixed(2)}
+
+<br/><br/>
+
+<button onClick={()=>editarCompra(c)}>✏️ Editar</button>
 
 <button
 onClick={()=>excluirCompra(c.id)}
-style={{
-marginTop:5,
-background:"red",
-color:"#fff",
-border:"none",
-padding:"5px 10px",
-cursor:"pointer"
-}}
+style={{marginLeft:10,background:"red",color:"#fff"}}
 >
-Excluir
+🗑️ Excluir
 </button>
 
 </div>
