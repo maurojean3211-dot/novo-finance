@@ -48,10 +48,15 @@ await buscarPix();
 // ================= CLIENTES
 async function carregarClientes(){
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("empresas")
 .select("*")
 .order("created_at",{ascending:false});
+
+if(error){
+alert(error.message);
+return;
+}
 
 setClientes(data || []);
 }
@@ -72,12 +77,17 @@ setPixSistema(data.valor);
 
 async function salvarPix(){
 
-await supabase
+const { error } = await supabase
 .from("configuracoes")
 .upsert({
 chave:"pix_sistema",
 valor:pixSistema
 });
+
+if(error){
+alert(error.message);
+return;
+}
 
 alert("PIX salvo!");
 }
@@ -87,9 +97,11 @@ async function cadastrarCliente(){
 
 if(!nome) return alert("Nome obrigatório");
 
+let error;
+
 if(editandoId){
 
-await supabase
+({ error } = await supabase
 .from("empresas")
 .update({
 name:nome,
@@ -98,13 +110,13 @@ cpf,
 whatsapp,
 valor:Number(valor)
 })
-.eq("id",editandoId);
+.eq("id",editandoId));
 
 setEditandoId(null);
 
 }else{
 
-await supabase
+({ error } = await supabase
 .from("empresas")
 .insert([{
 name:nome,
@@ -115,11 +127,16 @@ valor:Number(valor),
 status:"Ativo",
 pagou:false,
 isento:false
-}]);
+}]));
+}
+
+if(error){
+alert(error.message);
+return;
 }
 
 limpar();
-carregarClientes();
+await carregarClientes();
 }
 
 // ================= FUNCOES
@@ -136,30 +153,93 @@ setWhatsapp(c.whatsapp || "");
 setValor(c.valor || "");
 }
 
+// 🔥 EXCLUIR
 async function excluirCliente(id){
-await supabase.from("empresas").delete().eq("id",id);
-carregarClientes();
+
+if(!confirm("Excluir cliente?")) return;
+
+const { error } = await supabase
+.from("empresas")
+.delete()
+.eq("id",id);
+
+if(error){
+alert(error.message);
+return;
 }
 
+alert("Excluído!");
+await carregarClientes();
+}
+
+// 🔥 PAGO
 async function marcarPago(c){
-await supabase.from("empresas").update({pagou:true}).eq("id",c.id);
-carregarClientes();
+
+const { error } = await supabase
+.from("empresas")
+.update({pagou:true})
+.eq("id",c.id);
+
+if(error){
+alert(error.message);
+return;
 }
 
+alert("Marcado como pago!");
+await carregarClientes();
+}
+
+// 🔥 PENDENTE
 async function marcarPendente(c){
-await supabase.from("empresas").update({pagou:false}).eq("id",c.id);
-carregarClientes();
+
+const { error } = await supabase
+.from("empresas")
+.update({pagou:false})
+.eq("id",c.id);
+
+if(error){
+alert(error.message);
+return;
 }
 
+alert("Marcado como pendente!");
+await carregarClientes();
+}
+
+// 🔥 STATUS
 async function alterarStatus(c){
+
 const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
-await supabase.from("empresas").update({status:novo}).eq("id",c.id);
-carregarClientes();
+
+const { error } = await supabase
+.from("empresas")
+.update({status:novo})
+.eq("id",c.id);
+
+if(error){
+alert(error.message);
+return;
 }
 
+alert("Status alterado!");
+await carregarClientes();
+}
+
+// 🔥 ISENTAR
 async function alternarIsencao(c){
-await supabase.from("empresas").update({isento:!c.isento}).eq("id",c.id);
-carregarClientes();
+
+const { error } = await supabase
+.from("empresas")
+.update({isento:!c.isento})
+.eq("id",c.id);
+
+if(error){
+alert(error.message);
+return;
+}
+
+alert("Isenção alterada!");
+await carregarClientes();
 }
 
 // ================= PIX WHATSAPP

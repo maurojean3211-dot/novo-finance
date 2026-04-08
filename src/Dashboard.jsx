@@ -19,6 +19,11 @@ export default function Dashboard(){
 const [receitas,setReceitas] = useState(0);
 const [pendente,setPendente] = useState(0);
 const [dadosGrafico,setDadosGrafico] = useState([]);
+
+const [totalClientes,setTotalClientes] = useState(0);
+const [totalPagos,setTotalPagos] = useState(0);
+const [totalBloqueados,setTotalBloqueados] = useState(0);
+
 const [isMaster,setIsMaster] = useState(false);
 const [carregando,setCarregando] = useState(true);
 
@@ -35,10 +40,10 @@ setCarregando(false);
 return;
 }
 
-// 🔥 DEFINE SE É VOCÊ
+// 🔥 MASTER
 if(user.email === "maurojean3211@gmail.com"){
 setIsMaster(true);
-await carregarReceitaClientes();
+await carregarDadosMaster();
 }else{
 setIsMaster(false);
 }
@@ -47,18 +52,26 @@ setCarregando(false);
 
 }
 
-// ================= RECEITA MASTER
+// ================= MASTER
+async function carregarDadosMaster(){
 
-async function carregarReceitaClientes(){
-
-const { data } = await supabase
+const { data, error } = await supabase
 .from("empresas")
 .select("*");
 
+if(error){
+alert(error.message);
+return;
+}
+
 let totalReceita = 0;
-let totalPendente = 0;
+let totalPend = 0;
+let pagos = 0;
+let bloqueados = 0;
 
 (data || []).forEach(c=>{
+
+if(c.status === "Bloqueado") bloqueados++;
 
 if(c.isento) return;
 
@@ -66,24 +79,27 @@ const valor = Number(c.valor || 0);
 
 if(c.pagou){
 totalReceita += valor;
+pagos++;
 }else{
-totalPendente += valor;
+totalPend += valor;
 }
 
 });
 
 setReceitas(totalReceita);
-setPendente(totalPendente);
+setPendente(totalPend);
+setTotalClientes(data.length);
+setTotalPagos(pagos);
+setTotalBloqueados(bloqueados);
 
-// 🔥 GARANTE QUE SEMPRE TEM DADO
+// gráfico
 const dados = [
 { name:"Recebido", valor: totalReceita },
-{ name:"Pendente", valor: totalPendente }
+{ name:"Pendente", valor: totalPend }
 ];
 
 const temValor = dados.some(d => d.valor > 0);
 
-// 🔥 FORÇA APARECER SEM ERRO
 setDadosGrafico(
 temValor ? dados : [
 { name:"Recebido", valor: 100 },
@@ -107,7 +123,7 @@ return(
 
 <h2>📊 Dashboard</h2>
 
-{/* 🔥 USUÁRIO NORMAL */}
+{/* USUÁRIO NORMAL */}
 {!isMaster && (
 <div style={{background:"#111827",padding:20,borderRadius:10}}>
 <h3>Bem-vindo 👋</h3>
@@ -115,14 +131,15 @@ return(
 </div>
 )}
 
-{/* 🔥 SEU DASHBOARD (MASTER) */}
+{/* MASTER */}
 {isMaster && (
 
 <>
-{/* CARDS */}
+
+{/* CARDS PRINCIPAIS */}
 <div style={{
 display:"grid",
-gridTemplateColumns:"1fr",
+gridTemplateColumns:"repeat(2,1fr)",
 gap:15,
 marginBottom:20
 }}>
@@ -130,10 +147,14 @@ marginBottom:20
 <Card titulo="💰 Recebido" valor={receitas}/>
 <Card titulo="⏳ Pendente" valor={pendente}/>
 <Card titulo="📊 Total" valor={receitas + pendente}/>
+<Card titulo="👥 Clientes" valor={totalClientes}/>
+
+<Card titulo="✅ Pagos" valor={totalPagos}/>
+<Card titulo="🚫 Bloqueados" valor={totalBloqueados}/>
 
 </div>
 
-{/* PIZZA */}
+{/* GRÁFICO PIZZA */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -141,7 +162,7 @@ borderRadius:10,
 marginBottom:20
 }}>
 
-<h3>Distribuição</h3>
+<h3>Distribuição Financeira</h3>
 
 <ResponsiveContainer width="100%" height={300}>
 <PieChart>
@@ -157,7 +178,7 @@ marginBottom:20
 
 </div>
 
-{/* BARRAS */}
+{/* GRÁFICO BARRA */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -173,7 +194,7 @@ borderRadius:10
 <YAxis/>
 <Tooltip/>
 <Legend/>
-<Bar dataKey="valor" />
+<Bar dataKey="valor" fill="#3b82f6" />
 </BarChart>
 </ResponsiveContainer>
 
@@ -188,8 +209,9 @@ borderRadius:10
 
 }
 
-// CARD
+// ================= CARD
 function Card({titulo,valor}){
+
 return(
 <div style={{
 background:"#111827",
@@ -202,7 +224,9 @@ fontSize:20,
 fontWeight:"bold",
 color:"#22c55e"
 }}>
-R$ {Number(valor||0).toFixed(2)}
+{typeof valor === "number"
+? `R$ ${valor.toFixed(2)}`
+: valor}
 </p>
 </div>
 );
