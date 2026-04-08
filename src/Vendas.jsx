@@ -14,15 +14,14 @@ new Date().toISOString().split("T")[0]
 );
 
 const [empresaId,setEmpresaId] = useState(null);
-const [loading,setLoading] = useState(false);
+const [userId,setUserId] = useState(null);
 
 // ================= INIT
 useEffect(()=>{
-console.log("TELA VENDAS CARREGOU");
 carregarEmpresa();
 },[]);
 
-// ================= EMPRESA
+// ================= EMPRESA + USER
 async function carregarEmpresa(){
 
 const { data:{ user } } = await supabase.auth.getUser();
@@ -31,6 +30,8 @@ if(!user){
 alert("Usuário não logado");
 return;
 }
+
+setUserId(user.id); // 🔥 salva user uma vez só
 
 const { data, error } = await supabase
 .from("usuarios")
@@ -49,8 +50,6 @@ alert("Empresa não encontrada");
 return;
 }
 
-console.log("EMPRESA ID:", data.empresa_id);
-
 setEmpresaId(data.empresa_id);
 
 carregarVendas(data.empresa_id);
@@ -60,16 +59,11 @@ carregarVendas(data.empresa_id);
 // ================= LISTAR
 async function carregarVendas(empId){
 
-const { data, error } = await supabase
+const { data } = await supabase
 .from("vendas")
 .select("*")
 .eq("empresa_id",empId)
 .order("id",{ascending:false});
-
-if(error){
-console.log(error);
-return;
-}
 
 setVendas(data || []);
 }
@@ -78,20 +72,18 @@ setVendas(data || []);
 const kg = Number(kilos || 0);
 const comissao = kg * 0.05;
 
-// ================= SALVAR (🔥 CORRIGIDO DEFINITIVO)
+// ================= SALVAR (🔥 CORRIGIDO FINAL)
 async function salvarVenda(){
 
 console.log("CLICK OK");
 
-if(loading){
-console.log("TRAVADO POR LOADING");
+if(!empresaId){
+alert("Empresa não carregada");
 return;
 }
 
-try{
-
-if(!empresaId){
-alert("Empresa não carregada ainda");
+if(!userId){
+alert("Usuário não carregado");
 return;
 }
 
@@ -100,22 +92,14 @@ alert("Informe o produto");
 return;
 }
 
-const kg = Number(kilos);
 if(kg <= 0){
 alert("Kilos inválido");
 return;
 }
 
-const { data:{ user } } = await supabase.auth.getUser();
+// 🔥 NÃO USA MAIS getUser AQUI
 
-if(!user){
-alert("Usuário não logado");
-return;
-}
-
-setLoading(true);
-
-const { error } = await supabase
+const { data, error } = await supabase
 .from("vendas")
 .insert([{
 empresa_id: empresaId,
@@ -124,33 +108,23 @@ produto: produto,
 kilos: kg,
 comissao: kg * 0.05,
 data_venda: dataVenda,
-user_id: user.id
-}]);
+user_id: userId
+}])
+.select();
 
 if(error){
-console.log("ERRO:", error);
-alert("Erro: " + error.message);
+console.log("ERRO REAL:", error);
+alert("Erro:\n" + error.message);
 return;
 }
 
-alert("Venda salva!");
+alert("SALVOU ✔");
 
 setCliente("");
 setProduto("");
 setKilos("");
 
-await carregarVendas(empresaId);
-
-}catch(err){
-console.log("ERRO GERAL:", err);
-alert("Erro inesperado");
-
-} finally {
-
-// 🔥 ESSA LINHA RESOLVE O TRAVAMENTO
-setLoading(false);
-
-}
+carregarVendas(empresaId);
 
 }
 
@@ -198,16 +172,14 @@ onChange={e=>setKilos(e.target.value)}
 
 <button
 onClick={salvarVenda}
-disabled={loading}
 style={{
 padding:10,
-background: loading ? "gray" : "green",
+background:"green",
 color:"#fff",
-border:"none",
-cursor:"pointer"
+border:"none"
 }}
 >
-{loading ? "Salvando..." : "Salvar Venda"}
+Salvar Venda
 </button>
 
 <hr/>
