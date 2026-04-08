@@ -15,36 +15,60 @@ new Date().toISOString().split("T")[0]
 
 const [empresaId,setEmpresaId] = useState(null);
 
-// INIT
+// ================= INIT
 useEffect(()=>{
 carregarEmpresa();
 },[]);
 
+// ================= EMPRESA
 async function carregarEmpresa(){
 
-const { data:{ user } } = await supabase.auth.getUser();
-if(!user) return;
+try{
 
-const { data } = await supabase
+const { data:{ user } } = await supabase.auth.getUser();
+if(!user){
+console.log("Sem usuário");
+return;
+}
+
+const { data, error } = await supabase
 .from("usuarios")
 .select("empresa_id")
 .eq("id",user.id)
 .single();
 
-if(!data?.empresa_id) return;
+if(error){
+console.log("Erro empresa:", error);
+return;
+}
+
+if(!data?.empresa_id){
+alert("Empresa não encontrada");
+return;
+}
 
 setEmpresaId(data.empresa_id);
 carregarVendas(data.empresa_id);
+
+}catch(err){
+console.log("Erro geral empresa:", err);
+}
+
 }
 
 // ================= LISTAR
 async function carregarVendas(empresa_id){
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("vendas")
 .select("*")
 .eq("empresa_id",empresa_id)
 .order("id",{ascending:false});
+
+if(error){
+console.log("Erro ao carregar vendas:", error);
+return;
+}
 
 setVendas(data || []);
 }
@@ -56,18 +80,31 @@ const comissao = kg * 0.05;
 // ================= SALVAR
 async function salvarVenda(){
 
+try{
+
 if(!empresaId) return alert("Empresa não carregada");
 if(!produto) return alert("Informe o produto");
 if(kg <= 0) return alert("Kilos inválido");
 
 const { data:{ user } } = await supabase.auth.getUser();
-if(!user) return;
+if(!user) return alert("Usuário não logado");
+
+// 🔥 DEBUG (VEJA NO F12)
+console.log("ENVIANDO:", {
+empresa_id:empresaId,
+cliente_nome:cliente,
+produto,
+kilos:kg,
+comissao,
+data_venda:dataVenda,
+user_id:user.id
+});
 
 const { error } = await supabase
 .from("vendas")
 .insert([{
 empresa_id:empresaId,
-cliente_nome: cliente,
+cliente_nome: cliente || "",
 produto: produto,
 kilos: kg,
 comissao: comissao,
@@ -76,17 +113,24 @@ user_id: user.id
 }]);
 
 if(error){
-alert("Erro: " + error.message);
+console.error("ERRO SUPABASE:", error);
+alert("Erro ao salvar:\n" + error.message);
 return;
 }
 
-alert("Venda salva!");
+alert("Venda salva com sucesso!");
 
 setCliente("");
 setProduto("");
 setKilos("");
 
 carregarVendas(empresaId);
+
+}catch(err){
+console.error("ERRO GERAL:", err);
+alert("Erro inesperado: " + err.message);
+}
+
 }
 
 // ================= TELA
@@ -148,10 +192,10 @@ marginBottom:10
 }}>
 
 📅 {v.data_venda} <br/>
-👤 {v.cliente_nome} <br/>
+👤 {v.cliente_nome || "-"} <br/>
 📦 {v.produto} <br/>
 ⚖️ {v.kilos} kg <br/>
-💸 Comissão: R$ {Number(v.comissao).toFixed(2)}
+💸 Comissão: R$ {Number(v.comissao || 0).toFixed(2)}
 
 </div>
 
@@ -160,4 +204,5 @@ marginBottom:10
 </div>
 
 );
+
 }
