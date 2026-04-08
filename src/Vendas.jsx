@@ -14,7 +14,6 @@ new Date().toISOString().split("T")[0]
 );
 
 const [empresaId,setEmpresaId] = useState(null);
-const [carregandoEmpresa,setCarregandoEmpresa] = useState(true);
 const [loading,setLoading] = useState(false);
 
 // ================= INIT
@@ -31,7 +30,6 @@ const { data:{ user } } = await supabase.auth.getUser();
 
 if(!user){
 alert("Usuário não logado");
-setCarregandoEmpresa(false);
 return;
 }
 
@@ -43,29 +41,24 @@ const { data, error } = await supabase
 
 if(error){
 console.log(error);
-alert("Erro ao carregar empresa");
-setCarregandoEmpresa(false);
+alert("Erro empresa");
 return;
 }
 
 if(!data?.empresa_id){
 alert("Empresa não encontrada");
-setCarregandoEmpresa(false);
 return;
 }
 
-// 🔥 DEFINE E USA NA HORA
 const empId = data.empresa_id;
 
 setEmpresaId(empId);
 
-await carregarVendas(empId);
-
-setCarregandoEmpresa(false);
+// 🔥 chama direto
+carregarVendas(empId);
 
 }catch(err){
 console.log(err);
-setCarregandoEmpresa(false);
 }
 
 }
@@ -96,25 +89,27 @@ async function salvarVenda(){
 
 try{
 
-if(carregandoEmpresa){
-return alert("Aguarde carregar a empresa...");
-}
+if(loading) return;
 
 if(!empresaId){
-return alert("Empresa não carregada");
+alert("Empresa ainda não carregou, aguarde 1 segundo e tente novamente.");
+return;
 }
 
 if(!produto){
-return alert("Informe o produto");
+alert("Informe o produto");
+return;
 }
 
 if(kg <= 0){
-return alert("Kilos inválido");
+alert("Kilos inválido");
+return;
 }
 
 const { data:{ user } } = await supabase.auth.getUser();
 if(!user){
-return alert("Usuário não logado");
+alert("Usuário não logado");
+return;
 }
 
 setLoading(true);
@@ -154,11 +149,6 @@ alert("Erro inesperado");
 setLoading(false);
 }
 
-}
-
-// ================= LOADING
-if(carregandoEmpresa){
-return <div style={{padding:20}}>Carregando empresa...</div>;
 }
 
 // ================= TELA
@@ -203,7 +193,7 @@ onChange={e=>setKilos(e.target.value)}
 
 <p><strong>Comissão:</strong> R$ {comissao.toFixed(2)}</p>
 
-<button onClick={salvarVenda} disabled={loading}>
+<button onClick={salvarVenda}>
 {loading ? "Salvando..." : "Salvar Venda"}
 </button>
 
