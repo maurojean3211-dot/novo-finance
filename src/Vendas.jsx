@@ -31,7 +31,7 @@ alert("Usuário não logado");
 return;
 }
 
-setUserId(user.id); // 🔥 salva user uma vez só
+setUserId(user.id);
 
 const { data, error } = await supabase
 .from("usuarios")
@@ -68,14 +68,36 @@ const { data } = await supabase
 setVendas(data || []);
 }
 
+// ================= EXCLUIR (🔥 NOVO)
+async function excluirVenda(id){
+
+const confirmar = confirm("Deseja excluir esta venda?");
+
+if(!confirmar) return;
+
+const { error } = await supabase
+.from("vendas")
+.delete()
+.eq("id", id);
+
+if(error){
+console.log("Erro ao excluir:", error);
+alert("Erro ao excluir: " + error.message);
+return;
+}
+
+alert("Venda excluída!");
+
+carregarVendas(empresaId);
+
+}
+
 // ================= CALCULO
 const kg = Number(kilos || 0);
 const comissao = kg * 0.05;
 
-// ================= SALVAR (🔥 CORRIGIDO FINAL)
+// ================= SALVAR
 async function salvarVenda(){
-
-console.log("CLICK OK");
 
 if(!empresaId){
 alert("Empresa não carregada");
@@ -97,9 +119,7 @@ alert("Kilos inválido");
 return;
 }
 
-// 🔥 NÃO USA MAIS getUser AQUI
-
-const { data, error } = await supabase
+const { error } = await supabase
 .from("vendas")
 .insert([{
 empresa_id: empresaId,
@@ -109,11 +129,10 @@ kilos: kg,
 comissao: kg * 0.05,
 data_venda: dataVenda,
 user_id: userId
-}])
-.select();
+}]);
 
 if(error){
-console.log("ERRO REAL:", error);
+console.log("ERRO:", error);
 alert("Erro:\n" + error.message);
 return;
 }
@@ -197,6 +216,21 @@ marginBottom:10
 📦 {v.produto} <br/>
 ⚖️ {v.kilos} kg <br/>
 💸 Comissão: R$ {Number(v.comissao || 0).toFixed(2)}
+
+<br/><br/>
+
+<button
+onClick={()=>excluirVenda(v.id)}
+style={{
+background:"red",
+color:"#fff",
+border:"none",
+padding:"5px 10px",
+cursor:"pointer"
+}}
+>
+🗑️ Excluir
+</button>
 
 </div>
 
