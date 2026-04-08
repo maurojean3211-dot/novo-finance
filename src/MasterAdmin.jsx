@@ -6,20 +6,15 @@ export default function MasterAdmin(){
 const [clientes,setClientes]=useState([]);
 const [usuario,setUsuario]=useState(null);
 
-// FORM CLIENTE
-const [tipo,setTipo]=useState("Empresa");
 const [nome,setNome]=useState("");
 const [email,setEmail]=useState("");
 const [cpf,setCpf]=useState("");
 const [whatsapp,setWhatsapp]=useState("");
 const [valor,setValor]=useState("");
 
-const [plano,setPlano]=useState("Básico");
-const [status,setStatus]=useState("Ativo");
-
 const [editandoId,setEditandoId]=useState(null);
 
-// PIX GLOBAL
+// PIX
 const [pixSistema,setPixSistema]=useState("");
 
 // INIT
@@ -27,105 +22,74 @@ useEffect(()=>{
 verificarUsuario();
 },[]);
 
-// 🔐 VERIFICA MASTER
+// ================= USUARIO
 async function verificarUsuario(){
 
 const { data: userData } = await supabase.auth.getUser();
+if(!userData?.user) return;
 
-if(!userData?.user){
-alert("Usuário não logado");
-return;
-}
-
-const emailUser = userData.user.email;
-
-const { data, error } = await supabase
+const { data } = await supabase
 .from("usuarios")
 .select("*")
-.eq("email", emailUser)
+.eq("email", userData.user.email)
 .single();
 
-if(error || !data){
-console.log(error);
-alert("Usuário não encontrado");
-return;
-}
-
-if(data.role !== "master"){
-alert("Acesso negado - somente master");
+if(!data || data.role !== "master"){
+alert("Acesso negado");
 return;
 }
 
 setUsuario(data);
 
-carregarClientes();
-buscarPix();
+await carregarClientes();
+await buscarPix();
 }
 
-// CARREGAR
+// ================= CLIENTES
 async function carregarClientes(){
 
-const { data, error } = await supabase
+const { data } = await supabase
 .from("empresas")
 .select("*")
 .order("created_at",{ascending:false});
 
-if(error){
-console.log("ERRO CARREGAR:", error);
-alert(error.message);
-}
-
 setClientes(data || []);
 }
 
-// BUSCAR PIX
+// ================= PIX
 async function buscarPix(){
 
-const { data, error } = await supabase
+const { data } = await supabase
 .from("configuracoes")
 .select("*")
 .eq("chave","pix_sistema")
 .single();
-
-if(error){
-console.log(error);
-return;
-}
 
 if(data){
 setPixSistema(data.valor);
 }
 }
 
-// SALVAR PIX
 async function salvarPix(){
 
-const { error } = await supabase
+await supabase
 .from("configuracoes")
 .upsert({
 chave:"pix_sistema",
 valor:pixSistema
 });
 
-if(error){
-console.log(error);
-alert(error.message);
-}else{
-alert("PIX salvo com sucesso!");
-}
+alert("PIX salvo!");
 }
 
-// CADASTRAR / EDITAR
+// ================= CADASTRO
 async function cadastrarCliente(){
 
-if(!nome){
-alert("Preencha o nome");
-return;
-}
+if(!nome) return alert("Nome obrigatório");
 
 if(editandoId){
 
-const { error } = await supabase
+await supabase
 .from("empresas")
 .update({
 name:nome,
@@ -134,20 +98,13 @@ cpf,
 whatsapp,
 valor:Number(valor)
 })
-.eq("id",editandoId)
-.select();
-
-if(error){
-console.log(error);
-alert(error.message);
-return;
-}
+.eq("id",editandoId);
 
 setEditandoId(null);
 
 }else{
 
-const { error } = await supabase
+await supabase
 .from("empresas")
 .insert([{
 name:nome,
@@ -155,37 +112,21 @@ email,
 cpf,
 whatsapp,
 valor:Number(valor),
-plano,
-status,
-tipo,
-tipo_sistema:"financeiro",
+status:"Ativo",
 pagou:false,
 isento:false
-}])
-.select();
-
-if(error){
-console.log(error);
-alert(error.message);
-return;
-}
-
+}]);
 }
 
 limpar();
 carregarClientes();
 }
 
-// LIMPAR
+// ================= FUNCOES
 function limpar(){
-setNome("");
-setEmail("");
-setCpf("");
-setWhatsapp("");
-setValor("");
+setNome(""); setEmail(""); setCpf(""); setWhatsapp(""); setValor("");
 }
 
-// EDITAR
 function editarCliente(c){
 setEditandoId(c.id);
 setNome(c.name || "");
@@ -193,142 +134,66 @@ setEmail(c.email || "");
 setCpf(c.cpf || "");
 setWhatsapp(c.whatsapp || "");
 setValor(c.valor || "");
-window.scrollTo({top:0,behavior:"smooth"});
 }
 
-// EXCLUIR
 async function excluirCliente(id){
-
-const { error } = await supabase
-.from("empresas")
-.delete()
-.eq("id",id)
-.select();
-
-if(error){
-console.log(error);
-alert(error.message);
-}else{
+await supabase.from("empresas").delete().eq("id",id);
 carregarClientes();
 }
-}
 
-// STATUS
-async function alterarStatus(c){
-
-const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
-
-const { error } = await supabase
-.from("empresas")
-.update({status:novo})
-.eq("id",c.id)
-.select();
-
-if(error){
-console.log(error);
-alert(error.message);
-}else{
-carregarClientes();
-}
-}
-
-// ISENÇÃO
-async function alternarIsencao(c){
-
-const { error } = await supabase
-.from("empresas")
-.update({isento:!c.isento})
-.eq("id",c.id)
-.select();
-
-if(error){
-console.log(error);
-alert(error.message);
-}else{
-carregarClientes();
-}
-}
-
-// PAGO
 async function marcarPago(c){
-
-const mes = new Date().getMonth()+1;
-
-const { error } = await supabase
-.from("empresas")
-.update({
-pagou:true,
-mes_pagamento:mes
-})
-.eq("id",c.id)
-.select();
-
-if(error){
-console.log(error);
-alert(error.message);
-}else{
+await supabase.from("empresas").update({pagou:true}).eq("id",c.id);
 carregarClientes();
 }
-}
 
-// PENDENTE
 async function marcarPendente(c){
-
-const { error } = await supabase
-.from("empresas")
-.update({pagou:false})
-.eq("id",c.id)
-.select();
-
-if(error){
-console.log(error);
-alert(error.message);
-}else{
+await supabase.from("empresas").update({pagou:false}).eq("id",c.id);
 carregarClientes();
 }
+
+async function alterarStatus(c){
+const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
+await supabase.from("empresas").update({status:novo}).eq("id",c.id);
+carregarClientes();
 }
 
-// PIX WHATSAPP
-function enviarPixWhatsApp(cliente){
-
-if(!pixSistema){
-alert("Cadastre seu PIX");
-return;
+async function alternarIsencao(c){
+await supabase.from("empresas").update({isento:!c.isento}).eq("id",c.id);
+carregarClientes();
 }
 
-if(!cliente.whatsapp){
-alert("Cliente sem WhatsApp");
-return;
+// ================= PIX WHATSAPP
+function enviarPix(cliente){
+
+if(!pixSistema) return alert("Cadastre o PIX");
+
+const numero = (cliente.whatsapp || "").replace(/\D/g,"");
+
+const mensagem = `
+Olá ${cliente.name}
+
+Valor: ${cliente.isento ? "ISENTO" : `R$ ${cliente.valor}`}
+
+PIX: ${pixSistema}
+`;
+
+window.open(`https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`);
 }
 
-const numero = cliente.whatsapp.replace(/\D/g, "");
-
-const mensagem = `Olá ${cliente.name || ""}!
-
-Valor: ${cliente.isento ? "ISENTO" : `R$ ${cliente.valor || 0}`}
-
-PIX:
-${pixSistema}`;
-
-const url = `https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`;
-
-window.open(url, "_blank");
-}
-
-// BLOQUEIA RENDER
+// ================= BLOQUEIO
 if(!usuario){
-return <div style={{color:"#fff",padding:20}}>🔒 Verificando acesso...</div>;
+return <div style={{color:"#fff",padding:20}}>Carregando...</div>;
 }
 
-// UI
+// ================= UI
 return(
 
 <div style={{padding:20,color:"#fff"}}>
 
-<h2>👑 Painel Master Admin</h2>
+<h2>👑 Master Admin</h2>
 
 <input
-placeholder="PIX"
+placeholder="Seu PIX"
 value={pixSistema}
 onChange={e=>setPixSistema(e.target.value)}
 />
@@ -346,31 +211,40 @@ onChange={e=>setPixSistema(e.target.value)}
 {editandoId ? "Salvar" : "Cadastrar"}
 </button>
 
-<table>
-<tbody>
+<hr/>
 
 {clientes.map(c=>(
 
-<tr key={c.id}>
-<td>{c.name}</td>
-<td>{c.valor}</td>
+<div key={c.id} style={{
+display:"flex",
+justifyContent:"space-between",
+alignItems:"center",
+borderBottom:"1px solid #333",
+padding:10
+}}>
 
-<td>
+<div style={{width:"25%"}}>{c.name}</div>
+<div style={{width:"10%"}}>R$ {c.valor}</div>
+<div style={{width:"10%"}}>{c.status}</div>
+<div style={{width:"10%"}}>{c.pagou ? "Pago" : "Pendente"}</div>
+
+<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+
 <button onClick={()=>editarCliente(c)}>Editar</button>
+<button onClick={()=>enviarPix(c)}>PIX</button>
 <button onClick={()=>marcarPago(c)}>Pago</button>
-<button onClick={()=>marcarPendente(c)}>Pendente</button>
+<button onClick={()=>marcarPendente(c)}>Pend.</button>
 <button onClick={()=>alterarStatus(c)}>Status</button>
 <button onClick={()=>alternarIsencao(c)}>Isentar</button>
-<button onClick={()=>excluirCliente(c.id)}>Excluir</button>
-</td>
+<button onClick={()=>excluirCliente(c.id)} style={{background:"red",color:"#fff"}}>Excluir</button>
 
-</tr>
+</div>
+
+</div>
 
 ))}
 
-</tbody>
-</table>
-
 </div>
+
 );
 }
