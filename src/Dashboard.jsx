@@ -69,13 +69,20 @@ let bloqueados = 0;
 
 (data || []).forEach(c=>{
 
+// 🔥 BLOQUEADOS
 if(c.status === "Bloqueado") bloqueados++;
 
-if(c.isento) return;
+// 🔥 IGNORA ISENTO
+if(c.isento === true) return;
 
+// 🔥 GARANTE VALOR NUMÉRICO
 const valor = Number(c.valor || 0);
 
-if(c.pagou){
+// 🔥 TRATAMENTO FORTE DE PAGAMENTO
+const pagou = c.pagou === true;
+
+// 🔥 CALCULO
+if(pagou){
 totalReceita += valor;
 pagos++;
 }else{
@@ -90,7 +97,7 @@ setTotalClientes(data.length);
 setTotalPagos(pagos);
 setTotalBloqueados(bloqueados);
 
-// gráfico
+// 🔥 GRÁFICO
 const dados = [
 { name:"Recebido", valor: totalReceita },
 { name:"Pendente", valor: totalPend }
@@ -100,8 +107,8 @@ const temValor = dados.some(d => d.valor > 0);
 
 setDadosGrafico(
 temValor ? dados : [
-{ name:"Recebido", valor: 100 },
-{ name:"Pendente", valor: 50 }
+{ name:"Recebido", valor: 1 },
+{ name:"Pendente", valor: 1 }
 ]
 );
 
@@ -121,7 +128,7 @@ return(
 
 <h2>📊 Dashboard</h2>
 
-{/* USUÁRIO NORMAL */}
+{/* NORMAL */}
 {!isMaster && (
 <div style={{background:"#111827",padding:20,borderRadius:10}}>
 <h3>Bem-vindo 👋</h3>
@@ -207,7 +214,7 @@ borderRadius:10
 
 }
 
-// ================= CARD CORRIGIDO
+// ================= CARD
 function Card({titulo,valor,tipo="dinheiro"}){
 
 return(
