@@ -69,19 +69,22 @@ let bloqueados = 0;
 
 (data || []).forEach(c=>{
 
-// 🔥 BLOQUEADOS
 if(c.status === "Bloqueado") bloqueados++;
 
-// 🔥 IGNORA ISENTO
+// ignora isento
 if(c.isento === true) return;
 
-// 🔥 GARANTE VALOR NUMÉRICO
 const valor = Number(c.valor || 0);
 
-// 🔥 TRATAMENTO FORTE DE PAGAMENTO
-const pagou = c.pagou === true;
+// 🔥 CORREÇÃO DEFINITIVA AQUI
+const pagou =
+c.pagou === true ||
+c.pagou === "true" ||
+c.pagou === 1 ||
+c.pagou === "1" ||
+c.pagou === "Pago";
 
-// 🔥 CALCULO
+// cálculo
 if(pagou){
 totalReceita += valor;
 pagos++;
@@ -97,7 +100,7 @@ setTotalClientes(data.length);
 setTotalPagos(pagos);
 setTotalBloqueados(bloqueados);
 
-// 🔥 GRÁFICO
+// gráfico
 const dados = [
 { name:"Recebido", valor: totalReceita },
 { name:"Pendente", valor: totalPend }
@@ -141,7 +144,6 @@ return(
 
 <>
 
-{/* CARDS */}
 <div style={{
 display:"grid",
 gridTemplateColumns:"repeat(2,1fr)",
@@ -159,7 +161,6 @@ marginBottom:20
 
 </div>
 
-{/* PIZZA */}
 <div style={{
 background:"#111827",
 padding:15,
@@ -183,7 +184,6 @@ marginBottom:20
 
 </div>
 
-{/* BARRAS */}
 <div style={{
 background:"#111827",
 padding:15,
