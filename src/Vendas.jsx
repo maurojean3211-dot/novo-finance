@@ -5,11 +5,9 @@ export default function Vendas(){
 
 const [vendas,setVendas] = useState([]);
 
-const [clienteNome,setClienteNome] = useState("");
-const [produto,setProduto] = useState(""); // 🔥 LIVRE
-
-const [quantidade,setQuantidade] = useState("");
-const [precoUnitario,setPrecoUnitario] = useState("");
+const [cliente,setCliente] = useState("");
+const [produto,setProduto] = useState("");
+const [kilos,setKilos] = useState("");
 
 const [dataVenda,setDataVenda] = useState(
 new Date().toISOString().split("T")[0]
@@ -39,7 +37,7 @@ setEmpresaId(data.empresa_id);
 carregarVendas(data.empresa_id);
 }
 
-// ================= CARREGAR
+// ================= LISTAR
 async function carregarVendas(empresa_id){
 
 const { data } = await supabase
@@ -51,33 +49,27 @@ const { data } = await supabase
 setVendas(data || []);
 }
 
-// ================= CALCULOS
-const qtd = Number(quantidade || 0);
-const preco = Number(precoUnitario || 0);
-
-const valorTotal = qtd * preco;
-const comissao = qtd * 0.05;
+// ================= CALCULO
+const kg = Number(kilos || 0);
+const comissao = kg * 0.05;
 
 // ================= SALVAR
 async function salvarVenda(){
 
 if(!empresaId) return alert("Empresa não carregada");
 if(!produto) return alert("Informe o produto");
-if(qtd <= 0) return alert("Quantidade inválida");
+if(kg <= 0) return alert("Kilos inválido");
 
 const { data:{ user } } = await supabase.auth.getUser();
 if(!user) return;
 
-// 🔥 SALVAR DIRETO COM PRODUTO TEXTO
 const { error } = await supabase
 .from("vendas")
 .insert([{
 empresa_id:empresaId,
-cliente_nome: clienteNome,
-produto: produto, // 🔥 AQUI CORRIGIDO
-kilos: qtd,
-preco_unitario: preco,
-valor_total: valorTotal,
+cliente_nome: cliente,
+produto: produto,
+kilos: kg,
 comissao: comissao,
 data_venda: dataVenda,
 user_id: user.id
@@ -90,10 +82,9 @@ return;
 
 alert("Venda salva!");
 
-setClienteNome("");
+setCliente("");
 setProduto("");
-setQuantidade("");
-setPrecoUnitario("");
+setKilos("");
 
 carregarVendas(empresaId);
 }
@@ -115,14 +106,14 @@ onChange={e=>setDataVenda(e.target.value)}
 
 <input
 placeholder="Cliente"
-value={clienteNome}
-onChange={e=>setClienteNome(e.target.value)}
+value={cliente}
+onChange={e=>setCliente(e.target.value)}
 />
 
 <br/><br/>
 
 <input
-placeholder="Produto (livre)"
+placeholder="Produto"
 value={produto}
 onChange={e=>setProduto(e.target.value)}
 />
@@ -132,17 +123,8 @@ onChange={e=>setProduto(e.target.value)}
 <input
 type="number"
 placeholder="Kilos"
-value={quantidade}
-onChange={e=>setQuantidade(e.target.value)}
-/>
-
-<br/><br/>
-
-<input
-type="number"
-placeholder="Valor por KG"
-value={precoUnitario}
-onChange={e=>setPrecoUnitario(e.target.value)}
+value={kilos}
+onChange={e=>setKilos(e.target.value)}
 />
 
 <br/><br/>
@@ -154,6 +136,8 @@ Salvar Venda
 </button>
 
 <hr/>
+
+<h3>📊 Total Comissão</h3>
 
 {vendas.map(v=>(
 
@@ -167,7 +151,7 @@ marginBottom:10
 👤 {v.cliente_nome} <br/>
 📦 {v.produto} <br/>
 ⚖️ {v.kilos} kg <br/>
-💰 R$ {Number(v.valor_total).toFixed(2)}
+💸 Comissão: R$ {Number(v.comissao).toFixed(2)}
 
 </div>
 
