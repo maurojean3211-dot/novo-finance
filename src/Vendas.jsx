@@ -18,13 +18,12 @@ const [loading,setLoading] = useState(false);
 
 // ================= INIT
 useEffect(()=>{
+console.log("TELA VENDAS CARREGOU");
 carregarEmpresa();
 },[]);
 
 // ================= EMPRESA
 async function carregarEmpresa(){
-
-try{
 
 const { data:{ user } } = await supabase.auth.getUser();
 
@@ -50,16 +49,11 @@ alert("Empresa não encontrada");
 return;
 }
 
-const empId = data.empresa_id;
+console.log("EMPRESA ID:", data.empresa_id);
 
-setEmpresaId(empId);
+setEmpresaId(data.empresa_id);
 
-// 🔥 chama direto
-carregarVendas(empId);
-
-}catch(err){
-console.log(err);
-}
+carregarVendas(data.empresa_id);
 
 }
 
@@ -84,15 +78,20 @@ setVendas(data || []);
 const kg = Number(kilos || 0);
 const comissao = kg * 0.05;
 
-// ================= SALVAR
+// ================= SALVAR (🔥 CORRIGIDO DEFINITIVO)
 async function salvarVenda(){
+
+console.log("CLICK OK");
+
+if(loading){
+console.log("TRAVADO POR LOADING");
+return;
+}
 
 try{
 
-if(loading) return;
-
 if(!empresaId){
-alert("Empresa ainda não carregou, aguarde 1 segundo e tente novamente.");
+alert("Empresa não carregada ainda");
 return;
 }
 
@@ -101,12 +100,14 @@ alert("Informe o produto");
 return;
 }
 
+const kg = Number(kilos);
 if(kg <= 0){
 alert("Kilos inválido");
 return;
 }
 
 const { data:{ user } } = await supabase.auth.getUser();
+
 if(!user){
 alert("Usuário não logado");
 return;
@@ -121,15 +122,14 @@ empresa_id: empresaId,
 cliente_nome: cliente || "",
 produto: produto,
 kilos: kg,
-comissao: comissao,
+comissao: kg * 0.05,
 data_venda: dataVenda,
 user_id: user.id
 }]);
 
 if(error){
-console.log(error);
+console.log("ERRO:", error);
 alert("Erro: " + error.message);
-setLoading(false);
 return;
 }
 
@@ -141,12 +141,15 @@ setKilos("");
 
 await carregarVendas(empresaId);
 
+}catch(err){
+console.log("ERRO GERAL:", err);
+alert("Erro inesperado");
+
+} finally {
+
+// 🔥 ESSA LINHA RESOLVE O TRAVAMENTO
 setLoading(false);
 
-}catch(err){
-console.log(err);
-alert("Erro inesperado");
-setLoading(false);
 }
 
 }
@@ -193,7 +196,17 @@ onChange={e=>setKilos(e.target.value)}
 
 <p><strong>Comissão:</strong> R$ {comissao.toFixed(2)}</p>
 
-<button onClick={salvarVenda}>
+<button
+onClick={salvarVenda}
+disabled={loading}
+style={{
+padding:10,
+background: loading ? "gray" : "green",
+color:"#fff",
+border:"none",
+cursor:"pointer"
+}}
+>
 {loading ? "Salvando..." : "Salvar Venda"}
 </button>
 
@@ -220,5 +233,4 @@ marginBottom:10
 </div>
 
 );
-
 }
