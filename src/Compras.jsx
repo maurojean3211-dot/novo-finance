@@ -19,37 +19,41 @@ const [userEmail,setUserEmail] = useState(null);
 const [editandoId,setEditandoId] = useState(null);
 const [busca,setBusca] = useState("");
 
+// ================= INIT
 useEffect(() => {
 carregarEmpresa();
 }, []);
 
-// ================= EMPRESA
+// ================= EMPRESA (CORRIGIDO)
 async function carregarEmpresa(){
 
 const { data:{ user } } = await supabase.auth.getUser();
-if(!user) return;
+if(!user){
+alert("Usuário não logado");
+return;
+}
 
 setUserEmail(user.email);
 
 const { data, error } = await supabase
 .from("usuarios")
 .select("empresa_id")
-.eq("id",user.id)
+.eq("email", user.email) // ✅ CORREÇÃO AQUI
 .single();
 
 if(error){
 console.log("ERRO EMPRESA:", error);
+alert("Erro ao buscar empresa");
 return;
 }
 
 if(!data?.empresa_id){
-console.log("SEM EMPRESA_ID");
+alert("Empresa não encontrada");
 return;
 }
 
 setEmpresaId(data.empresa_id);
 
-// 🔥 AGORA COM AWAIT
 await carregarCompras(data.empresa_id);
 }
 
@@ -59,12 +63,14 @@ return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 }
 
 // ================= COMPRAS
-async function carregarCompras(empresa_id) {
+async function carregarCompras(empId) {
+
+if(!empId) return;
 
 const { data, error } = await supabase
 .from("compras")
 .select("*")
-.eq("empresa_id",empresa_id)
+.eq("empresa_id",empId)
 .order("id",{ascending:false});
 
 if(error){
@@ -72,8 +78,7 @@ console.log("ERRO AO BUSCAR:", error);
 return;
 }
 
-// 🔥 DEBUG
-console.log("COMPRAS CARREGADAS:", data);
+console.log("COMPRAS:", data);
 
 setCompras(data || []);
 }
@@ -99,10 +104,16 @@ const comprasFiltradas = compras.filter(c =>
 // ================= SALVAR
 async function salvarCompra(){
 
-if(!empresaId) return alert("Empresa não carregada");
+if(!empresaId){
+alert("Empresa ainda não carregada");
+return;
+}
 
 const { data:{ user } } = await supabase.auth.getUser();
-if(!user) return;
+if(!user){
+alert("Usuário não carregado");
+return;
+}
 
 if(!produto) return alert("Informe o produto");
 if(!kilos) return alert("Informe os kilos");
@@ -134,7 +145,7 @@ setEditandoId(null);
 ({ error } = await supabase
 .from("compras")
 .insert([{
-empresa_id:empresaId, // 🔥 GARANTIDO
+empresa_id:empresaId,
 fornecedor,
 produto,
 kilos:Number(kilos),
@@ -145,7 +156,7 @@ user_id:user.id
 
 if(error) return alert(error.message);
 
-alert("Salvo!");
+alert("Compra salva!");
 }
 
 // limpar
@@ -153,7 +164,7 @@ setFornecedor("");
 setProduto("");
 setKilos("");
 
-// 🔥 AGORA COM AWAIT
+// recarrega
 await carregarCompras(empresaId);
 }
 
@@ -161,11 +172,12 @@ await carregarCompras(empresaId);
 function editarCompra(c){
 
 setEditandoId(c.id);
-setFornecedor(c.fornecedor);
-setProduto(c.produto);
-setKilos(c.kilos);
-setDataCompra(c.data_compra);
+setFornecedor(c.fornecedor || "");
+setProduto(c.produto || "");
+setKilos(c.kilos || "");
+setDataCompra(c.data_compra || "");
 
+window.scrollTo({top:0,behavior:"smooth"});
 }
 
 // ================= EXCLUIR
@@ -175,7 +187,6 @@ if(!confirm("Excluir?")) return;
 
 await supabase.from("compras").delete().eq("id",id);
 
-// 🔥 ATUALIZA LISTA
 await carregarCompras(empresaId);
 }
 
@@ -187,7 +198,7 @@ return(
 
 <div style={{padding:20}}>
 
-<h1>📦 Compras</h1>
+<h1>📦 {editandoId ? "Editar Compra" : "Compras"}</h1>
 
 <input
 type="date"
@@ -224,7 +235,15 @@ onChange={e=>setKilos(e.target.value)}
 
 <p><strong>Comissão:</strong> R$ {comissaoPreview.toFixed(2)}</p>
 
-<button onClick={salvarCompra}>
+<button
+onClick={salvarCompra}
+style={{
+padding:10,
+background: editandoId ? "orange" : "green",
+color:"#fff",
+border:"none"
+}}
+>
 {editandoId ? "Atualizar" : "Salvar"}
 </button>
 
@@ -245,10 +264,10 @@ onChange={e=>setBusca(e.target.value)}
 <div key={c.id} style={{border:"1px solid #ccc",padding:10,marginBottom:10}}>
 
 📅 {c.data_compra} <br/>
-👤 {c.fornecedor} <br/>
+👤 {c.fornecedor || "-"} <br/>
 📦 {c.produto} <br/>
 ⚖️ {c.kilos} kg <br/>
-💸 R$ {Number(c.comissao).toFixed(2)}
+💸 R$ {Number(c.comissao || 0).toFixed(2)}
 
 <br/><br/>
 

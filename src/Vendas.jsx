@@ -38,14 +38,20 @@ return;
 
 setUserId(user.id);
 
-const { data } = await supabase
+const { data, error } = await supabase
 .from("usuarios")
 .select("empresa_id")
-.eq("id",user.id)
+.eq("email", user.email) // ✅ CORRIGIDO
 .single();
 
+if(error){
+console.log(error);
+alert("Erro ao buscar empresa");
+return;
+}
+
 if(!data?.empresa_id){
-alert("Empresa não encontrada");
+alert("Empresa não encontrada no usuário");
 return;
 }
 
@@ -58,11 +64,18 @@ carregarVendas(data.empresa_id);
 // ================= LISTAR
 async function carregarVendas(empId){
 
-const { data } = await supabase
+if(!empId) return;
+
+const { data, error } = await supabase
 .from("vendas")
 .select("*")
 .eq("empresa_id",empId)
 .order("id",{ascending:false});
+
+if(error){
+console.log(error);
+return;
+}
 
 setVendas(data || []);
 }
@@ -100,7 +113,7 @@ const comissao = kg * 0.05;
 async function salvarVenda(){
 
 if(!empresaId){
-alert("Empresa não carregada");
+alert("Empresa ainda não carregada");
 return;
 }
 

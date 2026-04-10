@@ -4,68 +4,45 @@ import { supabase } from "./supabase";
 export default function Relatorio({ empresaId }) {
 
   const [dados, setDados] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [clienteFiltro, setClienteFiltro] = useState("");
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
-
   const [totalVendas, setTotalVendas] = useState(0);
   const [totalComissao, setTotalComissao] = useState(0);
 
   useEffect(()=>{
-    carregarClientes();
-  },[]);
-
-  // 🔥 AGORA BUSCA SEMPRE QUE MUDAR QUALQUER FILTRO
-  useEffect(()=>{
     if(empresaId){
       buscar();
     }
-  },[empresaId, clienteFiltro, dataInicio, dataFim]);
-
-  async function carregarClientes(){
-    const { data } = await supabase
-      .from("clientes")
-      .select("id, nome");
-
-    setClientes(data || []);
-  }
+  },[empresaId]);
 
   async function buscar(){
 
-    console.log("FILTROS:", {
-      empresaId,
-      clienteFiltro,
-      dataInicio,
-      dataFim
-    });
+    if(!empresaId){
+      alert("Empresa não carregada");
+      return;
+    }
 
-    if(!empresaId) return;
-
-    let query = supabase
-      .from("lancamentos")
+    // 🔵 VENDAS
+    const { data: vendas } = await supabase
+      .from("vendas")
       .select("*")
       .eq("empresa_id", empresaId);
 
-    if(dataInicio !== "") query = query.gte("data", dataInicio);
-    if(dataFim !== "") query = query.lte("data", dataFim);
-    if(clienteFiltro !== "") query = query.eq("cliente_id", clienteFiltro);
+    // 🟠 COMPRAS
+    const { data: compras } = await supabase
+      .from("compras")
+      .select("*")
+      .eq("empresa_id", empresaId);
 
-    const { data } = await query;
-
-    console.log("LANCAMENTOS:", data);
+    console.log("VENDAS:", vendas);
+    console.log("COMPRAS:", compras);
 
     let resumo = {};
     let total = 0;
     let comissao = 0;
 
-    (data || []).forEach(item => {
+    // 🔵 VENDAS
+    (vendas || []).forEach(item => {
 
-      const cliente =
-        item.cliente_nome ||
-        item.cliente ||
-        item.nome ||
-        "Sem nome";
+      const cliente = item.cliente_nome || "Sem nome";
 
       if(!resumo[cliente]){
         resumo[cliente] = {
@@ -76,24 +53,34 @@ export default function Relatorio({ empresaId }) {
         };
       }
 
-      const valor =
-        Number(item.valor) ||
-        Number(item.total) ||
-        0;
+      const valor = Number(item.kilos) || 0;
 
-      if(item.tipo === "entrada"){
-        resumo[cliente].vendas += valor;
-        total += valor;
+      resumo[cliente].vendas += valor;
+      total += valor;
 
-        const com = valor * 0.05;
-        resumo[cliente].comissao += com;
-        comissao += com;
+      const com = Number(item.comissao) || (valor * 0.05);
+
+      resumo[cliente].comissao += com;
+      comissao += com;
+    });
+
+    // 🟠 COMPRAS
+    (compras || []).forEach(item => {
+
+      const cliente = item.fornecedor || "Sem nome";
+
+      if(!resumo[cliente]){
+        resumo[cliente] = {
+          cliente,
+          vendas: 0,
+          compras: 0,
+          comissao: 0
+        };
       }
 
-      if(item.tipo === "saida"){
-        resumo[cliente].compras += valor;
-      }
+      const valor = Number(item.kilos) || 0;
 
+      resumo[cliente].compras += valor;
     });
 
     setDados(Object.values(resumo));
@@ -106,56 +93,30 @@ export default function Relatorio({ empresaId }) {
 
       <h2>📊 Relatório Financeiro</h2>
 
-      {/* FILTROS */}
-      <div style={{
-        display:"flex",
-        gap:10,
-        marginBottom:20,
-        flexWrap:"wrap"
-      }}>
+      <button onClick={buscar} style={{marginBottom:20}}>
+        🔍 Atualizar
+      </button>
 
-        <select onChange={(e)=>setClienteFiltro(e.target.value)}>
-          <option value="">Todos clientes</option>
-          {clientes.map(c=>(
-            <option key={c.id} value={c.id}>{c.nome}</option>
-          ))}
-        </select>
-
-        <input type="date" onChange={(e)=>setDataInicio(e.target.value)} />
-        <input type="date" onChange={(e)=>setDataFim(e.target.value)} />
-
-        {/* 🔥 BOTÃO AGORA FUNCIONA */}
-        <button onClick={()=>{
-          console.log("BUSCAR CLICADO");
-          buscar();
-        }}>
-          🔍 Buscar
-        </button>
-
-      </div>
-
-      {/* DASHBOARD */}
-      <div style={{display:"flex", gap:20, marginBottom:20, flexWrap:"wrap"}}>
+      <div style={{display:"flex", gap:20, marginBottom:20}}>
 
         <div style={{background:"#111827", padding:15, borderRadius:8}}>
-          <strong>📦 Total Vendas</strong>
-          <div>R$ {Number(totalVendas).toFixed(2)}</div>
+          <strong>Total Vendas</strong>
+          <div>R$ {totalVendas.toFixed(2)}</div>
         </div>
 
         <div style={{background:"#111827", padding:15, borderRadius:8}}>
-          <strong>💰 Comissão</strong>
-          <div>R$ {Number(totalComissao).toFixed(2)}</div>
+          <strong>Comissão</strong>
+          <div>R$ {totalComissao.toFixed(2)}</div>
         </div>
 
       </div>
 
-      {/* TABELA */}
       <table border="1" cellPadding="10" style={{width:"100%"}}>
         <thead>
           <tr>
             <th>Cliente</th>
-            <th>Vendas</th>
-            <th>Compras</th>
+            <th>Vendas (kg)</th>
+            <th>Compras (kg)</th>
             <th>Comissão</th>
           </tr>
         </thead>
@@ -164,9 +125,9 @@ export default function Relatorio({ empresaId }) {
           {dados.map((item, i)=>(
             <tr key={i}>
               <td>{item.cliente}</td>
-              <td>R$ {Number(item.vendas).toFixed(2)}</td>
-              <td>R$ {Number(item.compras).toFixed(2)}</td>
-              <td>R$ {Number(item.comissao).toFixed(2)}</td>
+              <td>{item.vendas}</td>
+              <td>{item.compras}</td>
+              <td>R$ {item.comissao.toFixed(2)}</td>
             </tr>
           ))}
         </tbody>
