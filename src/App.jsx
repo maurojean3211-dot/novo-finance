@@ -10,8 +10,6 @@ import MasterAdmin from "./MasterAdmin";
 import Financeiro from "./Financeiro.jsx";
 import Lucro from "./Lucro.jsx";
 import DespesasPessoais from "./DespesasPessoais.jsx";
-
-// ✅ AGORA USANDO O CERTO
 import Relatorio from "./Relatorio.jsx";
 
 import Clientes from "./Clientes.jsx";
@@ -33,6 +31,8 @@ const [subPaginaEmprestimo,setSubPaginaEmprestimo] = useState("cadastro");
 
 const [role,setRole] = useState(null);
 const [empresaId,setEmpresaId] = useState(null);
+const [permissoes,setPermissoes] = useState({}); // 🔥 NOVO
+
 const [isMobile,setIsMobile] = useState(window.innerWidth < 768);
 
 useEffect(() => {
@@ -48,6 +48,7 @@ useEffect(()=>{
   return ()=> window.removeEventListener("resize",handleResize);
 },[]);
 
+// ================= SESSÃO
 useEffect(()=>{
 
 async function carregarSessao(){
@@ -62,13 +63,14 @@ if(user){
 
 let { data:usuario } = await supabase
 .from("usuarios")
-.select("role,empresa_id")
+.select("role,empresa_id,permissoes") // 🔥 IMPORTANTE
 .ilike("email", user.email);
 
 usuario = usuario?.[0];
 
 setEmpresaId(usuario?.empresa_id || null);
 setRole(usuario?.role || null);
+setPermissoes(usuario?.permissoes || {}); // 🔥 NOVO
 
 }
 
@@ -90,13 +92,14 @@ if(newSession?.user){
 
 let { data:usuario } = await supabase
 .from("usuarios")
-.select("role,empresa_id")
+.select("role,empresa_id,permissoes") // 🔥 IMPORTANTE
 .ilike("email", newSession.user.email);
 
 usuario = usuario?.[0];
 
 setEmpresaId(usuario?.empresa_id || null);
 setRole(usuario?.role || null);
+setPermissoes(usuario?.permissoes || {}); // 🔥 NOVO
 
 }
 });
@@ -105,6 +108,7 @@ return ()=> subscription?.unsubscribe();
 
 },[]);
 
+// ================= SAIR
 async function sair(){
   await supabase.auth.signOut();
   setSession(null);
@@ -117,8 +121,6 @@ return <div style={{color:"#fff",padding:20}}>Carregando...</div>;
 if(!session){
 return <Login />;
 }
-
-const isMauro = session?.user?.email === "maurojean3211@gmail.com";
 
 return(
 
@@ -146,14 +148,37 @@ gap:10
 <h2>Cunha Finance</h2>
 </div>
 
-<button onClick={()=>setPagina("dashboard")} style={pagina==="dashboard" ? botaoAtivo : botaoMenu}>📊 Dashboard</button>
-<button onClick={()=>setPagina("financeiro")} style={pagina==="financeiro" ? botaoAtivo : botaoMenu}>💰 Financeiro</button>
-<button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>💰 Recebimentos</button>
-<button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>👥 Clientes</button>
+{/* 🔥 MENU CONTROLADO POR PERMISSÕES */}
 
+{permissoes.dashboard && (
+<button onClick={()=>setPagina("dashboard")} style={pagina==="dashboard" ? botaoAtivo : botaoMenu}>
+📊 Dashboard
+</button>
+)}
+
+{permissoes.financeiro && (
+<button onClick={()=>setPagina("financeiro")} style={pagina==="financeiro" ? botaoAtivo : botaoMenu}>
+💰 Financeiro
+</button>
+)}
+
+{permissoes.recebimentos && (
+<button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>
+💰 Recebimentos
+</button>
+)}
+
+{permissoes.clientes && (
+<button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>
+👥 Clientes
+</button>
+)}
+
+{permissoes.emprestimos && (
 <button onClick={()=>setPagina("emprestimos")} style={pagina==="emprestimos" ? botaoAtivo : botaoMenu}>
 💸 Empréstimos
 </button>
+)}
 
 {role === "master" && (
 <button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>
@@ -161,23 +186,35 @@ gap:10
 </button>
 )}
 
-{role === "admin" && (
-<button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>📈 Lucro</button>
+{role === "admin" && permissoes.lucro && (
+<button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>
+📈 Lucro
+</button>
 )}
 
-{isMauro && (
-<>
-<button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>📦 Vendas</button>
-<button onClick={()=>setPagina("compras")} style={pagina==="compras" ? botaoAtivo : botaoMenu}>🧱 Compras</button>
-</>
+{permissoes.vendas && (
+<button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>
+📦 Vendas
+</button>
 )}
 
-<button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>💳 Pessoal</button>
+{permissoes.compras && (
+<button onClick={()=>setPagina("compras")} style={pagina==="compras" ? botaoAtivo : botaoMenu}>
+🧱 Compras
+</button>
+)}
 
-{/* ✅ RELATÓRIO CERTO */}
+{permissoes.pessoal && (
+<button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>
+💳 Pessoal
+</button>
+)}
+
+{permissoes.relatorio && (
 <button onClick={()=>setPagina("relatorio")} style={pagina==="relatorio" ? botaoAtivo : botaoMenu}>
 📄 Relatórios
 </button>
+)}
 
 <button onClick={sair} style={{...botaoMenu, background:"#ef4444"}}>
 🚪 Sair
@@ -188,12 +225,12 @@ gap:10
 {/* CONTEÚDO */}
 <div style={{flex:1,padding:20}}>
 
-{pagina==="dashboard" && <Dashboard />}
-{pagina==="financeiro" && <Financeiro empresaId={empresaId} />}
-{pagina==="recebimentos" && <Recebimentos empresaId={empresaId} />}
-{pagina==="clientes" && <Clientes />}
+{pagina==="dashboard" && permissoes.dashboard && <Dashboard />}
+{pagina==="financeiro" && permissoes.financeiro && <Financeiro empresaId={empresaId} />}
+{pagina==="recebimentos" && permissoes.recebimentos && <Recebimentos empresaId={empresaId} />}
+{pagina==="clientes" && permissoes.clientes && <Clientes />}
 
-{pagina==="emprestimos" && (
+{pagina==="emprestimos" && permissoes.emprestimos && (
   <div>
     <h2>💸 Empréstimos</h2>
 
@@ -209,15 +246,13 @@ gap:10
   </div>
 )}
 
-{pagina==="lucro" && role==="admin" && <Lucro />}
+{pagina==="lucro" && role==="admin" && permissoes.lucro && <Lucro />}
 
-{pagina==="vendas" && isMauro && <Vendas empresaId={empresaId} />}
-{pagina==="compras" && isMauro && <Compras empresaId={empresaId} />}
+{pagina==="vendas" && permissoes.vendas && <Vendas empresaId={empresaId} />}
+{pagina==="compras" && permissoes.compras && <Compras empresaId={empresaId} />}
+{pagina==="despesas" && permissoes.pessoal && <DespesasPessoais />}
 
-{pagina==="despesas" && <DespesasPessoais />}
-
-{/* 🔥 AQUI ABRE SEU RELATORIO NOVO */}
-{pagina==="relatorio" && <Relatorio empresaId={empresaId} />}
+{pagina==="relatorio" && permissoes.relatorio && <Relatorio empresaId={empresaId} />}
 
 {pagina==="admin" && <Admin />}
 {pagina==="master" && role==="master" && <MasterAdmin />}

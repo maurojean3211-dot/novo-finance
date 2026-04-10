@@ -14,6 +14,10 @@ const [valor,setValor]=useState("");
 
 const [editandoId,setEditandoId]=useState(null);
 
+// 🔥 PERMISSÕES
+const [editandoPermissoesId,setEditandoPermissoesId]=useState(null);
+const [permissoes,setPermissoes]=useState({});
+
 // PIX
 const [pixSistema,setPixSistema]=useState("");
 
@@ -153,6 +157,51 @@ setWhatsapp(c.whatsapp || "");
 setValor(c.valor || "");
 }
 
+// 🔥 ================= PERMISSÕES
+
+async function abrirPermissoes(c){
+
+// busca usuario pelo email da empresa
+const { data } = await supabase
+.from("usuarios")
+.select("*")
+.eq("email", c.email)
+.single();
+
+if(!data){
+alert("Usuário não encontrado");
+return;
+}
+
+setEditandoPermissoesId(data.id);
+
+setPermissoes(data.permissoes || {
+dashboard:true,
+financeiro:true,
+recebimentos:true,
+clientes:true,
+emprestimos:true,
+vendas:true,
+compras:true,
+pessoal:true,
+relatorio:true
+});
+}
+
+async function salvarPermissoes(){
+
+await supabase
+.from("usuarios")
+.update({
+permissoes: permissoes
+})
+.eq("id", editandoPermissoesId);
+
+alert("Permissões salvas!");
+
+setEditandoPermissoesId(null);
+}
+
 // 🔥 EXCLUIR
 async function excluirCliente(id){
 
@@ -175,34 +224,14 @@ await carregarClientes();
 // 🔥 PAGO
 async function marcarPago(c){
 
-const { error } = await supabase
-.from("empresas")
-.update({pagou:true})
-.eq("id",c.id);
-
-if(error){
-alert(error.message);
-return;
-}
-
-alert("Marcado como pago!");
+await supabase.from("empresas").update({pagou:true}).eq("id",c.id);
 await carregarClientes();
 }
 
 // 🔥 PENDENTE
 async function marcarPendente(c){
 
-const { error } = await supabase
-.from("empresas")
-.update({pagou:false})
-.eq("id",c.id);
-
-if(error){
-alert(error.message);
-return;
-}
-
-alert("Marcado como pendente!");
+await supabase.from("empresas").update({pagou:false}).eq("id",c.id);
 await carregarClientes();
 }
 
@@ -211,34 +240,14 @@ async function alterarStatus(c){
 
 const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
 
-const { error } = await supabase
-.from("empresas")
-.update({status:novo})
-.eq("id",c.id);
-
-if(error){
-alert(error.message);
-return;
-}
-
-alert("Status alterado!");
+await supabase.from("empresas").update({status:novo}).eq("id",c.id);
 await carregarClientes();
 }
 
 // 🔥 ISENTAR
 async function alternarIsencao(c){
 
-const { error } = await supabase
-.from("empresas")
-.update({isento:!c.isento})
-.eq("id",c.id);
-
-if(error){
-alert(error.message);
-return;
-}
-
-alert("Isenção alterada!");
+await supabase.from("empresas").update({isento:!c.isento}).eq("id",c.id);
 await carregarClientes();
 }
 
@@ -296,21 +305,23 @@ onChange={e=>setPixSistema(e.target.value)}
 {clientes.map(c=>(
 
 <div key={c.id} style={{
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center",
 borderBottom:"1px solid #333",
 padding:10
 }}>
 
-<div style={{width:"25%"}}>{c.name}</div>
-<div style={{width:"10%"}}>R$ {c.valor}</div>
-<div style={{width:"10%"}}>{c.status}</div>
-<div style={{width:"10%"}}>{c.pagou ? "Pago" : "Pendente"}</div>
+<div style={{display:"flex",justifyContent:"space-between"}}>
 
-<div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+<div>{c.name}</div>
+<div>R$ {c.valor}</div>
+<div>{c.status}</div>
+<div>{c.pagou ? "Pago" : "Pendente"}</div>
+
+</div>
+
+<div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:10}}>
 
 <button onClick={()=>editarCliente(c)}>Editar</button>
+<button onClick={()=>abrirPermissoes(c)}>🔐 Permissões</button>
 <button onClick={()=>enviarPix(c)}>PIX</button>
 <button onClick={()=>marcarPago(c)}>Pago</button>
 <button onClick={()=>marcarPendente(c)}>Pend.</button>
@@ -319,6 +330,40 @@ padding:10
 <button onClick={()=>excluirCliente(c.id)} style={{background:"red",color:"#fff"}}>Excluir</button>
 
 </div>
+
+{/* 🔥 PAINEL DE PERMISSÕES */}
+{editandoPermissoesId && (
+
+<div style={{marginTop:10,background:"#111",padding:10}}>
+
+<h4>Permissões</h4>
+
+{Object.keys(permissoes).map(modulo=>(
+
+<label key={modulo} style={{display:"block"}}>
+
+<input
+type="checkbox"
+checked={permissoes[modulo] || false}
+onChange={e=>setPermissoes({
+...permissoes,
+[modulo]: e.target.checked
+})}
+/>
+
+{modulo}
+
+</label>
+
+))}
+
+<button onClick={salvarPermissoes} style={{marginTop:10,background:"green",color:"#fff"}}>
+Salvar Permissões
+</button>
+
+</div>
+
+)}
 
 </div>
 
