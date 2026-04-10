@@ -24,10 +24,11 @@ useEffect(() => {
 carregarEmpresa();
 }, []);
 
-// ================= EMPRESA (CORRIGIDO)
+// ================= EMPRESA
 async function carregarEmpresa(){
 
 const { data:{ user } } = await supabase.auth.getUser();
+
 if(!user){
 alert("Usuário não logado");
 return;
@@ -35,10 +36,11 @@ return;
 
 setUserEmail(user.email);
 
+// 🔥 BUSCA CORRETA PELO EMAIL
 const { data, error } = await supabase
 .from("usuarios")
 .select("empresa_id")
-.eq("email", user.email) // ✅ CORREÇÃO AQUI
+.eq("email", user.email)
 .single();
 
 if(error){
@@ -54,6 +56,7 @@ return;
 
 setEmpresaId(data.empresa_id);
 
+// 🔥 AGUARDA carregar
 await carregarCompras(data.empresa_id);
 }
 
@@ -62,15 +65,15 @@ if(userEmail && userEmail !== "maurojean3211@gmail.com"){
 return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 }
 
-// ================= COMPRAS
-async function carregarCompras(empId) {
+// ================= LISTAR COMPRAS
+async function carregarCompras(empId){
 
 if(!empId) return;
 
 const { data, error } = await supabase
 .from("compras")
 .select("*")
-.eq("empresa_id",empId)
+.eq("empresa_id", empId)
 .order("id",{ascending:false});
 
 if(error){
@@ -78,27 +81,27 @@ console.log("ERRO AO BUSCAR:", error);
 return;
 }
 
-console.log("COMPRAS:", data);
-
 setCompras(data || []);
 }
 
-// ================= COMISSÃO
+// ================= COMISSÃO (REGRA FINAL)
 function calcularComissao(){
 
 const nome = (produto || "").toUpperCase();
 const kg = Number(kilos || 0);
 
 if(nome.includes("LIMALHA") || nome.includes("CAVACO")){
-return kg * 0.07;
+return kg * 0.07; // 🔥 7 centavos
 }
 
-return kg * 0.05;
+return kg * 0.05; // 🔥 5 centavos (sucata)
 }
 
 // ================= FILTRO
 const comprasFiltradas = compras.filter(c =>
-(c.fornecedor || "").toLowerCase().includes(busca.toLowerCase())
+(c.fornecedor || "")
+.toLowerCase()
+.includes(busca.toLowerCase())
 );
 
 // ================= SALVAR
@@ -110,13 +113,21 @@ return;
 }
 
 const { data:{ user } } = await supabase.auth.getUser();
+
 if(!user){
 alert("Usuário não carregado");
 return;
 }
 
-if(!produto) return alert("Informe o produto");
-if(!kilos) return alert("Informe os kilos");
+if(!produto){
+alert("Informe o produto");
+return;
+}
+
+if(!kilos || Number(kilos) <= 0){
+alert("Kilos inválido");
+return;
+}
 
 const comissao = calcularComissao();
 
@@ -129,13 +140,16 @@ if(editandoId){
 .update({
 fornecedor,
 produto,
-kilos:Number(kilos),
+kilos: Number(kilos),
 comissao,
-data_compra:dataCompra
+data_compra: dataCompra
 })
-.eq("id",editandoId));
+.eq("id", editandoId));
 
-if(error) return alert(error.message);
+if(error){
+alert(error.message);
+return;
+}
 
 alert("Atualizado!");
 setEditandoId(null);
@@ -145,26 +159,29 @@ setEditandoId(null);
 ({ error } = await supabase
 .from("compras")
 .insert([{
-empresa_id:empresaId,
+empresa_id: empresaId,
 fornecedor,
 produto,
-kilos:Number(kilos),
+kilos: Number(kilos),
 comissao,
-data_compra:dataCompra,
-user_id:user.id
+data_compra: dataCompra,
+user_id: user.id
 }]));
 
-if(error) return alert(error.message);
+if(error){
+alert(error.message);
+return;
+}
 
 alert("Compra salva!");
 }
 
-// limpar
+// 🔥 LIMPAR
 setFornecedor("");
 setProduto("");
 setKilos("");
 
-// recarrega
+// 🔥 RECARREGAR
 await carregarCompras(empresaId);
 }
 
@@ -185,7 +202,10 @@ async function excluirCompra(id){
 
 if(!confirm("Excluir?")) return;
 
-await supabase.from("compras").delete().eq("id",id);
+await supabase
+.from("compras")
+.delete()
+.eq("id", id);
 
 await carregarCompras(empresaId);
 }
@@ -217,7 +237,7 @@ onChange={e=>setFornecedor(e.target.value)}
 <br/><br/>
 
 <input
-placeholder="Produto (ex: sucata ou limalha)"
+placeholder="Produto (sucata, limalha ou cavaco)"
 value={produto}
 onChange={e=>setProduto(e.target.value)}
 />
@@ -241,7 +261,8 @@ style={{
 padding:10,
 background: editandoId ? "orange" : "green",
 color:"#fff",
-border:"none"
+border:"none",
+borderRadius:5
 }}
 >
 {editandoId ? "Atualizar" : "Salvar"}
@@ -261,21 +282,34 @@ onChange={e=>setBusca(e.target.value)}
 
 {comprasFiltradas.map(c=>(
 
-<div key={c.id} style={{border:"1px solid #ccc",padding:10,marginBottom:10}}>
+<div key={c.id} style={{
+border:"1px solid #ccc",
+padding:10,
+marginBottom:10,
+borderRadius:5
+}}>
 
 📅 {c.data_compra} <br/>
 👤 {c.fornecedor || "-"} <br/>
 📦 {c.produto} <br/>
 ⚖️ {c.kilos} kg <br/>
-💸 R$ {Number(c.comissao || 0).toFixed(2)}
+💸 Comissão: R$ {Number(c.comissao || 0).toFixed(2)}
 
 <br/><br/>
 
-<button onClick={()=>editarCompra(c)}>✏️ Editar</button>
+<button onClick={()=>editarCompra(c)}>
+✏️ Editar
+</button>
 
 <button
 onClick={()=>excluirCompra(c.id)}
-style={{marginLeft:10,background:"red",color:"#fff"}}
+style={{
+marginLeft:10,
+background:"red",
+color:"#fff",
+border:"none",
+padding:"5px 10px"
+}}
 >
 🗑️ Excluir
 </button>
