@@ -16,10 +16,12 @@ export default function Relatorio({ empresaId }) {
     carregarClientes();
   },[]);
 
-  // 🔥 BUSCA AUTOMÁTICA
+  // 🔥 AGORA BUSCA SEMPRE QUE MUDAR QUALQUER FILTRO
   useEffect(()=>{
-    if(empresaId) buscar();
-  },[empresaId]);
+    if(empresaId){
+      buscar();
+    }
+  },[empresaId, clienteFiltro, dataInicio, dataFim]);
 
   async function carregarClientes(){
     const { data } = await supabase
@@ -31,20 +33,23 @@ export default function Relatorio({ empresaId }) {
 
   async function buscar(){
 
-    if(!empresaId){
-      alert("Empresa não carregada");
-      return;
-    }
+    console.log("FILTROS:", {
+      empresaId,
+      clienteFiltro,
+      dataInicio,
+      dataFim
+    });
 
-    // 🔥 AGORA BUSCA DA TABELA CERTA
+    if(!empresaId) return;
+
     let query = supabase
       .from("lancamentos")
       .select("*")
       .eq("empresa_id", empresaId);
 
-    if(dataInicio) query = query.gte("data", dataInicio);
-    if(dataFim) query = query.lte("data", dataFim);
-    if(clienteFiltro) query = query.eq("cliente_id", clienteFiltro);
+    if(dataInicio !== "") query = query.gte("data", dataInicio);
+    if(dataFim !== "") query = query.lte("data", dataFim);
+    if(clienteFiltro !== "") query = query.eq("cliente_id", clienteFiltro);
 
     const { data } = await query;
 
@@ -76,7 +81,6 @@ export default function Relatorio({ empresaId }) {
         Number(item.total) ||
         0;
 
-      // 🔥 ENTRADA = VENDA
       if(item.tipo === "entrada"){
         resumo[cliente].vendas += valor;
         total += valor;
@@ -86,7 +90,6 @@ export default function Relatorio({ empresaId }) {
         comissao += com;
       }
 
-      // 🔥 SAÍDA = COMPRA
       if(item.tipo === "saida"){
         resumo[cliente].compras += valor;
       }
@@ -121,7 +124,14 @@ export default function Relatorio({ empresaId }) {
         <input type="date" onChange={(e)=>setDataInicio(e.target.value)} />
         <input type="date" onChange={(e)=>setDataFim(e.target.value)} />
 
-        <button onClick={buscar}>🔍 Buscar</button>
+        {/* 🔥 BOTÃO AGORA FUNCIONA */}
+        <button onClick={()=>{
+          console.log("BUSCAR CLICADO");
+          buscar();
+        }}>
+          🔍 Buscar
+        </button>
+
       </div>
 
       {/* DASHBOARD */}
