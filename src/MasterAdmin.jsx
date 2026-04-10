@@ -147,27 +147,30 @@ async function abrirPermissoes(c){
 const { data } = await supabase
 .from("usuarios")
 .select("*")
-.eq("email", c.email)
-.single();
+.eq("email", c.email);
 
-if(!data){
-alert("Usuário não encontrado");
+if(!data || data.length === 0){
+alert("⚠️ Esse cliente ainda não tem login criado!");
 return;
 }
 
-// 🔥 CORREÇÃO AQUI
+const user = data[0];
+
+// 🔥 ABRE O PAINEL
 setEditandoPermissoesId(c.email);
 
+// 🔥 GARANTE TODAS AS PERMISSÕES
 setPermissoes({
-dashboard: data?.permissoes?.dashboard ?? true,
-financeiro: data?.permissoes?.financeiro ?? true,
-recebimentos: data?.permissoes?.recebimentos ?? true,
-clientes: data?.permissoes?.clientes ?? true,
-emprestimos: data?.permissoes?.emprestimos ?? true,
-vendas: data?.permissoes?.vendas ?? true,
-compras: data?.permissoes?.compras ?? true,
-pessoal: data?.permissoes?.pessoal ?? true,
-relatorio: data?.permissoes?.relatorio ?? true
+dashboard: true,
+financeiro: true,
+recebimentos: true,
+clientes: true,
+emprestimos: true,
+vendas: true,
+compras: true,
+pessoal: true,
+relatorio: true,
+...user.permissoes
 });
 }
 
@@ -290,33 +293,36 @@ padding:10
 
 </div>
 
-{/* 🔥 PAINEL */}
+{/* 🔥 PAINEL DE PERMISSÕES */}
 {editandoPermissoesId === c.email && (
 
-<div style={{marginTop:10,background:"#111",padding:10}}>
+<div style={{marginTop:10,background:"#111",padding:10,borderRadius:6}}>
 
 <h4>Permissões</h4>
 
-{Object.keys(permissoes).map(modulo=>(
+{Object.keys(permissoes).map(modulo => (
 
-<label key={modulo} style={{display:"block",marginBottom:5}}>
+<label key={modulo} style={{display:"block",marginBottom:6}}>
 
 <input
 type="checkbox"
-checked={permissoes[modulo]}
+checked={!!permissoes[modulo]}
 onChange={(e)=>setPermissoes({
 ...permissoes,
 [modulo]: e.target.checked
 })}
 />
 
-{" "}{modulo}
+{" "} {modulo}
 
 </label>
 
 ))}
 
-<button onClick={salvarPermissoes} style={{marginTop:10,background:"green",color:"#fff"}}>
+<button
+onClick={salvarPermissoes}
+style={{marginTop:10,background:"green",color:"#fff",padding:8,border:"none"}}
+>
 Salvar Permissões
 </button>
 
