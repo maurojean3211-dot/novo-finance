@@ -15,6 +15,7 @@ new Date().toISOString().split("T")[0]
 
 const [empresaId,setEmpresaId] = useState(null);
 const [userEmail,setUserEmail] = useState(null);
+const [loadingEmpresa,setLoadingEmpresa] = useState(true);
 
 const [editandoId,setEditandoId] = useState(null);
 const [busca,setBusca] = useState("");
@@ -27,37 +28,35 @@ carregarEmpresa();
 // ================= EMPRESA
 async function carregarEmpresa(){
 
+setLoadingEmpresa(true);
+
 const { data:{ user } } = await supabase.auth.getUser();
 
 if(!user){
 alert("Usuário não logado");
+setLoadingEmpresa(false);
 return;
 }
 
 setUserEmail(user.email);
 
-// 🔥 BUSCA CORRETA PELO EMAIL
 const { data, error } = await supabase
 .from("usuarios")
 .select("empresa_id")
 .eq("email", user.email)
 .single();
 
-if(error){
-console.log("ERRO EMPRESA:", error);
-alert("Erro ao buscar empresa");
-return;
-}
-
-if(!data?.empresa_id){
+if(error || !data?.empresa_id){
 alert("Empresa não encontrada");
+setLoadingEmpresa(false);
 return;
 }
 
 setEmpresaId(data.empresa_id);
 
-// 🔥 AGUARDA carregar
 await carregarCompras(data.empresa_id);
+
+setLoadingEmpresa(false);
 }
 
 // 🔒 BLOQUEIO
@@ -65,7 +64,12 @@ if(userEmail && userEmail !== "maurojean3211@gmail.com"){
 return <div style={{padding:20,color:"#fff"}}>⛔ Acesso restrito</div>;
 }
 
-// ================= LISTAR COMPRAS
+// ================= LOADING
+if(loadingEmpresa){
+return <div style={{padding:20,color:"#fff"}}>Carregando empresa...</div>;
+}
+
+// ================= LISTAR
 async function carregarCompras(empId){
 
 if(!empId) return;
@@ -84,17 +88,17 @@ return;
 setCompras(data || []);
 }
 
-// ================= COMISSÃO (REGRA FINAL)
+// ================= COMISSÃO
 function calcularComissao(){
 
 const nome = (produto || "").toUpperCase();
 const kg = Number(kilos || 0);
 
 if(nome.includes("LIMALHA") || nome.includes("CAVACO")){
-return kg * 0.07; // 🔥 7 centavos
+return kg * 0.07;
 }
 
-return kg * 0.05; // 🔥 5 centavos (sucata)
+return kg * 0.05;
 }
 
 // ================= FILTRO
@@ -119,15 +123,8 @@ alert("Usuário não carregado");
 return;
 }
 
-if(!produto){
-alert("Informe o produto");
-return;
-}
-
-if(!kilos || Number(kilos) <= 0){
-alert("Kilos inválido");
-return;
-}
+if(!produto) return alert("Informe o produto");
+if(!kilos || Number(kilos) <= 0) return alert("Kilos inválido");
 
 const comissao = calcularComissao();
 
@@ -146,10 +143,7 @@ data_compra: dataCompra
 })
 .eq("id", editandoId));
 
-if(error){
-alert(error.message);
-return;
-}
+if(error) return alert(error.message);
 
 alert("Atualizado!");
 setEditandoId(null);
@@ -168,20 +162,16 @@ data_compra: dataCompra,
 user_id: user.id
 }]));
 
-if(error){
-alert(error.message);
-return;
-}
+if(error) return alert(error.message);
 
 alert("Compra salva!");
 }
 
-// 🔥 LIMPAR
+// limpar
 setFornecedor("");
 setProduto("");
 setKilos("");
 
-// 🔥 RECARREGAR
 await carregarCompras(empresaId);
 }
 
@@ -257,12 +247,14 @@ onChange={e=>setKilos(e.target.value)}
 
 <button
 onClick={salvarCompra}
+disabled={!empresaId}
 style={{
 padding:10,
-background: editandoId ? "orange" : "green",
+background: !empresaId ? "#555" : (editandoId ? "orange" : "green"),
 color:"#fff",
 border:"none",
-borderRadius:5
+borderRadius:5,
+cursor: !empresaId ? "not-allowed" : "pointer"
 }}
 >
 {editandoId ? "Atualizar" : "Salvar"}
@@ -297,9 +289,7 @@ borderRadius:5
 
 <br/><br/>
 
-<button onClick={()=>editarCompra(c)}>
-✏️ Editar
-</button>
+<button onClick={()=>editarCompra(c)}>✏️ Editar</button>
 
 <button
 onClick={()=>excluirCompra(c.id)}
