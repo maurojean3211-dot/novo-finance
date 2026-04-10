@@ -36,39 +36,25 @@ export default function Relatorio({ empresaId }) {
       return;
     }
 
-    // 🔵 VENDAS
-    let queryVendas = supabase
-      .from("vendas")
+    // 🔥 AGORA BUSCA DA TABELA CERTA
+    let query = supabase
+      .from("lancamentos")
       .select("*")
       .eq("empresa_id", empresaId);
 
-    if(dataInicio) queryVendas = queryVendas.gte("data", dataInicio);
-    if(dataFim) queryVendas = queryVendas.lte("data", dataFim);
-    if(clienteFiltro) queryVendas = queryVendas.eq("cliente_id", clienteFiltro);
+    if(dataInicio) query = query.gte("data", dataInicio);
+    if(dataFim) query = query.lte("data", dataFim);
+    if(clienteFiltro) query = query.eq("cliente_id", clienteFiltro);
 
-    const { data: vendas } = await queryVendas;
+    const { data } = await query;
 
-    // 🟠 COMPRAS
-    let queryCompras = supabase
-      .from("compras")
-      .select("*")
-      .eq("empresa_id", empresaId);
-
-    if(dataInicio) queryCompras = queryCompras.gte("data", dataInicio);
-    if(dataFim) queryCompras = queryCompras.lte("data", dataFim);
-    if(clienteFiltro) queryCompras = queryCompras.eq("cliente_id", clienteFiltro);
-
-    const { data: compras } = await queryCompras;
-
-    console.log("VENDAS:", vendas);
-    console.log("COMPRAS:", compras);
+    console.log("LANCAMENTOS:", data);
 
     let resumo = {};
     let total = 0;
     let comissao = 0;
 
-    // 🔵 VENDAS
-    (vendas || []).forEach(item => {
+    (data || []).forEach(item => {
 
       const cliente =
         item.cliente_nome ||
@@ -88,42 +74,23 @@ export default function Relatorio({ empresaId }) {
       const valor =
         Number(item.valor) ||
         Number(item.total) ||
-        Number(item.preco) ||
         0;
 
-      resumo[cliente].vendas += valor;
-      total += valor;
+      // 🔥 ENTRADA = VENDA
+      if(item.tipo === "entrada"){
+        resumo[cliente].vendas += valor;
+        total += valor;
 
-      const com = valor * 0.05;
-      resumo[cliente].comissao += com;
-      comissao += com;
-    });
-
-    // 🟠 COMPRAS
-    (compras || []).forEach(item => {
-
-      const cliente =
-        item.cliente_nome ||
-        item.cliente ||
-        item.nome ||
-        "Sem nome";
-
-      if(!resumo[cliente]){
-        resumo[cliente] = {
-          cliente,
-          vendas: 0,
-          compras: 0,
-          comissao: 0
-        };
+        const com = valor * 0.05;
+        resumo[cliente].comissao += com;
+        comissao += com;
       }
 
-      const valor =
-        Number(item.valor) ||
-        Number(item.total) ||
-        Number(item.preco) ||
-        0;
+      // 🔥 SAÍDA = COMPRA
+      if(item.tipo === "saida"){
+        resumo[cliente].compras += valor;
+      }
 
-      resumo[cliente].compras += valor;
     });
 
     setDados(Object.values(resumo));
