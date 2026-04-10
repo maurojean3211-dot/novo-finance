@@ -155,9 +155,9 @@ alert("Usuário não encontrado");
 return;
 }
 
-setEditandoPermissoesId(data.id);
+// 🔥 CORREÇÃO AQUI
+setEditandoPermissoesId(c.email);
 
-// 🔥 GARANTE TODAS AS CHAVES
 setPermissoes({
 dashboard: data?.permissoes?.dashboard ?? true,
 financeiro: data?.permissoes?.financeiro ?? true,
@@ -176,7 +176,7 @@ async function salvarPermissoes(){
 await supabase
 .from("usuarios")
 .update({ permissoes })
-.eq("id", editandoPermissoesId);
+.eq("email", editandoPermissoesId);
 
 alert("Permissões salvas!");
 
@@ -290,8 +290,8 @@ padding:10
 
 </div>
 
-{/* 🔥 PERMISSÕES SÓ DO CLIENTE ABERTO */}
-{editandoPermissoesId === c.id && (
+{/* 🔥 PAINEL */}
+{editandoPermissoesId === c.email && (
 
 <div style={{marginTop:10,background:"#111",padding:10}}>
 
