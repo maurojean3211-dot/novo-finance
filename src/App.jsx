@@ -10,7 +10,10 @@ import MasterAdmin from "./MasterAdmin";
 import Financeiro from "./Financeiro.jsx";
 import Lucro from "./Lucro.jsx";
 import DespesasPessoais from "./DespesasPessoais.jsx";
+
+// ✅ AGORA USANDO O CERTO
 import Relatorio from "./Relatorio.jsx";
+
 import Clientes from "./Clientes.jsx";
 import Recebimentos from "./Recebimentos.jsx";
 
@@ -64,11 +67,7 @@ let { data:usuario } = await supabase
 
 usuario = usuario?.[0];
 
-console.log("EMAIL:", user.email);
-console.log("USUARIO BANCO:", usuario);
-console.log("ROLE:", usuario?.role);
-
-setEmpresaId(usuario?.empresa_id || null); // 🔥 GARANTIDO
+setEmpresaId(usuario?.empresa_id || null);
 setRole(usuario?.role || null);
 
 }
@@ -95,10 +94,6 @@ let { data:usuario } = await supabase
 .ilike("email", newSession.user.email);
 
 usuario = usuario?.[0];
-
-console.log("SESSION EMAIL:", newSession.user.email);
-console.log("USUARIO BANCO:", usuario);
-console.log("ROLE:", usuario?.role);
 
 setEmpresaId(usuario?.empresa_id || null);
 setRole(usuario?.role || null);
@@ -160,19 +155,16 @@ gap:10
 💸 Empréstimos
 </button>
 
-{/* 👑 MASTER */}
 {role === "master" && (
 <button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>
 👑 Master Admin
 </button>
 )}
 
-{/* ADMIN */}
 {role === "admin" && (
 <button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>📈 Lucro</button>
 )}
 
-{/* EXTRA */}
 {isMauro && (
 <>
 <button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>📦 Vendas</button>
@@ -181,7 +173,11 @@ gap:10
 )}
 
 <button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>💳 Pessoal</button>
-<button onClick={()=>setPagina("relatorio")} style={pagina==="relatorio" ? botaoAtivo : botaoMenu}>📄 Relatórios</button>
+
+{/* ✅ RELATÓRIO CERTO */}
+<button onClick={()=>setPagina("relatorio")} style={pagina==="relatorio" ? botaoAtivo : botaoMenu}>
+📄 Relatórios
+</button>
 
 <button onClick={sair} style={{...botaoMenu, background:"#ef4444"}}>
 🚪 Sair
@@ -199,7 +195,6 @@ gap:10
 
 {pagina==="emprestimos" && (
   <div>
-
     <h2>💸 Empréstimos</h2>
 
     <div style={{display:"flex",gap:10,marginBottom:20}}>
@@ -211,7 +206,6 @@ gap:10
     {subPaginaEmprestimo==="cadastro" && <Emprestimos empresaId={empresaId} />}
     {subPaginaEmprestimo==="lista" && <EmprestimosLista empresaId={empresaId} />}
     {subPaginaEmprestimo==="atrasos" && <Atrasos empresaId={empresaId} />}
-
   </div>
 )}
 
@@ -221,7 +215,10 @@ gap:10
 {pagina==="compras" && isMauro && <Compras empresaId={empresaId} />}
 
 {pagina==="despesas" && <DespesasPessoais />}
+
+{/* 🔥 AQUI ABRE SEU RELATORIO NOVO */}
 {pagina==="relatorio" && <Relatorio empresaId={empresaId} />}
+
 {pagina==="admin" && <Admin />}
 {pagina==="master" && role==="master" && <MasterAdmin />}
 
