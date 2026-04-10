@@ -52,15 +52,10 @@ await buscarPix();
 // ================= CLIENTES
 async function carregarClientes(){
 
-const { data, error } = await supabase
+const { data } = await supabase
 .from("empresas")
 .select("*")
 .order("created_at",{ascending:false});
-
-if(error){
-alert(error.message);
-return;
-}
 
 setClientes(data || []);
 }
@@ -81,17 +76,12 @@ setPixSistema(data.valor);
 
 async function salvarPix(){
 
-const { error } = await supabase
+await supabase
 .from("configuracoes")
 .upsert({
 chave:"pix_sistema",
 valor:pixSistema
 });
-
-if(error){
-alert(error.message);
-return;
-}
 
 alert("PIX salvo!");
 }
@@ -101,11 +91,9 @@ async function cadastrarCliente(){
 
 if(!nome) return alert("Nome obrigatório");
 
-let error;
-
 if(editandoId){
 
-({ error } = await supabase
+await supabase
 .from("empresas")
 .update({
 name:nome,
@@ -114,13 +102,13 @@ cpf,
 whatsapp,
 valor:Number(valor)
 })
-.eq("id",editandoId));
+.eq("id",editandoId);
 
 setEditandoId(null);
 
 }else{
 
-({ error } = await supabase
+await supabase
 .from("empresas")
 .insert([{
 name:nome,
@@ -131,12 +119,7 @@ valor:Number(valor),
 status:"Ativo",
 pagou:false,
 isento:false
-}]));
-}
-
-if(error){
-alert(error.message);
-return;
+}]);
 }
 
 limpar();
@@ -157,11 +140,10 @@ setWhatsapp(c.whatsapp || "");
 setValor(c.valor || "");
 }
 
-// 🔥 ================= PERMISSÕES
+// ================= 🔥 PERMISSÕES
 
 async function abrirPermissoes(c){
 
-// busca usuario pelo email da empresa
 const { data } = await supabase
 .from("usuarios")
 .select("*")
@@ -175,16 +157,17 @@ return;
 
 setEditandoPermissoesId(data.id);
 
-setPermissoes(data.permissoes || {
-dashboard:true,
-financeiro:true,
-recebimentos:true,
-clientes:true,
-emprestimos:true,
-vendas:true,
-compras:true,
-pessoal:true,
-relatorio:true
+// 🔥 GARANTE TODAS AS CHAVES
+setPermissoes({
+dashboard: data?.permissoes?.dashboard ?? true,
+financeiro: data?.permissoes?.financeiro ?? true,
+recebimentos: data?.permissoes?.recebimentos ?? true,
+clientes: data?.permissoes?.clientes ?? true,
+emprestimos: data?.permissoes?.emprestimos ?? true,
+vendas: data?.permissoes?.vendas ?? true,
+compras: data?.permissoes?.compras ?? true,
+pessoal: data?.permissoes?.pessoal ?? true,
+relatorio: data?.permissoes?.relatorio ?? true
 });
 }
 
@@ -192,9 +175,7 @@ async function salvarPermissoes(){
 
 await supabase
 .from("usuarios")
-.update({
-permissoes: permissoes
-})
+.update({ permissoes })
 .eq("id", editandoPermissoesId);
 
 alert("Permissões salvas!");
@@ -202,56 +183,36 @@ alert("Permissões salvas!");
 setEditandoPermissoesId(null);
 }
 
-// 🔥 EXCLUIR
-async function excluirCliente(id){
+// ================= OUTROS
 
+async function excluirCliente(id){
 if(!confirm("Excluir cliente?")) return;
 
-const { error } = await supabase
-.from("empresas")
-.delete()
-.eq("id",id);
-
-if(error){
-alert(error.message);
-return;
-}
-
-alert("Excluído!");
+await supabase.from("empresas").delete().eq("id",id);
 await carregarClientes();
 }
 
-// 🔥 PAGO
 async function marcarPago(c){
-
 await supabase.from("empresas").update({pagou:true}).eq("id",c.id);
 await carregarClientes();
 }
 
-// 🔥 PENDENTE
 async function marcarPendente(c){
-
 await supabase.from("empresas").update({pagou:false}).eq("id",c.id);
 await carregarClientes();
 }
 
-// 🔥 STATUS
 async function alterarStatus(c){
-
 const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
-
 await supabase.from("empresas").update({status:novo}).eq("id",c.id);
 await carregarClientes();
 }
 
-// 🔥 ISENTAR
 async function alternarIsencao(c){
-
 await supabase.from("empresas").update({isento:!c.isento}).eq("id",c.id);
 await carregarClientes();
 }
 
-// ================= PIX WHATSAPP
 function enviarPix(cliente){
 
 if(!pixSistema) return alert("Cadastre o PIX");
@@ -310,12 +271,10 @@ padding:10
 }}>
 
 <div style={{display:"flex",justifyContent:"space-between"}}>
-
 <div>{c.name}</div>
 <div>R$ {c.valor}</div>
 <div>{c.status}</div>
 <div>{c.pagou ? "Pago" : "Pendente"}</div>
-
 </div>
 
 <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:10}}>
@@ -331,8 +290,8 @@ padding:10
 
 </div>
 
-{/* 🔥 PAINEL DE PERMISSÕES */}
-{editandoPermissoesId && (
+{/* 🔥 PERMISSÕES SÓ DO CLIENTE ABERTO */}
+{editandoPermissoesId === c.id && (
 
 <div style={{marginTop:10,background:"#111",padding:10}}>
 
@@ -340,18 +299,18 @@ padding:10
 
 {Object.keys(permissoes).map(modulo=>(
 
-<label key={modulo} style={{display:"block"}}>
+<label key={modulo} style={{display:"block",marginBottom:5}}>
 
 <input
 type="checkbox"
-checked={permissoes[modulo] || false}
-onChange={e=>setPermissoes({
+checked={permissoes[modulo]}
+onChange={(e)=>setPermissoes({
 ...permissoes,
 [modulo]: e.target.checked
 })}
 />
 
-{modulo}
+{" "}{modulo}
 
 </label>
 
