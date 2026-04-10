@@ -32,14 +32,11 @@ export default function Relatorio({ empresaId }) {
       .select("*")
       .eq("empresa_id", empresaId);
 
-    console.log("VENDAS:", vendas);
-    console.log("COMPRAS:", compras);
-
     let resumo = {};
     let total = 0;
     let comissao = 0;
 
-    // 🔵 VENDAS
+    // ================= VENDAS =================
     (vendas || []).forEach(item => {
 
       const cliente = item.cliente_nome || "Sem nome";
@@ -53,18 +50,18 @@ export default function Relatorio({ empresaId }) {
         };
       }
 
-      const valor = Number(item.kilos) || 0;
+      const kg = Number(item.kilos) || 0;
 
-      resumo[cliente].vendas += valor;
-      total += valor;
+      resumo[cliente].vendas += kg;
+      total += kg;
 
-      const com = Number(item.comissao) || (valor * 0.05);
+      const com = Number(item.comissao) || (kg * 0.05);
 
       resumo[cliente].comissao += com;
       comissao += com;
     });
 
-    // 🟠 COMPRAS
+    // ================= COMPRAS =================
     (compras || []).forEach(item => {
 
       const cliente = item.fornecedor || "Sem nome";
@@ -78,9 +75,24 @@ export default function Relatorio({ empresaId }) {
         };
       }
 
-      const valor = Number(item.kilos) || 0;
+      const kg = Number(item.kilos) || 0;
 
-      resumo[cliente].compras += valor;
+      resumo[cliente].compras += kg;
+
+      // 🔥 AGORA CALCULA COMISSÃO DAS COMPRAS
+      const nomeProduto = (item.produto || "").toUpperCase();
+
+      let com = 0;
+
+      if(nomeProduto.includes("LIMALHA") || nomeProduto.includes("CAVACO")){
+        com = kg * 0.07; // 7 centavos
+      } else {
+        com = kg * 0.05; // 5 centavos
+      }
+
+      // 🔥 AQUI ERA O ERRO
+      resumo[cliente].comissao += com;
+      comissao += com;
     });
 
     setDados(Object.values(resumo));
