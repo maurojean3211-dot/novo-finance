@@ -12,22 +12,12 @@ export default function MasterAdmin() {
   const [valor, setValor] = useState("");
 
   const [editandoId, setEditandoId] = useState(null);
-
   const [busca, setBusca] = useState("");
 
   const [editandoPermissoesId, setEditandoPermissoesId] = useState(null);
   const [permissoes, setPermissoes] = useState({});
 
   const [pixSistema, setPixSistema] = useState("");
-
-  const [aba, setAba] = useState("clientes");
-
-  // CONTAS A PAGAR
-  const [contas, setContas] = useState([]);
-  const [fornecedor, setFornecedor] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [valorConta, setValorConta] = useState("");
-  const [vencimento, setVencimento] = useState("");
 
   useEffect(() => {
     verificarUsuario();
@@ -53,7 +43,6 @@ export default function MasterAdmin() {
 
     await carregarClientes();
     await buscarPix();
-    await carregarContas();
   }
 
   async function carregarClientes() {
@@ -63,15 +52,6 @@ export default function MasterAdmin() {
       .order("created_at", { ascending: false });
 
     setClientes(data || []);
-  }
-
-  async function carregarContas() {
-    const { data } = await supabase
-      .from("contas_pagar")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    setContas(data || []);
   }
 
   async function buscarPix() {
@@ -134,6 +114,7 @@ export default function MasterAdmin() {
     setCpf("");
     setWhatsapp("");
     setValor("");
+    setEditandoId(null);
   }
 
   function editarCliente(c) {
@@ -231,34 +212,6 @@ PIX: ${pixSistema}`;
     );
   }
 
-  async function salvarConta() {
-    await supabase.from("contas_pagar").insert([
-      {
-        fornecedor,
-        descricao,
-        valor: Number(valorConta),
-        vencimento,
-        status: "Pendente",
-      },
-    ]);
-
-    setFornecedor("");
-    setDescricao("");
-    setValorConta("");
-    setVencimento("");
-
-    carregarContas();
-  }
-
-  async function pagarConta(id) {
-    await supabase
-      .from("contas_pagar")
-      .update({ status: "Pago" })
-      .eq("id", id);
-
-    carregarContas();
-  }
-
   if (!usuario) {
     return <div style={{ color: "#fff", padding: 20 }}>Carregando...</div>;
   }
@@ -279,181 +232,120 @@ PIX: ${pixSistema}`;
     <div style={{ padding: 20, color: "#fff" }}>
       <h2>👑 MASTER ADMIN</h2>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <button onClick={() => setAba("clientes")}>Clientes</button>
-        <button onClick={() => setAba("contas")}>Contas a Pagar</button>
-      </div>
-
       <div style={{ marginBottom: 20 }}>
         <strong>Total Recebido:</strong> R$ {totalRecebido}
         <br />
         <strong>Total Pendente:</strong> R$ {totalPendente}
       </div>
 
-      {aba === "clientes" && (
-        <>
-          <input
-            placeholder="PIX Sistema"
-            value={pixSistema}
-            onChange={(e) => setPixSistema(e.target.value)}
-          />
-          <button onClick={salvarPix}>Salvar PIX</button>
+      <input
+        placeholder="PIX Sistema"
+        value={pixSistema}
+        onChange={(e) => setPixSistema(e.target.value)}
+      />
+      <button onClick={salvarPix}>Salvar PIX</button>
 
-          <br />
-          <br />
+      <br /><br />
 
-          <input
-            placeholder="Pesquisar cliente"
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-          />
+      <input
+        placeholder="Pesquisar cliente"
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+      />
 
-          <br />
-          <br />
+      <br /><br />
 
-          <input
-            placeholder="Nome"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-          />
-          <input
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <input
-            placeholder="CPF"
-            value={cpf}
-            onChange={(e) => setCpf(e.target.value)}
-          />
-          <input
-            placeholder="WhatsApp"
-            value={whatsapp}
-            onChange={(e) => setWhatsapp(e.target.value)}
-          />
-          <input
-            placeholder="Valor"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-          />
+      <input
+        placeholder="Nome"
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+      />
+      <input
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        placeholder="CPF"
+        value={cpf}
+        onChange={(e) => setCpf(e.target.value)}
+      />
+      <input
+        placeholder="WhatsApp"
+        value={whatsapp}
+        onChange={(e) => setWhatsapp(e.target.value)}
+      />
+      <input
+        placeholder="Valor"
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+      />
 
-          <button onClick={cadastrarCliente}>
-            {editandoId ? "Salvar" : "Cadastrar"}
-          </button>
+      <button onClick={cadastrarCliente}>
+        {editandoId ? "Salvar" : "Cadastrar"}
+      </button>
 
-          <hr />
+      <hr />
 
-          {clientesFiltrados.map((c) => (
-            <div
-              key={c.id}
-              style={{
-                borderBottom: "1px solid #333",
-                padding: 10,
-                marginBottom: 10,
-              }}
+      {clientesFiltrados.map((c) => (
+        <div
+          key={c.id}
+          style={{
+            borderBottom: "1px solid #333",
+            padding: 10,
+            marginBottom: 10,
+          }}
+        >
+          <strong>{c.name}</strong> | R$ {c.valor} | {c.status} |{" "}
+          {c.pagou ? "Pago" : "Pendente"}
+
+          <div style={{ marginTop: 10, display: "flex", gap: 5, flexWrap: "wrap" }}>
+            <button onClick={() => editarCliente(c)}>Editar</button>
+            <button onClick={() => abrirPermissoes(c)}>Permissões</button>
+            <button onClick={() => enviarPix(c)}>PIX</button>
+            <button onClick={() => marcarPago(c)}>Pago</button>
+            <button onClick={() => marcarPendente(c)}>Pend.</button>
+            <button onClick={() => alterarStatus(c)}>Status</button>
+            <button onClick={() => alternarIsencao(c)}>Isentar</button>
+
+            <button
+              onClick={() => excluirCliente(c.id)}
+              style={{ background: "red", color: "#fff" }}
             >
-              <strong>{c.name}</strong> | R$ {c.valor} | {c.status} |{" "}
-              {c.pagou ? "Pago" : "Pendente"}
+              Excluir
+            </button>
+          </div>
 
-              <div style={{ marginTop: 10, display: "flex", gap: 5, flexWrap: "wrap" }}>
-                <button onClick={() => editarCliente(c)}>Editar</button>
-                <button onClick={() => abrirPermissoes(c)}>Permissões</button>
-                <button onClick={() => enviarPix(c)}>PIX</button>
-                <button onClick={() => marcarPago(c)}>Pago</button>
-                <button onClick={() => marcarPendente(c)}>Pend.</button>
-                <button onClick={() => alterarStatus(c)}>Status</button>
-                <button onClick={() => alternarIsencao(c)}>Isentar</button>
-                <button
-                  onClick={() => excluirCliente(c.id)}
-                  style={{ background: "red", color: "#fff" }}
+          {editandoPermissoesId === c.email && (
+            <div style={{ marginTop: 10 }}>
+              <h4>Permissões</h4>
+
+              {Object.keys(permissoes).map((modulo) => (
+                <label
+                  key={modulo}
+                  style={{ display: "block", marginBottom: 5 }}
                 >
-                  Excluir
-                </button>
-              </div>
+                  <input
+                    type="checkbox"
+                    checked={!!permissoes[modulo]}
+                    onChange={(e) =>
+                      setPermissoes({
+                        ...permissoes,
+                        [modulo]: e.target.checked,
+                      })
+                    }
+                  />{" "}
+                  {modulo}
+                </label>
+              ))}
 
-              {editandoPermissoesId === c.email && (
-                <div style={{ marginTop: 10 }}>
-                  {Object.keys(permissoes).map((modulo) => (
-                    <label
-                      key={modulo}
-                      style={{ display: "block", marginBottom: 5 }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!!permissoes[modulo]}
-                        onChange={(e) =>
-                          setPermissoes({
-                            ...permissoes,
-                            [modulo]: e.target.checked,
-                          })
-                        }
-                      />{" "}
-                      {modulo}
-                    </label>
-                  ))}
-
-                  <button onClick={salvarPermissoes}>
-                    Salvar Permissões
-                  </button>
-                </div>
-              )}
+              <button onClick={salvarPermissoes}>
+                Salvar Permissões
+              </button>
             </div>
-          ))}
-        </>
-      )}
-
-      {aba === "contas" && (
-        <>
-          <h3>💸 Contas a Pagar</h3>
-
-          <input
-            placeholder="Fornecedor"
-            value={fornecedor}
-            onChange={(e) => setFornecedor(e.target.value)}
-          />
-          <input
-            placeholder="Descrição"
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-          />
-          <input
-            placeholder="Valor"
-            value={valorConta}
-            onChange={(e) => setValorConta(e.target.value)}
-          />
-          <input
-            type="date"
-            value={vencimento}
-            onChange={(e) => setVencimento(e.target.value)}
-          />
-
-          <button onClick={salvarConta}>Salvar Conta</button>
-
-          <hr />
-
-          {contas.map((c) => (
-            <div
-              key={c.id}
-              style={{
-                borderBottom: "1px solid #333",
-                padding: 10,
-              }}
-            >
-              {c.fornecedor} | {c.descricao} | R$ {c.valor} | {c.vencimento} |{" "}
-              {c.status}
-
-              {c.status !== "Pago" && (
-                <button
-                  onClick={() => pagarConta(c.id)}
-                  style={{ marginLeft: 10 }}
-                >
-                  Marcar Pago
-                </button>
-              )}
-            </div>
-          ))}
-        </>
-      )}
+          )}
+        </div>
+      ))}
     </div>
   );
 }
