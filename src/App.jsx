@@ -22,6 +22,9 @@ import Emprestimos from "./Emprestimos.jsx";
 import Atrasos from "./Atrasos.jsx";
 import EmprestimosLista from "./EmprestimosLista.jsx";
 
+/* 🔥 NOVO */
+import ContasPagar from "./ContasPagar.jsx";
+
 export default function App(){
 
 const [session,setSession] = useState(null);
@@ -31,7 +34,7 @@ const [subPaginaEmprestimo,setSubPaginaEmprestimo] = useState("cadastro");
 
 const [role,setRole] = useState(null);
 const [empresaId,setEmpresaId] = useState(null);
-const [permissoes,setPermissoes] = useState({}); // 🔥 NOVO
+const [permissoes,setPermissoes] = useState({});
 
 const [isMobile,setIsMobile] = useState(window.innerWidth < 768);
 
@@ -63,14 +66,14 @@ if(user){
 
 let { data:usuario } = await supabase
 .from("usuarios")
-.select("role,empresa_id,permissoes") // 🔥 IMPORTANTE
+.select("role,empresa_id,permissoes")
 .ilike("email", user.email);
 
 usuario = usuario?.[0];
 
 setEmpresaId(usuario?.empresa_id || null);
 setRole(usuario?.role || null);
-setPermissoes(usuario?.permissoes || {}); // 🔥 NOVO
+setPermissoes(usuario?.permissoes || {});
 
 }
 
@@ -92,14 +95,14 @@ if(newSession?.user){
 
 let { data:usuario } = await supabase
 .from("usuarios")
-.select("role,empresa_id,permissoes") // 🔥 IMPORTANTE
+.select("role,empresa_id,permissoes")
 .ilike("email", newSession.user.email);
 
 usuario = usuario?.[0];
 
 setEmpresaId(usuario?.empresa_id || null);
 setRole(usuario?.role || null);
-setPermissoes(usuario?.permissoes || {}); // 🔥 NOVO
+setPermissoes(usuario?.permissoes || {});
 
 }
 });
@@ -148,8 +151,6 @@ gap:10
 <h2>Cunha Finance</h2>
 </div>
 
-{/* 🔥 MENU CONTROLADO POR PERMISSÕES */}
-
 {permissoes.dashboard && (
 <button onClick={()=>setPagina("dashboard")} style={pagina==="dashboard" ? botaoAtivo : botaoMenu}>
 📊 Dashboard
@@ -171,6 +172,13 @@ gap:10
 {permissoes.clientes && (
 <button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>
 👥 Clientes
+</button>
+)}
+
+/* 🔥 NOVO MENU CONTAS A PAGAR */
+{permissoes.contas_pagar && (
+<button onClick={()=>setPagina("contas_pagar")} style={pagina==="contas_pagar" ? botaoAtivo : botaoMenu}>
+💸 Contas a Pagar
 </button>
 )}
 
@@ -230,20 +238,25 @@ gap:10
 {pagina==="recebimentos" && permissoes.recebimentos && <Recebimentos empresaId={empresaId} />}
 {pagina==="clientes" && permissoes.clientes && <Clientes />}
 
+/* 🔥 NOVA PÁGINA */
+{pagina==="contas_pagar" && permissoes.contas_pagar && (
+<ContasPagar empresaId={empresaId} />
+)}
+
 {pagina==="emprestimos" && permissoes.emprestimos && (
-  <div>
-    <h2>💸 Empréstimos</h2>
+<div>
+<h2>💸 Empréstimos</h2>
 
-    <div style={{display:"flex",gap:10,marginBottom:20}}>
-      <button onClick={()=>setSubPaginaEmprestimo("cadastro")} style={botaoMenu}>➕ Novo</button>
-      <button onClick={()=>setSubPaginaEmprestimo("lista")} style={botaoMenu}>📋 Cobrança</button>
-      <button onClick={()=>setSubPaginaEmprestimo("atrasos")} style={botaoMenu}>🚨 Atrasos</button>
-    </div>
+<div style={{display:"flex",gap:10,marginBottom:20}}>
+<button onClick={()=>setSubPaginaEmprestimo("cadastro")} style={botaoMenu}>➕ Novo</button>
+<button onClick={()=>setSubPaginaEmprestimo("lista")} style={botaoMenu}>📋 Cobrança</button>
+<button onClick={()=>setSubPaginaEmprestimo("atrasos")} style={botaoMenu}>🚨 Atrasos</button>
+</div>
 
-    {subPaginaEmprestimo==="cadastro" && <Emprestimos empresaId={empresaId} />}
-    {subPaginaEmprestimo==="lista" && <EmprestimosLista empresaId={empresaId} />}
-    {subPaginaEmprestimo==="atrasos" && <Atrasos empresaId={empresaId} />}
-  </div>
+{subPaginaEmprestimo==="cadastro" && <Emprestimos empresaId={empresaId} />}
+{subPaginaEmprestimo==="lista" && <EmprestimosLista empresaId={empresaId} />}
+{subPaginaEmprestimo==="atrasos" && <Atrasos empresaId={empresaId} />}
+</div>
 )}
 
 {pagina==="lucro" && role==="admin" && permissoes.lucro && <Lucro />}
