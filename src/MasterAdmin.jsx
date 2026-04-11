@@ -1,340 +1,459 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-export default function MasterAdmin(){
-
-const [clientes,setClientes]=useState([]);
-const [usuario,setUsuario]=useState(null);
-
-const [nome,setNome]=useState("");
-const [email,setEmail]=useState("");
-const [cpf,setCpf]=useState("");
-const [whatsapp,setWhatsapp]=useState("");
-const [valor,setValor]=useState("");
-
-const [editandoId,setEditandoId]=useState(null);
-
-// 🔥 PERMISSÕES
-const [editandoPermissoesId,setEditandoPermissoesId]=useState(null);
-const [permissoes,setPermissoes]=useState({});
-
-// PIX
-const [pixSistema,setPixSistema]=useState("");
-
-// INIT
-useEffect(()=>{
-verificarUsuario();
-},[]);
-
-// ================= USUARIO
-async function verificarUsuario(){
-
-const { data: userData } = await supabase.auth.getUser();
-if(!userData?.user) return;
-
-const { data } = await supabase
-.from("usuarios")
-.select("*")
-.eq("email", userData.user.email)
-.single();
-
-if(!data || data.role !== "master"){
-alert("Acesso negado");
-return;
-}
-
-setUsuario(data);
-
-await carregarClientes();
-await buscarPix();
-}
-
-// ================= CLIENTES
-async function carregarClientes(){
-
-const { data } = await supabase
-.from("empresas")
-.select("*")
-.order("created_at",{ascending:false});
-
-setClientes(data || []);
-}
-
-// ================= PIX
-async function buscarPix(){
-
-const { data } = await supabase
-.from("configuracoes")
-.select("*")
-.eq("chave","pix_sistema")
-.single();
-
-if(data){
-setPixSistema(data.valor);
-}
-}
-
-async function salvarPix(){
-
-await supabase
-.from("configuracoes")
-.upsert({
-chave:"pix_sistema",
-valor:pixSistema
-});
-
-alert("PIX salvo!");
-}
-
-// ================= CADASTRO
-async function cadastrarCliente(){
-
-if(!nome) return alert("Nome obrigatório");
-
-if(editandoId){
-
-await supabase
-.from("empresas")
-.update({
-name:nome,
-email,
-cpf,
-whatsapp,
-valor:Number(valor)
-})
-.eq("id",editandoId);
-
-setEditandoId(null);
-
-}else{
-
-await supabase
-.from("empresas")
-.insert([{
-name:nome,
-email,
-cpf,
-whatsapp,
-valor:Number(valor),
-status:"Ativo",
-pagou:false,
-isento:false
-}]);
-}
-
-limpar();
-await carregarClientes();
-}
-
-// ================= FUNCOES
-function limpar(){
-setNome(""); setEmail(""); setCpf(""); setWhatsapp(""); setValor("");
-}
-
-function editarCliente(c){
-setEditandoId(c.id);
-setNome(c.name || "");
-setEmail(c.email || "");
-setCpf(c.cpf || "");
-setWhatsapp(c.whatsapp || "");
-setValor(c.valor || "");
-}
-
-// ================= 🔥 PERMISSÕES
-
-async function abrirPermissoes(c){
-
-const { data } = await supabase
-.from("usuarios")
-.select("*")
-.eq("email", c.email);
-
-if(!data || data.length === 0){
-alert("⚠️ Esse cliente ainda não tem login criado!");
-return;
-}
-
-const user = data[0];
-
-// 🔥 ABRE O PAINEL
-setEditandoPermissoesId(c.email);
-
-// 🔥 GARANTE TODAS AS PERMISSÕES
-setPermissoes({
-dashboard: true,
-financeiro: true,
-recebimentos: true,
-clientes: true,
-emprestimos: true,
-vendas: true,
-compras: true,
-pessoal: true,
-relatorio: true,
-...user.permissoes
-});
-}
-
-async function salvarPermissoes(){
-
-await supabase
-.from("usuarios")
-.update({ permissoes })
-.eq("email", editandoPermissoesId);
-
-alert("Permissões salvas!");
-
-setEditandoPermissoesId(null);
-}
-
-// ================= OUTROS
-
-async function excluirCliente(id){
-if(!confirm("Excluir cliente?")) return;
-
-await supabase.from("empresas").delete().eq("id",id);
-await carregarClientes();
-}
-
-async function marcarPago(c){
-await supabase.from("empresas").update({pagou:true}).eq("id",c.id);
-await carregarClientes();
-}
-
-async function marcarPendente(c){
-await supabase.from("empresas").update({pagou:false}).eq("id",c.id);
-await carregarClientes();
-}
-
-async function alterarStatus(c){
-const novo = c.status==="Ativo"?"Bloqueado":"Ativo";
-await supabase.from("empresas").update({status:novo}).eq("id",c.id);
-await carregarClientes();
-}
-
-async function alternarIsencao(c){
-await supabase.from("empresas").update({isento:!c.isento}).eq("id",c.id);
-await carregarClientes();
-}
-
-function enviarPix(cliente){
-
-if(!pixSistema) return alert("Cadastre o PIX");
-
-const numero = (cliente.whatsapp || "").replace(/\D/g,"");
-
-const mensagem = `
-Olá ${cliente.name}
-
-Valor: ${cliente.isento ? "ISENTO" : `R$ ${cliente.valor}`}
-
-PIX: ${pixSistema}
-`;
-
-window.open(`https://wa.me/55${numero}?text=${encodeURIComponent(mensagem)}`);
-}
-
-// ================= BLOQUEIO
-if(!usuario){
-return <div style={{color:"#fff",padding:20}}>Carregando...</div>;
-}
-
-// ================= UI
-return(
-
-<div style={{padding:20,color:"#fff"}}>
-
-<h2>👑 Master Admin</h2>
-
-<input
-placeholder="Seu PIX"
-value={pixSistema}
-onChange={e=>setPixSistema(e.target.value)}
-/>
-<button onClick={salvarPix}>Salvar PIX</button>
-
-<br/><br/>
-
-<input placeholder="Nome" value={nome} onChange={e=>setNome(e.target.value)}/>
-<input placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)}/>
-<input placeholder="CPF" value={cpf} onChange={e=>setCpf(e.target.value)}/>
-<input placeholder="WhatsApp" value={whatsapp} onChange={e=>setWhatsapp(e.target.value)}/>
-<input placeholder="Valor" value={valor} onChange={e=>setValor(e.target.value)}/>
-
-<button onClick={cadastrarCliente}>
-{editandoId ? "Salvar" : "Cadastrar"}
-</button>
-
-<hr/>
-
-{clientes.map(c=>(
-
-<div key={c.id} style={{
-borderBottom:"1px solid #333",
-padding:10
-}}>
-
-<div style={{display:"flex",justifyContent:"space-between"}}>
-<div>{c.name}</div>
-<div>R$ {c.valor}</div>
-<div>{c.status}</div>
-<div>{c.pagou ? "Pago" : "Pendente"}</div>
-</div>
-
-<div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:10}}>
-
-<button onClick={()=>editarCliente(c)}>Editar</button>
-<button onClick={()=>abrirPermissoes(c)}>🔐 Permissões</button>
-<button onClick={()=>enviarPix(c)}>PIX</button>
-<button onClick={()=>marcarPago(c)}>Pago</button>
-<button onClick={()=>marcarPendente(c)}>Pend.</button>
-<button onClick={()=>alterarStatus(c)}>Status</button>
-<button onClick={()=>alternarIsencao(c)}>Isentar</button>
-<button onClick={()=>excluirCliente(c.id)} style={{background:"red",color:"#fff"}}>Excluir</button>
-
-</div>
-
-{/* 🔥 PAINEL DE PERMISSÕES */}
-{editandoPermissoesId === c.email && (
-
-<div style={{marginTop:10,background:"#111",padding:10,borderRadius:6}}>
-
-<h4>Permissões</h4>
-
-{Object.keys(permissoes).map(modulo => (
-
-<label key={modulo} style={{display:"block",marginBottom:6}}>
-
-<input
-type="checkbox"
-checked={!!permissoes[modulo]}
-onChange={(e)=>setPermissoes({
-...permissoes,
-[modulo]: e.target.checked
-})}
-/>
-
-{" "} {modulo}
-
-</label>
-
-))}
-
-<button
-onClick={salvarPermissoes}
-style={{marginTop:10,background:"green",color:"#fff",padding:8,border:"none"}}
->
-Salvar Permissões
-</button>
-
-</div>
-
-)}
-
-</div>
-
-))}
-
-</div>
-
-);
+export default function MasterAdmin() {
+  const [clientes, setClientes] = useState([]);
+  const [usuario, setUsuario] = useState(null);
+
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [valor, setValor] = useState("");
+
+  const [editandoId, setEditandoId] = useState(null);
+
+  const [busca, setBusca] = useState("");
+
+  const [editandoPermissoesId, setEditandoPermissoesId] = useState(null);
+  const [permissoes, setPermissoes] = useState({});
+
+  const [pixSistema, setPixSistema] = useState("");
+
+  const [aba, setAba] = useState("clientes");
+
+  // CONTAS A PAGAR
+  const [contas, setContas] = useState([]);
+  const [fornecedor, setFornecedor] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [valorConta, setValorConta] = useState("");
+  const [vencimento, setVencimento] = useState("");
+
+  useEffect(() => {
+    verificarUsuario();
+  }, []);
+
+  async function verificarUsuario() {
+    const { data: userData } = await supabase.auth.getUser();
+
+    if (!userData?.user) return;
+
+    const { data } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("email", userData.user.email)
+      .single();
+
+    if (!data || data.role !== "master") {
+      alert("Acesso negado");
+      return;
+    }
+
+    setUsuario(data);
+
+    await carregarClientes();
+    await buscarPix();
+    await carregarContas();
+  }
+
+  async function carregarClientes() {
+    const { data } = await supabase
+      .from("empresas")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setClientes(data || []);
+  }
+
+  async function carregarContas() {
+    const { data } = await supabase
+      .from("contas_pagar")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setContas(data || []);
+  }
+
+  async function buscarPix() {
+    const { data } = await supabase
+      .from("configuracoes")
+      .select("*")
+      .eq("chave", "pix_sistema")
+      .single();
+
+    if (data) setPixSistema(data.valor);
+  }
+
+  async function salvarPix() {
+    await supabase.from("configuracoes").upsert({
+      chave: "pix_sistema",
+      valor: pixSistema,
+    });
+
+    alert("PIX salvo!");
+  }
+
+  async function cadastrarCliente() {
+    if (!nome) return alert("Nome obrigatório");
+
+    if (editandoId) {
+      await supabase
+        .from("empresas")
+        .update({
+          name: nome,
+          email,
+          cpf,
+          whatsapp,
+          valor: Number(valor),
+        })
+        .eq("id", editandoId);
+
+      setEditandoId(null);
+    } else {
+      await supabase.from("empresas").insert([
+        {
+          name: nome,
+          email,
+          cpf,
+          whatsapp,
+          valor: Number(valor),
+          status: "Ativo",
+          pagou: false,
+          isento: false,
+        },
+      ]);
+    }
+
+    limpar();
+    carregarClientes();
+  }
+
+  function limpar() {
+    setNome("");
+    setEmail("");
+    setCpf("");
+    setWhatsapp("");
+    setValor("");
+  }
+
+  function editarCliente(c) {
+    setEditandoId(c.id);
+    setNome(c.name || "");
+    setEmail(c.email || "");
+    setCpf(c.cpf || "");
+    setWhatsapp(c.whatsapp || "");
+    setValor(c.valor || "");
+  }
+
+  async function abrirPermissoes(c) {
+    const { data } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("email", c.email);
+
+    if (!data || data.length === 0) {
+      alert("Cliente sem login");
+      return;
+    }
+
+    const user = data[0];
+
+    setEditandoPermissoesId(c.email);
+
+    setPermissoes({
+      dashboard: true,
+      financeiro: true,
+      recebimentos: true,
+      clientes: true,
+      emprestimos: true,
+      vendas: true,
+      compras: true,
+      contas_pagar: true,
+      relatorio: true,
+      ...user.permissoes,
+    });
+  }
+
+  async function salvarPermissoes() {
+    await supabase
+      .from("usuarios")
+      .update({ permissoes })
+      .eq("email", editandoPermissoesId);
+
+    alert("Permissões salvas");
+    setEditandoPermissoesId(null);
+  }
+
+  async function excluirCliente(id) {
+    if (!window.confirm("Excluir cliente?")) return;
+
+    await supabase.from("empresas").delete().eq("id", id);
+    carregarClientes();
+  }
+
+  async function marcarPago(c) {
+    await supabase.from("empresas").update({ pagou: true }).eq("id", c.id);
+    carregarClientes();
+  }
+
+  async function marcarPendente(c) {
+    await supabase.from("empresas").update({ pagou: false }).eq("id", c.id);
+    carregarClientes();
+  }
+
+  async function alterarStatus(c) {
+    const novo = c.status === "Ativo" ? "Bloqueado" : "Ativo";
+
+    await supabase.from("empresas").update({ status: novo }).eq("id", c.id);
+    carregarClientes();
+  }
+
+  async function alternarIsencao(c) {
+    await supabase
+      .from("empresas")
+      .update({ isento: !c.isento })
+      .eq("id", c.id);
+
+    carregarClientes();
+  }
+
+  function enviarPix(cliente) {
+    if (!pixSistema) return alert("Cadastre PIX");
+
+    const numero = (cliente.whatsapp || "").replace(/\D/g, "");
+
+    const msg = `Olá ${cliente.name}
+Valor: ${cliente.isento ? "ISENTO" : "R$ " + cliente.valor}
+PIX: ${pixSistema}`;
+
+    window.open(
+      `https://wa.me/55${numero}?text=${encodeURIComponent(msg)}`
+    );
+  }
+
+  async function salvarConta() {
+    await supabase.from("contas_pagar").insert([
+      {
+        fornecedor,
+        descricao,
+        valor: Number(valorConta),
+        vencimento,
+        status: "Pendente",
+      },
+    ]);
+
+    setFornecedor("");
+    setDescricao("");
+    setValorConta("");
+    setVencimento("");
+
+    carregarContas();
+  }
+
+  async function pagarConta(id) {
+    await supabase
+      .from("contas_pagar")
+      .update({ status: "Pago" })
+      .eq("id", id);
+
+    carregarContas();
+  }
+
+  if (!usuario) {
+    return <div style={{ color: "#fff", padding: 20 }}>Carregando...</div>;
+  }
+
+  const clientesFiltrados = clientes.filter((c) =>
+    (c.name || "").toLowerCase().includes(busca.toLowerCase())
+  );
+
+  const totalRecebido = clientes
+    .filter((c) => c.pagou)
+    .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+
+  const totalPendente = clientes
+    .filter((c) => !c.pagou)
+    .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+
+  return (
+    <div style={{ padding: 20, color: "#fff" }}>
+      <h2>👑 MASTER ADMIN</h2>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <button onClick={() => setAba("clientes")}>Clientes</button>
+        <button onClick={() => setAba("contas")}>Contas a Pagar</button>
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <strong>Total Recebido:</strong> R$ {totalRecebido}
+        <br />
+        <strong>Total Pendente:</strong> R$ {totalPendente}
+      </div>
+
+      {aba === "clientes" && (
+        <>
+          <input
+            placeholder="PIX Sistema"
+            value={pixSistema}
+            onChange={(e) => setPixSistema(e.target.value)}
+          />
+          <button onClick={salvarPix}>Salvar PIX</button>
+
+          <br />
+          <br />
+
+          <input
+            placeholder="Pesquisar cliente"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+          />
+
+          <br />
+          <br />
+
+          <input
+            placeholder="Nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+          />
+          <input
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            placeholder="CPF"
+            value={cpf}
+            onChange={(e) => setCpf(e.target.value)}
+          />
+          <input
+            placeholder="WhatsApp"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+          />
+          <input
+            placeholder="Valor"
+            value={valor}
+            onChange={(e) => setValor(e.target.value)}
+          />
+
+          <button onClick={cadastrarCliente}>
+            {editandoId ? "Salvar" : "Cadastrar"}
+          </button>
+
+          <hr />
+
+          {clientesFiltrados.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                borderBottom: "1px solid #333",
+                padding: 10,
+                marginBottom: 10,
+              }}
+            >
+              <strong>{c.name}</strong> | R$ {c.valor} | {c.status} |{" "}
+              {c.pagou ? "Pago" : "Pendente"}
+
+              <div style={{ marginTop: 10, display: "flex", gap: 5, flexWrap: "wrap" }}>
+                <button onClick={() => editarCliente(c)}>Editar</button>
+                <button onClick={() => abrirPermissoes(c)}>Permissões</button>
+                <button onClick={() => enviarPix(c)}>PIX</button>
+                <button onClick={() => marcarPago(c)}>Pago</button>
+                <button onClick={() => marcarPendente(c)}>Pend.</button>
+                <button onClick={() => alterarStatus(c)}>Status</button>
+                <button onClick={() => alternarIsencao(c)}>Isentar</button>
+                <button
+                  onClick={() => excluirCliente(c.id)}
+                  style={{ background: "red", color: "#fff" }}
+                >
+                  Excluir
+                </button>
+              </div>
+
+              {editandoPermissoesId === c.email && (
+                <div style={{ marginTop: 10 }}>
+                  {Object.keys(permissoes).map((modulo) => (
+                    <label
+                      key={modulo}
+                      style={{ display: "block", marginBottom: 5 }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!permissoes[modulo]}
+                        onChange={(e) =>
+                          setPermissoes({
+                            ...permissoes,
+                            [modulo]: e.target.checked,
+                          })
+                        }
+                      />{" "}
+                      {modulo}
+                    </label>
+                  ))}
+
+                  <button onClick={salvarPermissoes}>
+                    Salvar Permissões
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+
+      {aba === "contas" && (
+        <>
+          <h3>💸 Contas a Pagar</h3>
+
+          <input
+            placeholder="Fornecedor"
+            value={fornecedor}
+            onChange={(e) => setFornecedor(e.target.value)}
+          />
+          <input
+            placeholder="Descrição"
+            value={descricao}
+            onChange={(e) => setDescricao(e.target.value)}
+          />
+          <input
+            placeholder="Valor"
+            value={valorConta}
+            onChange={(e) => setValorConta(e.target.value)}
+          />
+          <input
+            type="date"
+            value={vencimento}
+            onChange={(e) => setVencimento(e.target.value)}
+          />
+
+          <button onClick={salvarConta}>Salvar Conta</button>
+
+          <hr />
+
+          {contas.map((c) => (
+            <div
+              key={c.id}
+              style={{
+                borderBottom: "1px solid #333",
+                padding: 10,
+              }}
+            >
+              {c.fornecedor} | {c.descricao} | R$ {c.valor} | {c.vencimento} |{" "}
+              {c.status}
+
+              {c.status !== "Pago" && (
+                <button
+                  onClick={() => pagarConta(c.id)}
+                  style={{ marginLeft: 10 }}
+                >
+                  Marcar Pago
+                </button>
+              )}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
 }
