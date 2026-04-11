@@ -22,7 +22,6 @@ import Emprestimos from "./Emprestimos.jsx";
 import Atrasos from "./Atrasos.jsx";
 import EmprestimosLista from "./EmprestimosLista.jsx";
 
-/* 🔥 NOVO */
 import ContasPagar from "./ContasPagar.jsx";
 
 export default function App(){
@@ -47,8 +46,10 @@ useEffect(()=>{
   function handleResize(){
     setIsMobile(window.innerWidth < 768);
   }
+
   window.addEventListener("resize",handleResize);
   return ()=> window.removeEventListener("resize",handleResize);
+
 },[]);
 
 // ================= SESSÃO
@@ -57,6 +58,7 @@ useEffect(()=>{
 async function carregarSessao(){
 
 try{
+
 const { data } = await supabase.auth.getUser();
 const user = data?.user || null;
 
@@ -79,9 +81,11 @@ setPermissoes(usuario?.permissoes || {});
 
 }catch(err){
 console.log(err);
+
 } finally {
 setLoadingSession(false);
 }
+
 }
 
 carregarSessao();
@@ -105,6 +109,7 @@ setRole(usuario?.role || null);
 setPermissoes(usuario?.permissoes || {});
 
 }
+
 });
 
 return ()=> subscription?.unsubscribe();
@@ -129,7 +134,7 @@ return(
 
 <div style={{
 display:"flex",
-flexDirection: isMobile ? "column" : "row",
+flexDirection:isMobile ? "column" : "row",
 width:"100%",
 minHeight:"100vh",
 background:"#020617",
@@ -138,7 +143,7 @@ color:"#fff"
 
 {/* MENU */}
 <div style={{
-width: isMobile ? "100%" : 230,
+width:isMobile ? "100%" : 230,
 background:"#020617",
 padding:15,
 display:"flex",
@@ -175,7 +180,6 @@ gap:10
 </button>
 )}
 
-/* 🔥 NOVO MENU CONTAS A PAGAR */
 {permissoes.contas_pagar && (
 <button onClick={()=>setPagina("contas_pagar")} style={pagina==="contas_pagar" ? botaoAtivo : botaoMenu}>
 💸 Contas a Pagar
@@ -188,13 +192,13 @@ gap:10
 </button>
 )}
 
-{role === "master" && (
+{role==="master" && (
 <button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>
 👑 Master Admin
 </button>
 )}
 
-{role === "admin" && permissoes.lucro && (
+{role==="admin" && permissoes.lucro && (
 <button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>
 📈 Lucro
 </button>
@@ -224,7 +228,7 @@ gap:10
 </button>
 )}
 
-<button onClick={sair} style={{...botaoMenu, background:"#ef4444"}}>
+<button onClick={sair} style={{...botaoMenu,background:"#ef4444"}}>
 🚪 Sair
 </button>
 
@@ -234,40 +238,69 @@ gap:10
 <div style={{flex:1,padding:20}}>
 
 {pagina==="dashboard" && permissoes.dashboard && <Dashboard />}
-{pagina==="financeiro" && permissoes.financeiro && <Financeiro empresaId={empresaId} />}
-{pagina==="recebimentos" && permissoes.recebimentos && <Recebimentos empresaId={empresaId} />}
+
+{pagina==="financeiro" && permissoes.financeiro && (
+<Financeiro empresaId={empresaId} />
+)}
+
+{pagina==="recebimentos" && permissoes.recebimentos && (
+<Recebimentos empresaId={empresaId} />
+)}
+
 {pagina==="clientes" && permissoes.clientes && <Clientes />}
 
-/* 🔥 NOVA PÁGINA */
 {pagina==="contas_pagar" && permissoes.contas_pagar && (
 <ContasPagar empresaId={empresaId} />
 )}
 
 {pagina==="emprestimos" && permissoes.emprestimos && (
 <div>
+
 <h2>💸 Empréstimos</h2>
 
 <div style={{display:"flex",gap:10,marginBottom:20}}>
-<button onClick={()=>setSubPaginaEmprestimo("cadastro")} style={botaoMenu}>➕ Novo</button>
-<button onClick={()=>setSubPaginaEmprestimo("lista")} style={botaoMenu}>📋 Cobrança</button>
-<button onClick={()=>setSubPaginaEmprestimo("atrasos")} style={botaoMenu}>🚨 Atrasos</button>
+<button onClick={()=>setSubPaginaEmprestimo("cadastro")} style={botaoMenu}>
+➕ Novo
+</button>
+
+<button onClick={()=>setSubPaginaEmprestimo("lista")} style={botaoMenu}>
+📋 Cobrança
+</button>
+
+<button onClick={()=>setSubPaginaEmprestimo("atrasos")} style={botaoMenu}>
+🚨 Atrasos
+</button>
 </div>
 
-{subPaginaEmprestimo==="cadastro" && <Emprestimos empresaId={empresaId} />}
-{subPaginaEmprestimo==="lista" && <EmprestimosLista empresaId={empresaId} />}
-{subPaginaEmprestimo==="atrasos" && <Atrasos empresaId={empresaId} />}
+{subPaginaEmprestimo==="cadastro" && (
+<Emprestimos empresaId={empresaId} />
+)}
+
+{subPaginaEmprestimo==="lista" && (
+<EmprestimosLista empresaId={empresaId} />
+)}
+
+{subPaginaEmprestimo==="atrasos" && (
+<Atrasos empresaId={empresaId} />
+)}
+
 </div>
 )}
 
 {pagina==="lucro" && role==="admin" && permissoes.lucro && <Lucro />}
 
 {pagina==="vendas" && permissoes.vendas && <Vendas empresaId={empresaId} />}
+
 {pagina==="compras" && permissoes.compras && <Compras empresaId={empresaId} />}
+
 {pagina==="despesas" && permissoes.pessoal && <DespesasPessoais />}
 
-{pagina==="relatorio" && permissoes.relatorio && <Relatorio empresaId={empresaId} />}
+{pagina==="relatorio" && permissoes.relatorio && (
+<Relatorio empresaId={empresaId} />
+)}
 
 {pagina==="admin" && <Admin />}
+
 {pagina==="master" && role==="master" && <MasterAdmin />}
 
 </div>
