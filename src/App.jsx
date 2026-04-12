@@ -180,11 +180,10 @@ gap:10
 </button>
 )}
 
-{permissoes.contas_pagar && (
+{/* TODOS VEEM CONTAS A PAGAR */}
 <button onClick={()=>setPagina("contas_pagar")} style={pagina==="contas_pagar" ? botaoAtivo : botaoMenu}>
 💸 Contas a Pagar
 </button>
-)}
 
 {permissoes.emprestimos && (
 <button onClick={()=>setPagina("emprestimos")} style={pagina==="emprestimos" ? botaoAtivo : botaoMenu}>
@@ -249,7 +248,8 @@ gap:10
 
 {pagina==="clientes" && permissoes.clientes && <Clientes />}
 
-{pagina==="contas_pagar" && permissoes.contas_pagar && (
+{/* TODOS ACESSAM - MAS CADA UM VÊ SUA EMPRESA */}
+{pagina==="contas_pagar" && (
 <ContasPagar empresaId={empresaId} />
 )}
 
