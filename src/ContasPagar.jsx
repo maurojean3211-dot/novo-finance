@@ -52,10 +52,7 @@ export default function ContasPagar({ empresaId }) {
         .eq("id", editandoId);
 
       error = retorno.error;
-
       if (!error) alert("Conta alterada com sucesso!");
-
-      setEditandoId(null);
 
     } else {
       const retorno = await supabase
@@ -72,7 +69,6 @@ export default function ContasPagar({ empresaId }) {
         ]);
 
       error = retorno.error;
-
       if (!error) alert("Conta salva com sucesso!");
     }
 
@@ -142,7 +138,7 @@ export default function ContasPagar({ empresaId }) {
         <title>Relatório Contas a Pagar</title>
         <style>
           body{
-            font-family: Arial;
+            font-family:Arial;
             padding:20px;
           }
 
@@ -155,7 +151,7 @@ export default function ContasPagar({ empresaId }) {
             border-collapse:collapse;
           }
 
-          th, td{
+          th,td{
             border:1px solid #000;
             padding:8px;
             text-align:left;
@@ -166,6 +162,7 @@ export default function ContasPagar({ empresaId }) {
           }
         </style>
       </head>
+
       <body>
         <h2>Relatório Contas a Pagar</h2>
 
@@ -209,6 +206,7 @@ export default function ContasPagar({ empresaId }) {
 
   return (
     <div style={{ color: "#fff", padding: 20 }}>
+
       <h2>💸 Contas a Pagar</h2>
 
       <div style={{ marginBottom: 20 }}>
@@ -280,8 +278,9 @@ export default function ContasPagar({ empresaId }) {
 
       <hr />
 
-      <div id="area-relatorio">
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* TABELA SOMENTE PARA RELATÓRIO */}
+      <div id="area-relatorio" style={{ display: "none" }}>
+        <table>
           <thead>
             <tr>
               <th>Fornecedor</th>
@@ -306,26 +305,46 @@ export default function ContasPagar({ empresaId }) {
         </table>
       </div>
 
-      <hr />
-
+      {/* LISTA BONITA NA TELA */}
       {filtrados.map((item) => (
         <div
           key={item.id}
           style={{
-            padding: 10,
-            borderBottom: "1px solid #333",
-            marginBottom: 10,
+            padding: 15,
+            border: "1px solid #334155",
+            borderRadius: 8,
+            marginBottom: 12,
+            background: "#0f172a"
           }}
         >
-          <strong>{item.fornecedor}</strong>
-          <br />
+          <strong style={{ fontSize: 18 }}>
+            {item.fornecedor}
+          </strong>
 
-          {item.descricao}
-          <br />
+          <div style={{ marginTop: 8 }}>
+            {item.descricao}
+          </div>
 
-          R$ {item.valor} | {item.vencimento} | {item.status}
+          <div style={{ marginTop: 8 }}>
+            💰 R$ {item.valor}
+          </div>
 
-          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <div>
+            📅 {item.vencimento}
+          </div>
+
+          <div>
+            📌 {item.status}
+          </div>
+
+          <div
+            style={{
+              marginTop: 12,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap"
+            }}
+          >
             {item.status !== "Pago" && (
               <button onClick={() => pagar(item.id)}>
                 Marcar Pago
@@ -340,7 +359,7 @@ export default function ContasPagar({ empresaId }) {
               onClick={() => excluir(item.id)}
               style={{
                 background: "red",
-                color: "#fff",
+                color: "#fff"
               }}
             >
               🗑 Excluir
@@ -352,6 +371,7 @@ export default function ContasPagar({ empresaId }) {
       {filtrados.length === 0 && (
         <p>Nenhuma conta encontrada.</p>
       )}
+
     </div>
   );
 }
