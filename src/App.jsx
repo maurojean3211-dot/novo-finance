@@ -8,7 +8,6 @@ import Admin from "./Admin";
 import Dashboard from "./Dashboard";
 import MasterAdmin from "./MasterAdmin";
 import Financeiro from "./Financeiro.jsx";
-import Lucro from "./Lucro.jsx";
 import DespesasPessoais from "./DespesasPessoais.jsx";
 import Relatorio from "./Relatorio.jsx";
 
@@ -38,12 +37,12 @@ export default function App() {
   const [permissoes, setPermissoes] = useState({});
   const [nomeUsuario, setNomeUsuario] = useState("");
 
-  const [isMobile, setIsMobile] = useState(
-    window.innerWidth < 768
-  );
+  const [isMobile, setIsMobile] =
+    useState(window.innerWidth < 768);
 
   useEffect(() => {
-    const splash = document.getElementById("splash");
+    const splash =
+      document.getElementById("splash");
     if (splash) splash.style.display = "none";
   }, []);
 
@@ -52,34 +51,55 @@ export default function App() {
       setIsMobile(window.innerWidth < 768);
     }
 
-    window.addEventListener("resize", handleResize);
+    window.addEventListener(
+      "resize",
+      handleResize
+    );
 
     return () =>
-      window.removeEventListener("resize", handleResize);
+      window.removeEventListener(
+        "resize",
+        handleResize
+      );
   }, []);
 
   useEffect(() => {
     async function carregarSessao() {
       try {
-        const { data } = await supabase.auth.getUser();
+        const { data } =
+          await supabase.auth.getUser();
 
         const user = data?.user || null;
 
         setSession(user ? { user } : null);
 
         if (user) {
-          let { data: usuario } = await supabase
-            .from("usuarios")
-            .select("role,empresa_id,permissoes,nome")
-            .ilike("email", user.email);
+          let { data: usuario } =
+            await supabase
+              .from("usuarios")
+              .select(
+                "role,empresa_id,permissoes,nome"
+              )
+              .ilike(
+                "email",
+                user.email
+              );
 
           usuario = usuario?.[0];
 
-          setEmpresaId(usuario?.empresa_id || null);
+          setEmpresaId(
+            usuario?.empresa_id || null
+          );
+
           setRole(usuario?.role || null);
-          setPermissoes(usuario?.permissoes || {});
+
+          setPermissoes(
+            usuario?.permissoes || {}
+          );
+
           setNomeUsuario(
-            usuario?.nome || user.email
+            usuario?.nome ||
+              user.email
           );
         }
       } catch (err) {
@@ -98,16 +118,29 @@ export default function App() {
         setSession(newSession);
 
         if (newSession?.user) {
-          let { data: usuario } = await supabase
-            .from("usuarios")
-            .select("role,empresa_id,permissoes,nome")
-            .ilike("email", newSession.user.email);
+          let { data: usuario } =
+            await supabase
+              .from("usuarios")
+              .select(
+                "role,empresa_id,permissoes,nome"
+              )
+              .ilike(
+                "email",
+                newSession.user.email
+              );
 
           usuario = usuario?.[0];
 
-          setEmpresaId(usuario?.empresa_id || null);
+          setEmpresaId(
+            usuario?.empresa_id || null
+          );
+
           setRole(usuario?.role || null);
-          setPermissoes(usuario?.permissoes || {});
+
+          setPermissoes(
+            usuario?.permissoes || {}
+          );
+
           setNomeUsuario(
             usuario?.nome ||
               newSession.user.email
@@ -116,7 +149,8 @@ export default function App() {
       }
     );
 
-    return () => subscription?.unsubscribe();
+    return () =>
+      subscription?.unsubscribe();
   }, []);
 
   async function sair() {
@@ -126,7 +160,12 @@ export default function App() {
 
   if (loadingSession) {
     return (
-      <div style={{ color: "#fff", padding: 20 }}>
+      <div
+        style={{
+          color: "#fff",
+          padding: 20,
+        }}
+      >
         Carregando...
       </div>
     );
@@ -159,7 +198,9 @@ export default function App() {
       {/* MENU */}
       <div
         style={{
-          width: isMobile ? "100%" : 230,
+          width: isMobile
+            ? "100%"
+            : 230,
           background: "#020617",
           padding: 15,
           display: "flex",
@@ -174,7 +215,10 @@ export default function App() {
             gap: 10,
           }}
         >
-          <img src="/logo.png" width={40} />
+          <img
+            src="/logo.png"
+            width={40}
+          />
           <h2>Cunha Finance</h2>
         </div>
 
@@ -192,10 +236,13 @@ export default function App() {
         {permissoes.dashboard && (
           <button
             onClick={() =>
-              setPagina("dashboard")
+              setPagina(
+                "dashboard"
+              )
             }
             style={
-              pagina === "dashboard"
+              pagina ===
+              "dashboard"
                 ? botaoAtivo
                 : botaoMenu
             }
@@ -207,10 +254,13 @@ export default function App() {
         {permissoes.financeiro && (
           <button
             onClick={() =>
-              setPagina("financeiro")
+              setPagina(
+                "financeiro"
+              )
             }
             style={
-              pagina === "financeiro"
+              pagina ===
+              "financeiro"
                 ? botaoAtivo
                 : botaoMenu
             }
@@ -222,10 +272,13 @@ export default function App() {
         {permissoes.recebimentos && (
           <button
             onClick={() =>
-              setPagina("recebimentos")
+              setPagina(
+                "recebimentos"
+              )
             }
             style={
-              pagina === "recebimentos"
+              pagina ===
+              "recebimentos"
                 ? botaoAtivo
                 : botaoMenu
             }
@@ -237,10 +290,13 @@ export default function App() {
         {permissoes.clientes && (
           <button
             onClick={() =>
-              setPagina("clientes")
+              setPagina(
+                "clientes"
+              )
             }
             style={
-              pagina === "clientes"
+              pagina ===
+              "clientes"
                 ? botaoAtivo
                 : botaoMenu
             }
@@ -251,10 +307,13 @@ export default function App() {
 
         <button
           onClick={() =>
-            setPagina("contas_pagar")
+            setPagina(
+              "contas_pagar"
+            )
           }
           style={
-            pagina === "contas_pagar"
+            pagina ===
+            "contas_pagar"
               ? botaoAtivo
               : botaoMenu
           }
@@ -264,10 +323,13 @@ export default function App() {
 
         <button
           onClick={() =>
-            setPagina("contas_fixas")
+            setPagina(
+              "contas_fixas"
+            )
           }
           style={
-            pagina === "contas_fixas"
+            pagina ===
+            "contas_fixas"
               ? botaoAtivo
               : botaoMenu
           }
@@ -278,10 +340,13 @@ export default function App() {
         {permissoes.emprestimos && (
           <button
             onClick={() =>
-              setPagina("emprestimos")
+              setPagina(
+                "emprestimos"
+              )
             }
             style={
-              pagina === "emprestimos"
+              pagina ===
+              "emprestimos"
                 ? botaoAtivo
                 : botaoMenu
             }
@@ -294,10 +359,13 @@ export default function App() {
           <>
             <button
               onClick={() =>
-                setPagina("master")
+                setPagina(
+                  "master"
+                )
               }
               style={
-                pagina === "master"
+                pagina ===
+                "master"
                   ? botaoAtivo
                   : botaoMenu
               }
@@ -307,10 +375,13 @@ export default function App() {
 
             <button
               onClick={() =>
-                setPagina("vendas")
+                setPagina(
+                  "vendas"
+                )
               }
               style={
-                pagina === "vendas"
+                pagina ===
+                "vendas"
                   ? botaoAtivo
                   : botaoMenu
               }
@@ -320,10 +391,13 @@ export default function App() {
 
             <button
               onClick={() =>
-                setPagina("compras")
+                setPagina(
+                  "compras"
+                )
               }
               style={
-                pagina === "compras"
+                pagina ===
+                "compras"
                   ? botaoAtivo
                   : botaoMenu
               }
@@ -333,28 +407,18 @@ export default function App() {
 
             <button
               onClick={() =>
-                setPagina("relatorio")
+                setPagina(
+                  "relatorio"
+                )
               }
               style={
-                pagina === "relatorio"
+                pagina ===
+                "relatorio"
                   ? botaoAtivo
                   : botaoMenu
               }
             >
               📄 Relatórios
-            </button>
-
-            <button
-              onClick={() =>
-                setPagina("lucro")
-              }
-              style={
-                pagina === "lucro"
-                  ? botaoAtivo
-                  : botaoMenu
-              }
-            >
-              📈 Lucro
             </button>
           </>
         )}
@@ -362,10 +426,13 @@ export default function App() {
         {permissoes.pessoal && (
           <button
             onClick={() =>
-              setPagina("despesas")
+              setPagina(
+                "despesas"
+              )
             }
             style={
-              pagina === "despesas"
+              pagina ===
+              "despesas"
                 ? botaoAtivo
                 : botaoMenu
             }
@@ -378,7 +445,8 @@ export default function App() {
           onClick={sair}
           style={{
             ...botaoMenu,
-            background: "#ef4444",
+            background:
+              "#ef4444",
           }}
         >
           🚪 Sair
@@ -392,43 +460,58 @@ export default function App() {
           padding: 20,
         }}
       >
-        {pagina === "dashboard" &&
+        {pagina ===
+          "dashboard" &&
           permissoes.dashboard && (
             <Dashboard />
           )}
 
-        {pagina === "financeiro" &&
+        {pagina ===
+          "financeiro" &&
           permissoes.financeiro && (
             <Financeiro
-              empresaId={empresaId}
+              empresaId={
+                empresaId
+              }
             />
           )}
 
-        {pagina === "recebimentos" &&
+        {pagina ===
+          "recebimentos" &&
           permissoes.recebimentos && (
             <Recebimentos
-              empresaId={empresaId}
+              empresaId={
+                empresaId
+              }
             />
           )}
 
-        {pagina === "clientes" &&
+        {pagina ===
+          "clientes" &&
           permissoes.clientes && (
             <Clientes />
           )}
 
-        {pagina === "contas_pagar" && (
+        {pagina ===
+          "contas_pagar" && (
           <ContasPagar
-            empresaId={empresaId}
+            empresaId={
+              empresaId
+            }
           />
         )}
 
-        {pagina === "contas_fixas" && (
+        {pagina ===
+          "contas_fixas" && (
           <ContasFixas
-            empresaId={empresaId}
+            empresaId={
+              empresaId
+            }
           />
         )}
 
-        {pagina === "emprestimos" &&
+        {pagina ===
+          "emprestimos" &&
           permissoes.emprestimos && (
             <div>
               <h2>
@@ -437,7 +520,8 @@ export default function App() {
 
               <div
                 style={{
-                  display: "flex",
+                  display:
+                    "flex",
                   gap: 10,
                   marginBottom: 20,
                 }}
@@ -448,7 +532,9 @@ export default function App() {
                       "cadastro"
                     )
                   }
-                  style={botaoMenu}
+                  style={
+                    botaoMenu
+                  }
                 >
                   ➕ Novo
                 </button>
@@ -459,7 +545,9 @@ export default function App() {
                       "lista"
                     )
                   }
-                  style={botaoMenu}
+                  style={
+                    botaoMenu
+                  }
                 >
                   📋 Cobrança
                 </button>
@@ -470,7 +558,9 @@ export default function App() {
                       "atrasos"
                     )
                   }
-                  style={botaoMenu}
+                  style={
+                    botaoMenu
+                  }
                 >
                   🚨 Atrasos
                 </button>
@@ -505,40 +595,49 @@ export default function App() {
             </div>
           )}
 
-        {pagina === "vendas" &&
+        {pagina ===
+          "vendas" &&
           loginMaster && (
             <Vendas
-              empresaId={empresaId}
+              empresaId={
+                empresaId
+              }
             />
           )}
 
-        {pagina === "compras" &&
+        {pagina ===
+          "compras" &&
           loginMaster && (
             <Compras
-              empresaId={empresaId}
+              empresaId={
+                empresaId
+              }
             />
           )}
 
-        {pagina === "relatorio" &&
+        {pagina ===
+          "relatorio" &&
           loginMaster && (
             <Relatorio
-              empresaId={empresaId}
+              empresaId={
+                empresaId
+              }
             />
           )}
 
-        {pagina === "lucro" &&
-          loginMaster && <Lucro />}
-
-        {pagina === "despesas" &&
+        {pagina ===
+          "despesas" &&
           permissoes.pessoal && (
             <DespesasPessoais />
           )}
 
-        {pagina === "admin" && (
+        {pagina ===
+          "admin" && (
           <Admin />
         )}
 
-        {pagina === "master" &&
+        {pagina ===
+          "master" &&
           loginMaster && (
             <MasterAdmin />
           )}
