@@ -53,9 +53,7 @@ export default function ContasPagar({ empresaId }) {
 
       error = retorno.error;
 
-      if (!error) {
-        alert("Conta alterada com sucesso!");
-      }
+      if (!error) alert("Conta alterada com sucesso!");
 
       setEditandoId(null);
 
@@ -75,14 +73,11 @@ export default function ContasPagar({ empresaId }) {
 
       error = retorno.error;
 
-      if (!error) {
-        alert("Conta salva com sucesso!");
-      }
+      if (!error) alert("Conta salva com sucesso!");
     }
 
     if (error) {
       alert(error.message);
-      console.log(error);
       return;
     }
 
@@ -137,7 +132,55 @@ export default function ContasPagar({ empresaId }) {
   }
 
   function imprimirRelatorio() {
-    window.print();
+    const conteudo = document.getElementById("area-relatorio").innerHTML;
+
+    const tela = window.open("", "", "width=900,height=700");
+
+    tela.document.write(`
+      <html>
+      <head>
+        <title>Relatório Contas a Pagar</title>
+        <style>
+          body{
+            font-family: Arial;
+            padding:20px;
+          }
+
+          h2{
+            margin-bottom:20px;
+          }
+
+          table{
+            width:100%;
+            border-collapse:collapse;
+          }
+
+          th, td{
+            border:1px solid #000;
+            padding:8px;
+            text-align:left;
+          }
+
+          .totais{
+            margin-bottom:20px;
+          }
+        </style>
+      </head>
+      <body>
+        <h2>Relatório Contas a Pagar</h2>
+
+        <div class="totais">
+          <strong>Total Pendente:</strong> R$ ${totalPendente}<br>
+          <strong>Total Pago:</strong> R$ ${totalPago}
+        </div>
+
+        ${conteudo}
+      </body>
+      </html>
+    `);
+
+    tela.document.close();
+    tela.print();
   }
 
   const filtrados = dados.filter((item) => {
@@ -233,6 +276,34 @@ export default function ContasPagar({ empresaId }) {
         <button onClick={imprimirRelatorio}>
           📄 Relatório
         </button>
+      </div>
+
+      <hr />
+
+      <div id="area-relatorio">
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th>Fornecedor</th>
+              <th>Descrição</th>
+              <th>Valor</th>
+              <th>Vencimento</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filtrados.map((item) => (
+              <tr key={item.id}>
+                <td>{item.fornecedor}</td>
+                <td>{item.descricao}</td>
+                <td>R$ {item.valor}</td>
+                <td>{item.vencimento}</td>
+                <td>{item.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <hr />
