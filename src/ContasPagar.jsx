@@ -15,25 +15,33 @@ export default function ContasPagar({ empresaId }) {
   const [editandoId, setEditandoId] = useState(null);
 
   useEffect(() => {
-    carregar();
-  }, []);
+    if (empresaId) carregar();
+  }, [empresaId]);
 
   async function carregar() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("contas_pagar")
       .select("*")
       .eq("empresa_id", empresaId)
       .order("vencimento", { ascending: true });
 
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     setDados(data || []);
   }
 
   async function salvar() {
+    if (!empresaId) return alert("Empresa não identificada.");
     if (!fornecedor) return alert("Fornecedor obrigatório");
     if (!valor) return alert("Valor obrigatório");
 
+    let error = null;
+
     if (editandoId) {
-      await supabase
+      const retorno = await supabase
         .from("contas_pagar")
         .update({
           fornecedor,
@@ -43,18 +51,39 @@ export default function ContasPagar({ empresaId }) {
         })
         .eq("id", editandoId);
 
+      error = retorno.error;
+
+      if (!error) {
+        alert("Conta alterada com sucesso!");
+      }
+
       setEditandoId(null);
+
     } else {
-      await supabase.from("contas_pagar").insert([
-        {
-          empresa_id: empresaId,
-          fornecedor,
-          descricao,
-          valor: Number(valor),
-          vencimento,
-          status: "Pendente",
-        },
-      ]);
+      const retorno = await supabase
+        .from("contas_pagar")
+        .insert([
+          {
+            empresa_id: empresaId,
+            fornecedor,
+            descricao,
+            valor: Number(valor),
+            vencimento,
+            status: "Pendente",
+          },
+        ]);
+
+      error = retorno.error;
+
+      if (!error) {
+        alert("Conta salva com sucesso!");
+      }
+    }
+
+    if (error) {
+      alert(error.message);
+      console.log(error);
+      return;
     }
 
     limpar();
@@ -78,10 +107,15 @@ export default function ContasPagar({ empresaId }) {
   }
 
   async function pagar(id) {
-    await supabase
+    const { error } = await supabase
       .from("contas_pagar")
       .update({ status: "Pago" })
       .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     carregar();
   }
@@ -89,10 +123,15 @@ export default function ContasPagar({ empresaId }) {
   async function excluir(id) {
     if (!window.confirm("Excluir conta?")) return;
 
-    await supabase
+    const { error } = await supabase
       .from("contas_pagar")
       .delete()
       .eq("id", id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     carregar();
   }
@@ -135,7 +174,6 @@ export default function ContasPagar({ empresaId }) {
         <strong>Total Pago:</strong> R$ {totalPago}
       </div>
 
-      {/* FORMULÁRIO */}
       <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
         <input
           placeholder="Fornecedor"
@@ -176,7 +214,6 @@ export default function ContasPagar({ empresaId }) {
 
       <hr />
 
-      {/* BUSCA */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
         <input
           placeholder="Buscar fornecedor ou descrição"
