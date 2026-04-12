@@ -2,58 +2,63 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function Recebimentos({ empresaId }) {
-
   const [lista, setLista] = useState([]);
   const [pix, setPix] = useState("");
   const [busca, setBusca] = useState("");
 
-  useEffect(()=>{
+  useEffect(() => {
     carregarPix();
-  },[]);
+  }, []);
 
-  useEffect(()=>{
-    if(!empresaId) return;
+  useEffect(() => {
+    if (!empresaId) return;
     carregar();
-  },[empresaId]);
+  }, [empresaId]);
 
-  async function carregar(){
-
-    if(!empresaId) return;
+  async function carregar() {
+    if (!empresaId) return;
 
     const { data } = await supabase
       .from("recebimentos")
       .select("*")
       .eq("empresa_id", empresaId);
 
-    const { data:clientes } = await supabase
+    const { data: clientes } = await supabase
       .from("clientes")
       .select("id, nome, telefone, whatsapp")
       .eq("empresa_id", empresaId);
 
-    let listaCompleta = (data || []).map(r => {
-
-      const cliente = clientes?.find(c => c.id === r.cliente_id);
+    let listaCompleta = (data || []).map((r) => {
+      const cliente = clientes?.find((c) => c.id === r.cliente_id);
 
       return {
         ...r,
-        status_normalizado: String(r.status || "").toLowerCase().trim(),
+        status_normalizado: String(r.status || "")
+          .toLowerCase()
+          .trim(),
         cliente_nome: cliente?.nome || "Cliente",
-        cliente_tel: cliente?.telefone || cliente?.whatsapp || ""
+        cliente_tel:
+          cliente?.telefone ||
+          cliente?.whatsapp ||
+          "",
       };
-
     });
 
-    listaCompleta.sort((a,b)=>
-      a.cliente_nome.localeCompare(b.cliente_nome)
+    listaCompleta.sort((a, b) =>
+      a.cliente_nome.localeCompare(
+        b.cliente_nome
+      )
     );
 
     setLista(listaCompleta);
   }
 
-  async function carregarPix(){
+  async function carregarPix() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if(!user) return;
+    if (!user) return;
 
     const { data } = await supabase
       .from("usuarios")
@@ -64,17 +69,19 @@ export default function Recebimentos({ empresaId }) {
     setPix(data?.pix || "");
   }
 
-  async function salvarPix(){
+  async function salvarPix() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if(!user) return;
+    if (!user) return;
 
     const { error } = await supabase
       .from("usuarios")
       .update({ pix })
       .eq("id", user.id);
 
-    if(error){
+    if (error) {
       alert("Erro ao salvar PIX");
       return;
     }
@@ -82,46 +89,45 @@ export default function Recebimentos({ empresaId }) {
     alert("✅ PIX salvo!");
   }
 
-  // 🔥 CORREÇÃO PRINCIPAL AQUI
-  async function receber(r){
+  async function receber(r) {
+    const confirmar = window.confirm(
+      "Confirmar pagamento?"
+    );
 
-    const confirmar = window.confirm("Confirmar pagamento?");
-    if(!confirmar) return;
+    if (!confirmar) return;
 
-    // 1️⃣ Atualiza status
     const { error } = await supabase
       .from("recebimentos")
       .update({ status: "pago" })
       .eq("id", r.id);
 
-    if(error){
+    if (error) {
       alert("Erro ao confirmar pagamento");
       return;
     }
 
-    // 2️⃣ VERIFICA SE JÁ EXISTE LANÇAMENTO (evita duplicar)
-    const { data: existente } = await supabase
-      .from("lancamentos")
-      .select("id")
-      .eq("recebimento_id", r.id)
-      .maybeSingle();
+    const { data: existente } =
+      await supabase
+        .from("lancamentos")
+        .select("id")
+        .eq("recebimento_id", r.id)
+        .maybeSingle();
 
-    if(!existente){
-
-      // 3️⃣ CRIA LANÇAMENTO FINANCEIRO
-      await supabase.from("lancamentos").insert([
-        {
-          empresa_id: empresaId,
-          cliente_id: r.cliente_id,
-          recebimento_id: r.id,
-          tipo: "receita",
-          descricao: `Recebimento - ${r.cliente_nome}`,
-          valor: r.valor,
-          data: new Date(),
-          status: "recebido"
-        }
-      ]);
-
+    if (!existente) {
+      await supabase
+        .from("lancamentos")
+        .insert([
+          {
+            empresa_id: empresaId,
+            cliente_id: r.cliente_id,
+            recebimento_id: r.id,
+            tipo: "receita",
+            descricao: `Recebimento - ${r.cliente_nome}`,
+            valor: r.valor,
+            data: new Date(),
+            status: "recebido",
+          },
+        ]);
     }
 
     await carregar();
@@ -129,17 +135,19 @@ export default function Recebimentos({ empresaId }) {
     alert("✅ Pagamento confirmado!");
   }
 
-  async function reabrir(id){
+  async function reabrir(id) {
+    const confirmar = window.confirm(
+      "Voltar para pendente?"
+    );
 
-    const confirmar = window.confirm("Voltar para pendente?");
-    if(!confirmar) return;
+    if (!confirmar) return;
 
     const { error } = await supabase
       .from("recebimentos")
       .update({ status: "pendente" })
       .eq("id", id);
 
-    if(error){
+    if (error) {
       alert("Erro ao reabrir");
       return;
     }
@@ -149,52 +157,98 @@ export default function Recebimentos({ empresaId }) {
     alert("🔄 Voltou para pendente!");
   }
 
-  async function excluir(id){
-
-    if(!window.confirm("Excluir recebimento?")) return;
+  async function excluir(id) {
+    if (
+      !window.confirm(
+        "Excluir recebimento?"
+      )
+    )
+      return;
 
     await supabase
       .from("recebimentos")
       .delete()
       .eq("id", id);
 
-    setLista(prev => prev.filter(item => item.id !== id));
+    setLista((prev) =>
+      prev.filter(
+        (item) => item.id !== id
+      )
+    );
   }
 
-  function enviarWhatsapp(r){
-
-    if(!pix){
-      alert("⚠ Cadastre o PIX primeiro!");
+  function enviarWhatsapp(r) {
+    if (!pix) {
+      alert(
+        "⚠ Cadastre o PIX primeiro!"
+      );
       return;
     }
 
-    let telefone = (r.cliente_tel || "").replace(/\D/g,"");
+    let telefone = (
+      r.cliente_tel || ""
+    ).replace(/\D/g, "");
 
-    if(!telefone){
+    if (!telefone) {
       alert("Cliente sem telefone");
       return;
     }
 
-    if(!telefone.startsWith("55")){
+    if (
+      !telefone.startsWith("55")
+    ) {
       telefone = "55" + telefone;
     }
 
     const mensagem = `Olá ${r.cliente_nome} 👋
 
-💰 Valor: R$ ${Number(r.valor).toFixed(2)}
+💰 Valor: R$ ${Number(
+      r.valor
+    ).toFixed(2)}
 
 PIX: ${pix}
 
 Pode realizar o pagamento hoje?
 Aguardo 👍`;
 
-    const url = `https://wa.me/${telefone}?text=${encodeURIComponent(mensagem)}`;
+    const url = `https://wa.me/${telefone}?text=${encodeURIComponent(
+      mensagem
+    )}`;
+
     window.open(url, "_blank");
   }
 
-  return (
-    <div style={{padding:20,color:"#fff"}}>
+  // 🔥 CORREÇÃO DA DATA
+  function normalizarData(dataTexto) {
+    if (!dataTexto)
+      return new Date();
 
+    const somenteData =
+      dataTexto
+        .toString()
+        .slice(0, 10);
+
+    const partes =
+      somenteData.split("-");
+
+    if (partes.length === 3) {
+      return new Date(
+        Number(partes[0]),
+        Number(partes[1]) - 1,
+        Number(partes[2])
+      );
+    }
+
+    return new Date(dataTexto);
+  }
+
+  return (
+    <div
+      style={{
+        padding: 20,
+        color: "#fff",
+      }}
+    >
       <h2>💰 Recebimentos</h2>
 
       <div style={cardPix}>
@@ -203,11 +257,16 @@ Aguardo 👍`;
         <input
           style={input}
           value={pix}
-          onChange={(e)=>setPix(e.target.value)}
+          onChange={(e) =>
+            setPix(e.target.value)
+          }
           placeholder="Digite sua chave PIX"
         />
 
-        <button style={botaoSalvarPix} onClick={salvarPix}>
+        <button
+          style={botaoSalvarPix}
+          onClick={salvarPix}
+        >
           💾 Salvar PIX
         </button>
       </div>
@@ -216,100 +275,263 @@ Aguardo 👍`;
         style={input}
         placeholder="🔍 Buscar cliente..."
         value={busca}
-        onChange={(e)=>setBusca(e.target.value)}
+        onChange={(e) =>
+          setBusca(e.target.value)
+        }
       />
 
       {lista.length === 0 && (
-        <p style={{color:"#9ca3af"}}>Nenhum recebimento encontrado</p>
+        <p
+          style={{
+            color: "#9ca3af",
+          }}
+        >
+          Nenhum recebimento
+          encontrado
+        </p>
       )}
 
       {lista
-        .filter(r =>
-          r.cliente_nome.toLowerCase().includes(busca.toLowerCase())
+        .filter((r) =>
+          r.cliente_nome
+            .toLowerCase()
+            .includes(
+              busca.toLowerCase()
+            )
         )
-        .map(r => {
+        .map((r) => {
+          const hoje =
+            new Date();
 
-          const hoje = new Date();
-          const venc = new Date(r.data_vencimento);
+          hoje.setHours(
+            0,
+            0,
+            0,
+            0
+          );
+
+          const venc =
+            normalizarData(
+              r.data_vencimento
+            );
+
+          venc.setHours(
+            0,
+            0,
+            0,
+            0
+          );
 
           let aviso = "";
-          let cor = "#9ca3af";
+          let cor =
+            "#9ca3af";
 
-          if(r.status_normalizado !== "pago"){
+          if (
+            r.status_normalizado !==
+            "pago"
+          ) {
+            const diff =
+              Math.ceil(
+                (venc - hoje) /
+                  (1000 *
+                    60 *
+                    60 *
+                    24)
+              );
 
-            const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
-
-            if(diff < 0){
-              aviso = "🔴 Atrasado";
-              cor = "#ef4444";
-            }
-            else if(diff === 0){
-              aviso = "🟡 Vence hoje";
-              cor = "#facc15";
-            }
-            else if(diff <= 3){
+            if (diff < 0) {
+              aviso =
+                "🔴 Atrasado";
+              cor =
+                "#ef4444";
+            } else if (
+              diff === 0
+            ) {
+              aviso =
+                "🟡 Vence hoje";
+              cor =
+                "#facc15";
+            } else if (
+              diff <= 3
+            ) {
               aviso = `🟠 Vence em ${diff} dia(s)`;
-              cor = "#fb923c";
+              cor =
+                "#fb923c";
             } else {
-              aviso = "🟢 Em dia";
-              cor = "#22c55e";
+              aviso =
+                `🟢 Faltam ${diff} dia(s)`;
+              cor =
+                "#22c55e";
             }
           }
 
           return (
+            <div
+              key={r.id}
+              style={card}
+            >
+              <strong>
+                👤{" "}
+                {
+                  r.cliente_nome
+                }
+              </strong>
 
-        <div key={r.id} style={card}>
+              <div>
+                📅{" "}
+                {venc.toLocaleDateString(
+                  "pt-BR"
+                )}
+              </div>
 
-          <strong>👤 {r.cliente_nome}</strong>
+              <div>
+                💵 R${" "}
+                {Number(
+                  r.valor
+                ).toFixed(2)}
+              </div>
 
-          <div>📅 {new Date(r.data_vencimento).toLocaleDateString()}</div>
-          <div>💵 R$ {Number(r.valor).toFixed(2)}</div>
+              <div
+                style={{
+                  color: cor,
+                  fontWeight:
+                    "bold",
+                }}
+              >
+                {aviso}
+              </div>
 
-          <div style={{color:cor,fontWeight:"bold"}}>{aviso}</div>
+              <div
+                style={{
+                  display:
+                    "flex",
+                  gap: 10,
+                  marginTop: 10,
+                  flexWrap:
+                    "wrap",
+                }}
+              >
+                <button
+                  onClick={() =>
+                    enviarWhatsapp(
+                      r
+                    )
+                  }
+                  style={
+                    botaoWhats
+                  }
+                >
+                  📲 WhatsApp
+                </button>
 
-          <div style={{display:"flex",gap:10,marginTop:10}}>
+                {r.status_normalizado ===
+                "pago" ? (
+                  <button
+                    onClick={() =>
+                      reabrir(
+                        r.id
+                      )
+                    }
+                    style={
+                      botaoPago
+                    }
+                  >
+                    ↩️ Reabrir
+                  </button>
+                ) : (
+                  <button
+                    onClick={() =>
+                      receber(
+                        r
+                      )
+                    }
+                    style={
+                      botaoReceber
+                    }
+                  >
+                    ✔ Receber
+                  </button>
+                )}
 
-            <button onClick={()=>enviarWhatsapp(r)} style={botaoWhats}>
-              📲 WhatsApp
-            </button>
-
-            {r.status_normalizado === "pago" ? (
-              <button onClick={()=>reabrir(r.id)} style={botaoPago}>
-                ↩️ Reabrir
-              </button>
-            ) : (
-              <button onClick={()=>receber(r)} style={botaoReceber}>
-                ✔ Receber
-              </button>
-            )}
-
-            <button onClick={()=>excluir(r.id)} style={botaoExcluir}>
-              🗑
-            </button>
-
-          </div>
-
-        </div>
-
+                <button
+                  onClick={() =>
+                    excluir(
+                      r.id
+                    )
+                  }
+                  style={
+                    botaoExcluir
+                  }
+                >
+                  🗑
+                </button>
+              </div>
+            </div>
           );
-
         })}
-
     </div>
   );
 }
 
-// estilos
-const card={ background:"#111827", padding:15, borderRadius:10, marginBottom:10 };
-const cardPix={ background:"#1f2937", padding:15, borderRadius:10, marginBottom:20 };
-const input={ padding:10, width:"100%", borderRadius:6, border:"none", marginBottom:10 };
+const card = {
+  background: "#111827",
+  padding: 15,
+  borderRadius: 10,
+  marginBottom: 10,
+};
 
-const botaoSalvarPix={ padding:"10px", width:"100%", background:"#22c55e", border:"none", borderRadius:6, color:"#fff" };
+const cardPix = {
+  background: "#1f2937",
+  padding: 15,
+  borderRadius: 10,
+  marginBottom: 20,
+};
 
-const botaoWhats={ padding:"10px 16px", background:"#16a34a", border:"none", borderRadius:6, color:"#fff" };
+const input = {
+  padding: 10,
+  width: "100%",
+  borderRadius: 6,
+  border: "none",
+  marginBottom: 10,
+};
 
-const botaoReceber={ padding:"10px 16px", background:"#2563eb", border:"none", borderRadius:6, color:"#fff" };
+const botaoSalvarPix = {
+  padding: "10px",
+  width: "100%",
+  background: "#22c55e",
+  border: "none",
+  borderRadius: 6,
+  color: "#fff",
+};
 
-const botaoPago={ padding:"10px 16px", background:"#f59e0b", border:"none", borderRadius:6, color:"#fff" };
+const botaoWhats = {
+  padding: "10px 16px",
+  background: "#16a34a",
+  border: "none",
+  borderRadius: 6,
+  color: "#fff",
+};
 
-const botaoExcluir={ padding:"10px 16px", background:"#dc2626", border:"none", borderRadius:6, color:"#fff" };
+const botaoReceber = {
+  padding: "10px 16px",
+  background: "#2563eb",
+  border: "none",
+  borderRadius: 6,
+  color: "#fff",
+};
+
+const botaoPago = {
+  padding: "10px 16px",
+  background: "#f59e0b",
+  border: "none",
+  borderRadius: 6,
+  color: "#fff",
+};
+
+const botaoExcluir = {
+  padding: "10px 16px",
+  background: "#dc2626",
+  border: "none",
+  borderRadius: 6,
+  color: "#fff",
+};
