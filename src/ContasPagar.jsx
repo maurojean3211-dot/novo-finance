@@ -68,7 +68,6 @@ export default function ContasPagar({ empresaId }) {
         .eq("id", editandoId);
 
       error = retorno.error;
-
       if (!error) alert("Conta alterada com sucesso!");
     } else {
       const retorno = await supabase
@@ -85,7 +84,6 @@ export default function ContasPagar({ empresaId }) {
         ]);
 
       error = retorno.error;
-
       if (!error) alert("Conta salva com sucesso!");
     }
 
@@ -151,6 +149,18 @@ export default function ContasPagar({ empresaId }) {
     });
   }
 
+  function vencida(item) {
+    if (item.status === "Pago") return false;
+
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const dataConta = new Date(item.vencimento);
+    dataConta.setHours(0, 0, 0, 0);
+
+    return dataConta < hoje;
+  }
+
   function imprimirRelatorio() {
     const conteudo = document.getElementById("area-relatorio").innerHTML;
 
@@ -201,6 +211,8 @@ export default function ContasPagar({ empresaId }) {
     return passouBusca && passouStatus;
   });
 
+  const contasVencidas = dados.filter((item) => vencida(item));
+
   const totalPendente = filtrados
     .filter((item) => item.status !== "Pago")
     .reduce((soma, item) => soma + Number(item.valor || 0), 0);
@@ -212,6 +224,19 @@ export default function ContasPagar({ empresaId }) {
   return (
     <div style={{ color: "#fff", padding: 20 }}>
       <h2>💸 Contas a Pagar</h2>
+
+      {contasVencidas.length > 0 && (
+        <div
+          style={{
+            background: "#7f1d1d",
+            padding: 12,
+            borderRadius: 8,
+            marginBottom: 15,
+          }}
+        >
+          ⚠️ Você possui {contasVencidas.length} conta(s) vencida(s)
+        </div>
+      )}
 
       <div style={{ marginBottom: 20 }}>
         <strong>Total Pendente:</strong> R$ {dinheiro(totalPendente)}
@@ -316,12 +341,21 @@ export default function ContasPagar({ empresaId }) {
             border: "1px solid #334155",
             borderRadius: 8,
             marginBottom: 12,
-            background: "#0f172a",
+            background:
+              item.status === "Pago"
+                ? "#14532d"
+                : vencida(item)
+                ? "#7f1d1d"
+                : "#0f172a",
           }}
         >
-          <strong style={{ fontSize: 18 }}>{item.fornecedor}</strong>
+          <strong style={{ fontSize: 18 }}>
+            {item.fornecedor}
+          </strong>
 
-          <div style={{ marginTop: 8 }}>{item.descricao}</div>
+          <div style={{ marginTop: 8 }}>
+            {item.descricao}
+          </div>
 
           <div style={{ marginTop: 8 }}>
             💰 R$ {dinheiro(item.valor)}
