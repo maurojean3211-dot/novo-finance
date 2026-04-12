@@ -52,7 +52,11 @@ export default function Relatorio({ empresaId }) {
 
     // ================= VENDAS =================
     (vendas || []).forEach((item) => {
-      const cliente = item.cliente_nome || "Sem nome";
+      const cliente =
+        item.cliente_nome ||
+        item.cliente ||
+        item.nome_cliente ||
+        "Sem nome";
 
       if (!resumo[cliente]) {
         resumo[cliente] = {
@@ -64,7 +68,7 @@ export default function Relatorio({ empresaId }) {
       }
 
       const kg = Number(item.kilos) || 0;
-      const valor = Number(item.valor_total) || 0;
+      const valor = Number(item.valor_total || item.valor || 0);
 
       resumo[cliente].vendas += kg;
       total += kg;
@@ -74,8 +78,11 @@ export default function Relatorio({ empresaId }) {
       resumo[cliente].comissao += com;
       comissao += com;
 
-      const dataVenda =
-        (item.created_at || item.data || "").slice(0, 10);
+      const dataVenda = (
+        item.created_at ||
+        item.data ||
+        ""
+      ).slice(0, 10);
 
       if (dataVenda === dataHoje) {
         hojeRecebido += valor;
@@ -90,7 +97,10 @@ export default function Relatorio({ empresaId }) {
 
     // ================= COMPRAS =================
     (compras || []).forEach((item) => {
-      const fornecedor = item.fornecedor || "Sem nome";
+      const fornecedor =
+        item.fornecedor ||
+        item.nome_fornecedor ||
+        "Sem nome";
 
       if (!resumo[fornecedor]) {
         resumo[fornecedor] = {
@@ -123,8 +133,11 @@ export default function Relatorio({ empresaId }) {
       resumo[fornecedor].comissao += com;
       comissao += com;
 
-      const dataCompra =
-        (item.created_at || item.data || "").slice(0, 10);
+      const dataCompra = (
+        item.created_at ||
+        item.data ||
+        ""
+      ).slice(0, 10);
 
       if (dataCompra === dataHoje) {
         hojeComissao += com;
@@ -173,88 +186,34 @@ export default function Relatorio({ empresaId }) {
           marginBottom: 20,
         }}
       >
-        <div
-          style={{
-            background: "#111827",
-            padding: 15,
-            borderRadius: 8,
-            color: "#fff",
-          }}
-        >
+        <div style={card}>
           <strong>Recebido Hoje</strong>
-          <div>
-            R$ {dinheiro(recebidoHoje)}
-          </div>
+          <div>R$ {dinheiro(recebidoHoje)}</div>
         </div>
 
-        <div
-          style={{
-            background: "#111827",
-            padding: 15,
-            borderRadius: 8,
-            color: "#fff",
-          }}
-        >
+        <div style={card}>
           <strong>Comissão Hoje</strong>
-          <div>
-            R$ {dinheiro(comissaoHoje)}
-          </div>
+          <div>R$ {dinheiro(comissaoHoje)}</div>
         </div>
 
-        <div
-          style={{
-            background: "#111827",
-            padding: 15,
-            borderRadius: 8,
-            color: "#fff",
-          }}
-        >
+        <div style={card}>
           <strong>Recebido no Mês</strong>
-          <div>
-            R$ {dinheiro(recebidoMes)}
-          </div>
+          <div>R$ {dinheiro(recebidoMes)}</div>
         </div>
 
-        <div
-          style={{
-            background: "#111827",
-            padding: 15,
-            borderRadius: 8,
-            color: "#fff",
-          }}
-        >
+        <div style={card}>
           <strong>Comissão no Mês</strong>
-          <div>
-            R$ {dinheiro(comissaoMes)}
-          </div>
+          <div>R$ {dinheiro(comissaoMes)}</div>
         </div>
 
-        <div
-          style={{
-            background: "#111827",
-            padding: 15,
-            borderRadius: 8,
-            color: "#fff",
-          }}
-        >
+        <div style={card}>
           <strong>Total KG</strong>
-          <div>
-            {totalVendas.toFixed(2)}
-          </div>
+          <div>{totalVendas.toFixed(2)}</div>
         </div>
 
-        <div
-          style={{
-            background: "#111827",
-            padding: 15,
-            borderRadius: 8,
-            color: "#fff",
-          }}
-        >
+        <div style={card}>
           <strong>Comissão Geral</strong>
-          <div>
-            R$ {dinheiro(totalComissao)}
-          </div>
+          <div>R$ {dinheiro(totalComissao)}</div>
         </div>
       </div>
 
@@ -282,10 +241,7 @@ export default function Relatorio({ empresaId }) {
               <td>{item.vendas}</td>
               <td>{item.compras}</td>
               <td>
-                R${" "}
-                {dinheiro(
-                  item.comissao
-                )}
+                R$ {dinheiro(item.comissao)}
               </td>
             </tr>
           ))}
@@ -294,3 +250,10 @@ export default function Relatorio({ empresaId }) {
     </div>
   );
 }
+
+const card = {
+  background: "#111827",
+  padding: 15,
+  borderRadius: 8,
+  color: "#fff",
+};
