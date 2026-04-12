@@ -28,13 +28,11 @@ export default function Relatorio({ empresaId }) {
     const dataHoje = hoje.toISOString().slice(0, 10);
     const mesAtual = dataHoje.slice(0, 7);
 
-    // 🔵 VENDAS
     const { data: vendas } = await supabase
       .from("vendas")
       .select("*")
       .eq("empresa_id", empresaId);
 
-    // 🟠 COMPRAS
     const { data: compras } = await supabase
       .from("compras")
       .select("*")
@@ -167,7 +165,7 @@ export default function Relatorio({ empresaId }) {
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 20, color: "#fff" }}>
       <h2>📊 Relatório Financeiro</h2>
 
       <button
@@ -222,10 +220,12 @@ export default function Relatorio({ empresaId }) {
         cellPadding="10"
         style={{
           width: "100%",
-          background: "#fff",
+          background: "#ffffff",
+          color: "#000000",
+          borderCollapse: "collapse",
         }}
       >
-        <thead>
+        <thead style={{ background: "#2563eb", color: "#fff" }}>
           <tr>
             <th>Cliente / Fornecedor</th>
             <th>Vendas (kg)</th>
@@ -245,6 +245,14 @@ export default function Relatorio({ empresaId }) {
               </td>
             </tr>
           ))}
+
+          {dados.length === 0 && (
+            <tr>
+              <td colSpan="4" align="center">
+                Nenhum registro encontrado
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
