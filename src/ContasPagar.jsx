@@ -53,7 +53,6 @@ export default function ContasPagar({ empresaId }) {
 
       error = retorno.error;
       if (!error) alert("Conta alterada com sucesso!");
-
     } else {
       const retorno = await supabase
         .from("contas_pagar")
@@ -127,6 +126,13 @@ export default function ContasPagar({ empresaId }) {
     carregar();
   }
 
+  function dinheiro(v) {
+    return Number(v || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
   function imprimirRelatorio() {
     const conteudo = document.getElementById("area-relatorio").innerHTML;
 
@@ -137,38 +143,19 @@ export default function ContasPagar({ empresaId }) {
       <head>
         <title>Relatório Contas a Pagar</title>
         <style>
-          body{
-            font-family:Arial;
-            padding:20px;
-          }
-
-          h2{
-            margin-bottom:20px;
-          }
-
-          table{
-            width:100%;
-            border-collapse:collapse;
-          }
-
-          th,td{
-            border:1px solid #000;
-            padding:8px;
-            text-align:left;
-          }
-
-          .totais{
-            margin-bottom:20px;
-          }
+          body{font-family:Arial;padding:20px;}
+          h2{margin-bottom:20px;}
+          table{width:100%;border-collapse:collapse;}
+          th,td{border:1px solid #000;padding:8px;text-align:left;}
+          .totais{margin-bottom:20px;}
         </style>
       </head>
-
       <body>
         <h2>Relatório Contas a Pagar</h2>
 
         <div class="totais">
-          <strong>Total Pendente:</strong> R$ ${totalPendente}<br>
-          <strong>Total Pago:</strong> R$ ${totalPago}
+          <strong>Total Pendente:</strong> R$ ${dinheiro(totalPendente)}<br>
+          <strong>Total Pago:</strong> R$ ${dinheiro(totalPago)}
         </div>
 
         ${conteudo}
@@ -210,9 +197,9 @@ export default function ContasPagar({ empresaId }) {
       <h2>💸 Contas a Pagar</h2>
 
       <div style={{ marginBottom: 20 }}>
-        <strong>Total Pendente:</strong> R$ {totalPendente}
+        <strong>Total Pendente:</strong> R$ {dinheiro(totalPendente)}
         <br />
-        <strong>Total Pago:</strong> R$ {totalPago}
+        <strong>Total Pago:</strong> R$ {dinheiro(totalPago)}
       </div>
 
       <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
@@ -278,7 +265,6 @@ export default function ContasPagar({ empresaId }) {
 
       <hr />
 
-      {/* TABELA SOMENTE PARA RELATÓRIO */}
       <div id="area-relatorio" style={{ display: "none" }}>
         <table>
           <thead>
@@ -296,7 +282,7 @@ export default function ContasPagar({ empresaId }) {
               <tr key={item.id}>
                 <td>{item.fornecedor}</td>
                 <td>{item.descricao}</td>
-                <td>R$ {item.valor}</td>
+                <td>R$ {dinheiro(item.valor)}</td>
                 <td>{item.vencimento}</td>
                 <td>{item.status}</td>
               </tr>
@@ -305,7 +291,6 @@ export default function ContasPagar({ empresaId }) {
         </table>
       </div>
 
-      {/* LISTA BONITA NA TELA */}
       {filtrados.map((item) => (
         <div
           key={item.id}
@@ -326,7 +311,7 @@ export default function ContasPagar({ empresaId }) {
           </div>
 
           <div style={{ marginTop: 8 }}>
-            💰 R$ {item.valor}
+            💰 R$ {dinheiro(item.valor)}
           </div>
 
           <div>
