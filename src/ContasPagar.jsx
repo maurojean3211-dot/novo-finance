@@ -33,10 +33,26 @@ export default function ContasPagar({ empresaId }) {
     setDados(data || []);
   }
 
+  function converterValor(valorTexto) {
+    return Number(
+      valorTexto
+        .toString()
+        .trim()
+        .replace(/\./g, "")
+        .replace(",", ".")
+    );
+  }
+
   async function salvar() {
     if (!empresaId) return alert("Empresa não identificada.");
     if (!fornecedor) return alert("Fornecedor obrigatório");
     if (!valor) return alert("Valor obrigatório");
+
+    const valorNumero = converterValor(valor);
+
+    if (isNaN(valorNumero)) {
+      return alert("Valor inválido.");
+    }
 
     let error = null;
 
@@ -46,12 +62,13 @@ export default function ContasPagar({ empresaId }) {
         .update({
           fornecedor,
           descricao,
-          valor: Number(valor),
+          valor: valorNumero,
           vencimento,
         })
         .eq("id", editandoId);
 
       error = retorno.error;
+
       if (!error) alert("Conta alterada com sucesso!");
     } else {
       const retorno = await supabase
@@ -61,13 +78,14 @@ export default function ContasPagar({ empresaId }) {
             empresa_id: empresaId,
             fornecedor,
             descricao,
-            valor: Number(valor),
+            valor: valorNumero,
             vencimento,
             status: "Pendente",
           },
         ]);
 
       error = retorno.error;
+
       if (!error) alert("Conta salva com sucesso!");
     }
 
@@ -129,7 +147,7 @@ export default function ContasPagar({ empresaId }) {
   function dinheiro(v) {
     return Number(v || 0).toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     });
   }
 
@@ -193,7 +211,6 @@ export default function ContasPagar({ empresaId }) {
 
   return (
     <div style={{ color: "#fff", padding: 20 }}>
-
       <h2>💸 Contas a Pagar</h2>
 
       <div style={{ marginBottom: 20 }}>
@@ -216,7 +233,7 @@ export default function ContasPagar({ empresaId }) {
         />
 
         <input
-          placeholder="Valor"
+          placeholder="Valor Ex: 150,90"
           value={valor}
           onChange={(e) => setValor(e.target.value)}
         />
@@ -299,35 +316,27 @@ export default function ContasPagar({ empresaId }) {
             border: "1px solid #334155",
             borderRadius: 8,
             marginBottom: 12,
-            background: "#0f172a"
+            background: "#0f172a",
           }}
         >
-          <strong style={{ fontSize: 18 }}>
-            {item.fornecedor}
-          </strong>
+          <strong style={{ fontSize: 18 }}>{item.fornecedor}</strong>
 
-          <div style={{ marginTop: 8 }}>
-            {item.descricao}
-          </div>
+          <div style={{ marginTop: 8 }}>{item.descricao}</div>
 
           <div style={{ marginTop: 8 }}>
             💰 R$ {dinheiro(item.valor)}
           </div>
 
-          <div>
-            📅 {item.vencimento}
-          </div>
+          <div>📅 {item.vencimento}</div>
 
-          <div>
-            📌 {item.status}
-          </div>
+          <div>📌 {item.status}</div>
 
           <div
             style={{
               marginTop: 12,
               display: "flex",
               gap: 10,
-              flexWrap: "wrap"
+              flexWrap: "wrap",
             }}
           >
             {item.status !== "Pago" && (
@@ -344,7 +353,7 @@ export default function ContasPagar({ empresaId }) {
               onClick={() => excluir(item.id)}
               style={{
                 background: "red",
-                color: "#fff"
+                color: "#fff",
               }}
             >
               🗑 Excluir
@@ -356,7 +365,6 @@ export default function ContasPagar({ empresaId }) {
       {filtrados.length === 0 && (
         <p>Nenhuma conta encontrada.</p>
       )}
-
     </div>
   );
 }
