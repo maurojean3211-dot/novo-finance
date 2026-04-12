@@ -23,308 +23,471 @@ import Atrasos from "./Atrasos.jsx";
 import EmprestimosLista from "./EmprestimosLista.jsx";
 
 import ContasPagar from "./ContasPagar.jsx";
+import ContasFixas from "./ContasFixas.jsx";
 
-export default function App(){
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [loadingSession, setLoadingSession] = useState(true);
 
-const [session,setSession] = useState(null);
-const [loadingSession,setLoadingSession] = useState(true);
-const [pagina,setPagina] = useState("dashboard");
-const [subPaginaEmprestimo,setSubPaginaEmprestimo] = useState("cadastro");
+  const [pagina, setPagina] = useState("dashboard");
+  const [subPaginaEmprestimo, setSubPaginaEmprestimo] =
+    useState("cadastro");
 
-const [role,setRole] = useState(null);
-const [empresaId,setEmpresaId] = useState(null);
-const [permissoes,setPermissoes] = useState({});
+  const [role, setRole] = useState(null);
+  const [empresaId, setEmpresaId] = useState(null);
+  const [permissoes, setPermissoes] = useState({});
 
-const [isMobile,setIsMobile] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(
+    window.innerWidth < 768
+  );
 
-useEffect(() => {
-  const splash = document.getElementById("splash");
-  if (splash) splash.style.display = "none";
-}, []);
+  useEffect(() => {
+    const splash = document.getElementById("splash");
+    if (splash) splash.style.display = "none";
+  }, []);
 
-useEffect(()=>{
-  function handleResize(){
-    setIsMobile(window.innerWidth < 768);
+  useEffect(() => {
+    function handleResize() {
+      setIsMobile(window.innerWidth < 768);
+    }
+
+    window.addEventListener("resize", handleResize);
+
+    return () =>
+      window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // ================= SESSÃO
+  useEffect(() => {
+    async function carregarSessao() {
+      try {
+        const { data } = await supabase.auth.getUser();
+
+        const user = data?.user || null;
+
+        setSession(user ? { user } : null);
+
+        if (user) {
+          let { data: usuario } = await supabase
+            .from("usuarios")
+            .select("role,empresa_id,permissoes")
+            .ilike("email", user.email);
+
+          usuario = usuario?.[0];
+
+          setEmpresaId(usuario?.empresa_id || null);
+          setRole(usuario?.role || null);
+          setPermissoes(usuario?.permissoes || {});
+        }
+      } catch (err) {
+        console.log(err);
+      } finally {
+        setLoadingSession(false);
+      }
+    }
+
+    carregarSessao();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        setSession(newSession);
+
+        if (newSession?.user) {
+          let { data: usuario } = await supabase
+            .from("usuarios")
+            .select("role,empresa_id,permissoes")
+            .ilike("email", newSession.user.email);
+
+          usuario = usuario?.[0];
+
+          setEmpresaId(usuario?.empresa_id || null);
+          setRole(usuario?.role || null);
+          setPermissoes(usuario?.permissoes || {});
+        }
+      }
+    );
+
+    return () => subscription?.unsubscribe();
+  }, []);
+
+  // ================= SAIR
+  async function sair() {
+    await supabase.auth.signOut();
+    setSession(null);
   }
 
-  window.addEventListener("resize",handleResize);
-  return ()=> window.removeEventListener("resize",handleResize);
+  if (loadingSession) {
+    return (
+      <div style={{ color: "#fff", padding: 20 }}>
+        Carregando...
+      </div>
+    );
+  }
 
-},[]);
+  if (!session) {
+    return <Login />;
+  }
 
-// ================= SESSÃO
-useEffect(()=>{
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        width: "100%",
+        minHeight: "100vh",
+        background: "#020617",
+        color: "#fff",
+      }}
+    >
+      {/* MENU */}
+      <div
+        style={{
+          width: isMobile ? "100%" : 230,
+          background: "#020617",
+          padding: 15,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <img src="/logo.png" width={40} />
+          <h2>Cunha Finance</h2>
+        </div>
 
-async function carregarSessao(){
+        {permissoes.dashboard && (
+          <button
+            onClick={() => setPagina("dashboard")}
+            style={
+              pagina === "dashboard"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            📊 Dashboard
+          </button>
+        )}
 
-try{
+        {permissoes.financeiro && (
+          <button
+            onClick={() => setPagina("financeiro")}
+            style={
+              pagina === "financeiro"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            💰 Financeiro
+          </button>
+        )}
 
-const { data } = await supabase.auth.getUser();
-const user = data?.user || null;
+        {permissoes.recebimentos && (
+          <button
+            onClick={() => setPagina("recebimentos")}
+            style={
+              pagina === "recebimentos"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            💰 Recebimentos
+          </button>
+        )}
 
-setSession(user ? { user } : null);
+        {permissoes.clientes && (
+          <button
+            onClick={() => setPagina("clientes")}
+            style={
+              pagina === "clientes"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            👥 Clientes
+          </button>
+        )}
 
-if(user){
+        {/* TODOS VEEM */}
+        <button
+          onClick={() => setPagina("contas_pagar")}
+          style={
+            pagina === "contas_pagar"
+              ? botaoAtivo
+              : botaoMenu
+          }
+        >
+          💸 Contas a Pagar
+        </button>
 
-let { data:usuario } = await supabase
-.from("usuarios")
-.select("role,empresa_id,permissoes")
-.ilike("email", user.email);
+        {/* TODOS VEEM */}
+        <button
+          onClick={() => setPagina("contas_fixas")}
+          style={
+            pagina === "contas_fixas"
+              ? botaoAtivo
+              : botaoMenu
+          }
+        >
+          🔁 Contas Fixas
+        </button>
 
-usuario = usuario?.[0];
+        {permissoes.emprestimos && (
+          <button
+            onClick={() => setPagina("emprestimos")}
+            style={
+              pagina === "emprestimos"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            💸 Empréstimos
+          </button>
+        )}
 
-setEmpresaId(usuario?.empresa_id || null);
-setRole(usuario?.role || null);
-setPermissoes(usuario?.permissoes || {});
+        {role === "master" && (
+          <button
+            onClick={() => setPagina("master")}
+            style={
+              pagina === "master"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            👑 Master Admin
+          </button>
+        )}
 
+        {role === "admin" &&
+          permissoes.lucro && (
+            <button
+              onClick={() => setPagina("lucro")}
+              style={
+                pagina === "lucro"
+                  ? botaoAtivo
+                  : botaoMenu
+              }
+            >
+              📈 Lucro
+            </button>
+          )}
+
+        {permissoes.vendas && (
+          <button
+            onClick={() => setPagina("vendas")}
+            style={
+              pagina === "vendas"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            📦 Vendas
+          </button>
+        )}
+
+        {permissoes.compras && (
+          <button
+            onClick={() => setPagina("compras")}
+            style={
+              pagina === "compras"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            🧱 Compras
+          </button>
+        )}
+
+        {permissoes.pessoal && (
+          <button
+            onClick={() => setPagina("despesas")}
+            style={
+              pagina === "despesas"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            💳 Pessoal
+          </button>
+        )}
+
+        {permissoes.relatorio && (
+          <button
+            onClick={() => setPagina("relatorio")}
+            style={
+              pagina === "relatorio"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            📄 Relatórios
+          </button>
+        )}
+
+        <button
+          onClick={sair}
+          style={{
+            ...botaoMenu,
+            background: "#ef4444",
+          }}
+        >
+          🚪 Sair
+        </button>
+      </div>
+
+      {/* CONTEÚDO */}
+      <div style={{ flex: 1, padding: 20 }}>
+        {pagina === "dashboard" &&
+          permissoes.dashboard && <Dashboard />}
+
+        {pagina === "financeiro" &&
+          permissoes.financeiro && (
+            <Financeiro empresaId={empresaId} />
+          )}
+
+        {pagina === "recebimentos" &&
+          permissoes.recebimentos && (
+            <Recebimentos empresaId={empresaId} />
+          )}
+
+        {pagina === "clientes" &&
+          permissoes.clientes && <Clientes />}
+
+        {pagina === "contas_pagar" && (
+          <ContasPagar empresaId={empresaId} />
+        )}
+
+        {pagina === "contas_fixas" && (
+          <ContasFixas empresaId={empresaId} />
+        )}
+
+        {pagina === "emprestimos" &&
+          permissoes.emprestimos && (
+            <div>
+              <h2>💸 Empréstimos</h2>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginBottom: 20,
+                }}
+              >
+                <button
+                  onClick={() =>
+                    setSubPaginaEmprestimo(
+                      "cadastro"
+                    )
+                  }
+                  style={botaoMenu}
+                >
+                  ➕ Novo
+                </button>
+
+                <button
+                  onClick={() =>
+                    setSubPaginaEmprestimo(
+                      "lista"
+                    )
+                  }
+                  style={botaoMenu}
+                >
+                  📋 Cobrança
+                </button>
+
+                <button
+                  onClick={() =>
+                    setSubPaginaEmprestimo(
+                      "atrasos"
+                    )
+                  }
+                  style={botaoMenu}
+                >
+                  🚨 Atrasos
+                </button>
+              </div>
+
+              {subPaginaEmprestimo ===
+                "cadastro" && (
+                <Emprestimos
+                  empresaId={empresaId}
+                />
+              )}
+
+              {subPaginaEmprestimo ===
+                "lista" && (
+                <EmprestimosLista
+                  empresaId={empresaId}
+                />
+              )}
+
+              {subPaginaEmprestimo ===
+                "atrasos" && (
+                <Atrasos
+                  empresaId={empresaId}
+                />
+              )}
+            </div>
+          )}
+
+        {pagina === "lucro" &&
+          role === "admin" &&
+          permissoes.lucro && <Lucro />}
+
+        {pagina === "vendas" &&
+          permissoes.vendas && (
+            <Vendas empresaId={empresaId} />
+          )}
+
+        {pagina === "compras" &&
+          permissoes.compras && (
+            <Compras empresaId={empresaId} />
+          )}
+
+        {pagina === "despesas" &&
+          permissoes.pessoal && (
+            <DespesasPessoais />
+          )}
+
+        {pagina === "relatorio" &&
+          permissoes.relatorio && (
+            <Relatorio empresaId={empresaId} />
+          )}
+
+        {pagina === "admin" && <Admin />}
+
+        {pagina === "master" &&
+          role === "master" && (
+            <MasterAdmin />
+          )}
+      </div>
+    </div>
+  );
 }
 
-}catch(err){
-console.log(err);
-
-} finally {
-setLoadingSession(false);
-}
-
-}
-
-carregarSessao();
-
-const { data:{ subscription } } =
-supabase.auth.onAuthStateChange(async (_event,newSession)=>{
-
-setSession(newSession);
-
-if(newSession?.user){
-
-let { data:usuario } = await supabase
-.from("usuarios")
-.select("role,empresa_id,permissoes")
-.ilike("email", newSession.user.email);
-
-usuario = usuario?.[0];
-
-setEmpresaId(usuario?.empresa_id || null);
-setRole(usuario?.role || null);
-setPermissoes(usuario?.permissoes || {});
-
-}
-
-});
-
-return ()=> subscription?.unsubscribe();
-
-},[]);
-
-// ================= SAIR
-async function sair(){
-  await supabase.auth.signOut();
-  setSession(null);
-}
-
-if(loadingSession){
-return <div style={{color:"#fff",padding:20}}>Carregando...</div>;
-}
-
-if(!session){
-return <Login />;
-}
-
-return(
-
-<div style={{
-display:"flex",
-flexDirection:isMobile ? "column" : "row",
-width:"100%",
-minHeight:"100vh",
-background:"#020617",
-color:"#fff"
-}}>
-
-{/* MENU */}
-<div style={{
-width:isMobile ? "100%" : 230,
-background:"#020617",
-padding:15,
-display:"flex",
-flexDirection:"column",
-gap:10
-}}>
-
-<div style={{display:"flex",alignItems:"center",gap:10}}>
-<img src="/logo.png" width={40} />
-<h2>Cunha Finance</h2>
-</div>
-
-{permissoes.dashboard && (
-<button onClick={()=>setPagina("dashboard")} style={pagina==="dashboard" ? botaoAtivo : botaoMenu}>
-📊 Dashboard
-</button>
-)}
-
-{permissoes.financeiro && (
-<button onClick={()=>setPagina("financeiro")} style={pagina==="financeiro" ? botaoAtivo : botaoMenu}>
-💰 Financeiro
-</button>
-)}
-
-{permissoes.recebimentos && (
-<button onClick={()=>setPagina("recebimentos")} style={pagina==="recebimentos" ? botaoAtivo : botaoMenu}>
-💰 Recebimentos
-</button>
-)}
-
-{permissoes.clientes && (
-<button onClick={()=>setPagina("clientes")} style={pagina==="clientes" ? botaoAtivo : botaoMenu}>
-👥 Clientes
-</button>
-)}
-
-{/* TODOS VEEM CONTAS A PAGAR */}
-<button onClick={()=>setPagina("contas_pagar")} style={pagina==="contas_pagar" ? botaoAtivo : botaoMenu}>
-💸 Contas a Pagar
-</button>
-
-{permissoes.emprestimos && (
-<button onClick={()=>setPagina("emprestimos")} style={pagina==="emprestimos" ? botaoAtivo : botaoMenu}>
-💸 Empréstimos
-</button>
-)}
-
-{role==="master" && (
-<button onClick={()=>setPagina("master")} style={pagina==="master" ? botaoAtivo : botaoMenu}>
-👑 Master Admin
-</button>
-)}
-
-{role==="admin" && permissoes.lucro && (
-<button onClick={()=>setPagina("lucro")} style={pagina==="lucro" ? botaoAtivo : botaoMenu}>
-📈 Lucro
-</button>
-)}
-
-{permissoes.vendas && (
-<button onClick={()=>setPagina("vendas")} style={pagina==="vendas" ? botaoAtivo : botaoMenu}>
-📦 Vendas
-</button>
-)}
-
-{permissoes.compras && (
-<button onClick={()=>setPagina("compras")} style={pagina==="compras" ? botaoAtivo : botaoMenu}>
-🧱 Compras
-</button>
-)}
-
-{permissoes.pessoal && (
-<button onClick={()=>setPagina("despesas")} style={pagina==="despesas" ? botaoAtivo : botaoMenu}>
-💳 Pessoal
-</button>
-)}
-
-{permissoes.relatorio && (
-<button onClick={()=>setPagina("relatorio")} style={pagina==="relatorio" ? botaoAtivo : botaoMenu}>
-📄 Relatórios
-</button>
-)}
-
-<button onClick={sair} style={{...botaoMenu,background:"#ef4444"}}>
-🚪 Sair
-</button>
-
-</div>
-
-{/* CONTEÚDO */}
-<div style={{flex:1,padding:20}}>
-
-{pagina==="dashboard" && permissoes.dashboard && <Dashboard />}
-
-{pagina==="financeiro" && permissoes.financeiro && (
-<Financeiro empresaId={empresaId} />
-)}
-
-{pagina==="recebimentos" && permissoes.recebimentos && (
-<Recebimentos empresaId={empresaId} />
-)}
-
-{pagina==="clientes" && permissoes.clientes && <Clientes />}
-
-{/* TODOS ACESSAM - MAS CADA UM VÊ SUA EMPRESA */}
-{pagina==="contas_pagar" && (
-<ContasPagar empresaId={empresaId} />
-)}
-
-{pagina==="emprestimos" && permissoes.emprestimos && (
-<div>
-
-<h2>💸 Empréstimos</h2>
-
-<div style={{display:"flex",gap:10,marginBottom:20}}>
-<button onClick={()=>setSubPaginaEmprestimo("cadastro")} style={botaoMenu}>
-➕ Novo
-</button>
-
-<button onClick={()=>setSubPaginaEmprestimo("lista")} style={botaoMenu}>
-📋 Cobrança
-</button>
-
-<button onClick={()=>setSubPaginaEmprestimo("atrasos")} style={botaoMenu}>
-🚨 Atrasos
-</button>
-</div>
-
-{subPaginaEmprestimo==="cadastro" && (
-<Emprestimos empresaId={empresaId} />
-)}
-
-{subPaginaEmprestimo==="lista" && (
-<EmprestimosLista empresaId={empresaId} />
-)}
-
-{subPaginaEmprestimo==="atrasos" && (
-<Atrasos empresaId={empresaId} />
-)}
-
-</div>
-)}
-
-{pagina==="lucro" && role==="admin" && permissoes.lucro && <Lucro />}
-
-{pagina==="vendas" && permissoes.vendas && <Vendas empresaId={empresaId} />}
-
-{pagina==="compras" && permissoes.compras && <Compras empresaId={empresaId} />}
-
-{pagina==="despesas" && permissoes.pessoal && <DespesasPessoais />}
-
-{pagina==="relatorio" && permissoes.relatorio && (
-<Relatorio empresaId={empresaId} />
-)}
-
-{pagina==="admin" && <Admin />}
-
-{pagina==="master" && role==="master" && <MasterAdmin />}
-
-</div>
-
-</div>
-);
-}
-
-const botaoMenu={
-width:"100%",
-padding:10,
-background:"#111827",
-color:"#fff",
-border:"none",
-borderRadius:6,
-cursor:"pointer"
+const botaoMenu = {
+  width: "100%",
+  padding: 10,
+  background: "#111827",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
 };
 
-const botaoAtivo={
-width:"100%",
-padding:10,
-background:"#2563eb",
-color:"#fff",
-border:"none",
-borderRadius:6,
-cursor:"pointer"
+const botaoAtivo = {
+  width: "100%",
+  padding: 10,
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  cursor: "pointer",
 };
