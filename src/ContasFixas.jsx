@@ -56,6 +56,18 @@ export default function ContasFixas({ empresaId }) {
     if (!valor) return alert("Valor obrigatório");
     if (!dia) return alert("Dia obrigatório");
 
+    const valorNumero = Number(
+      valor
+        .toString()
+        .trim()
+        .replace(/\./g, "")
+        .replace(",", ".")
+    );
+
+    if (isNaN(valorNumero)) {
+      return alert("Valor inválido");
+    }
+
     let error = null;
 
     if (editandoId) {
@@ -63,7 +75,7 @@ export default function ContasFixas({ empresaId }) {
         .from("contas_fixas")
         .update({
           descricao,
-          valor: Number(valor),
+          valor: valorNumero,
           dia_vencimento: Number(dia),
         })
         .eq("id", editandoId);
@@ -78,7 +90,7 @@ export default function ContasFixas({ empresaId }) {
           {
             empresa_id: empresaId,
             descricao,
-            valor: Number(valor),
+            valor: valorNumero,
             dia_vencimento: Number(dia),
             frequencia: "Mensal",
             ativo: true,
@@ -200,7 +212,6 @@ export default function ContasFixas({ empresaId }) {
         <strong>Total Mensal:</strong> R$ {dinheiro(totalMensal)}
       </div>
 
-      {/* FORMULÁRIO */}
       <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
         <input
           placeholder="Descrição"
@@ -209,7 +220,7 @@ export default function ContasFixas({ empresaId }) {
         />
 
         <input
-          placeholder="Valor"
+          placeholder="Valor Ex: 150,90"
           value={valor}
           onChange={(e) => setValor(e.target.value)}
         />
@@ -235,7 +246,6 @@ export default function ContasFixas({ empresaId }) {
 
       <hr />
 
-      {/* BUSCA */}
       <div
         style={{
           display: "flex",
@@ -257,7 +267,6 @@ export default function ContasFixas({ empresaId }) {
 
       <hr />
 
-      {/* LISTA */}
       {filtrados.map((item) => (
         <div
           key={item.id}
