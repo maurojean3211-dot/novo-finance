@@ -3,7 +3,6 @@ import { supabase } from "./supabase";
 
 export default function Vendas() {
   const [vendas, setVendas] = useState([]);
-
   const [cliente, setCliente] = useState("");
   const [produto, setProduto] = useState("");
   const [kilos, setKilos] = useState("");
@@ -12,8 +11,11 @@ export default function Vendas() {
     new Date().toISOString().split("T")[0]
   );
 
-  const [empresaId, setEmpresaId] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [empresaId, setEmpresaId] =
+    useState(null);
+
+  const [userId, setUserId] =
+    useState(null);
 
   const [editandoId, setEditandoId] =
     useState(null);
@@ -90,7 +92,7 @@ export default function Vendas() {
     setVendas(data || []);
   }
 
-  // ================= EXCLUIR SUPER BLINDADO
+  // ================= EXCLUIR
   async function excluirVenda(id) {
     if (!id) {
       alert("ID inválido");
@@ -99,44 +101,27 @@ export default function Vendas() {
 
     const confirmar =
       window.confirm(
-        "Excluir venda e vínculos relacionados?"
+        "Excluir venda?"
       );
 
     if (!confirmar) return;
 
-    // 1 RECEBIMENTOS
-    const {
-      error: erroRecebimentos,
-    } = await supabase
-      .from("recebimentos")
-      .delete()
-      .eq("venda_id", id);
+    // RECEBIMENTOS
+    const { error: erroReceb } =
+      await supabase
+        .from("recebimentos")
+        .delete()
+        .eq("venda_id", id);
 
-    if (erroRecebimentos) {
+    if (erroReceb) {
       alert(
         "Erro recebimentos: " +
-          erroRecebimentos.message
+          erroReceb.message
       );
       return;
     }
 
-    // 2 LANÇAMENTOS
-    const {
-      error: erroLancamentos,
-    } = await supabase
-      .from("lancamentos")
-      .delete()
-      .eq("venda_id", id);
-
-    if (erroLancamentos) {
-      alert(
-        "Erro lançamentos: " +
-          erroLancamentos.message
-      );
-      return;
-    }
-
-    // 3 VENDA
+    // VENDA
     const { error } =
       await supabase
         .from("vendas")
@@ -163,7 +148,7 @@ export default function Vendas() {
     );
 
     alert(
-      "✅ Venda excluída com sucesso!"
+      "✅ Venda excluída!"
     );
   }
 
