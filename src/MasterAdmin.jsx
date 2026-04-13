@@ -306,20 +306,12 @@ PIX: ${pixSistema}`;
     >
       <h2>👑 MASTER ADMIN</h2>
 
-      <div
-        style={{
-          marginBottom: 20,
-        }}
-      >
-        <strong>
-          Total Recebido:
-        </strong>{" "}
+      <div style={{ marginBottom: 20 }}>
+        <strong>Total Recebido:</strong>{" "}
         R$ {totalRecebido}
         <br />
 
-        <strong>
-          Total Pendente:
-        </strong>{" "}
+        <strong>Total Pendente:</strong>{" "}
         R$ {totalPendente}
       </div>
 
@@ -586,8 +578,7 @@ PIX: ${pixSistema}`;
                   borderRadius: 8,
                 }}
               >
-                💾 Salvar
-                Permissões
+                💾 Salvar Permissões
               </button>
             </div>
           )}
