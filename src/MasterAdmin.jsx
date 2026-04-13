@@ -18,7 +18,6 @@ export default function MasterAdmin() {
     useState(null);
 
   const [permissoes, setPermissoes] = useState({});
-
   const [pixSistema, setPixSistema] = useState("");
 
   useEffect(() => {
@@ -43,7 +42,6 @@ export default function MasterAdmin() {
     }
 
     setUsuario(data);
-
     await carregarClientes();
     await buscarPix();
   }
@@ -257,12 +255,7 @@ PIX: ${pixSistema}`;
 
   if (!usuario) {
     return (
-      <div
-        style={{
-          color: "#fff",
-          padding: 20,
-        }}
-      >
+      <div style={{ color: "#fff", padding: 20 }}>
         Carregando...
       </div>
     );
@@ -272,9 +265,7 @@ PIX: ${pixSistema}`;
     clientes.filter((c) =>
       (c.name || "")
         .toLowerCase()
-        .includes(
-          busca.toLowerCase()
-        )
+        .includes(busca.toLowerCase())
     );
 
   const totalRecebido =
@@ -282,8 +273,7 @@ PIX: ${pixSistema}`;
       .filter((c) => c.pagou)
       .reduce(
         (soma, item) =>
-          soma +
-          Number(item.valor || 0),
+          soma + Number(item.valor || 0),
         0
       );
 
@@ -292,8 +282,7 @@ PIX: ${pixSistema}`;
       .filter((c) => !c.pagou)
       .reduce(
         (soma, item) =>
-          soma +
-          Number(item.valor || 0),
+          soma + Number(item.valor || 0),
         0
       );
 
@@ -307,21 +296,18 @@ PIX: ${pixSistema}`;
       <h2>👑 MASTER ADMIN</h2>
 
       <div style={{ marginBottom: 20 }}>
-        <strong>Total Recebido:</strong>{" "}
-        R$ {totalRecebido}
+        <strong>Total Recebido:</strong>
+        {" "}R$ {totalRecebido}
         <br />
-
-        <strong>Total Pendente:</strong>{" "}
-        R$ {totalPendente}
+        <strong>Total Pendente:</strong>
+        {" "}R$ {totalPendente}
       </div>
 
       <input
         placeholder="PIX Sistema"
         value={pixSistema}
         onChange={(e) =>
-          setPixSistema(
-            e.target.value
-          )
+          setPixSistema(e.target.value)
         }
       />
 
@@ -371,9 +357,7 @@ PIX: ${pixSistema}`;
         placeholder="WhatsApp"
         value={whatsapp}
         onChange={(e) =>
-          setWhatsapp(
-            e.target.value
-          )
+          setWhatsapp(e.target.value)
         }
       />
 
@@ -385,9 +369,7 @@ PIX: ${pixSistema}`;
         }
       />
 
-      <button
-        onClick={cadastrarCliente}
-      >
+      <button onClick={cadastrarCliente}>
         {editandoId
           ? "Salvar"
           : "Cadastrar"}
@@ -420,11 +402,7 @@ PIX: ${pixSistema}`;
               flexWrap: "wrap",
             }}
           >
-            <button
-              onClick={() =>
-                editarCliente(c)
-              }
-            >
+            <button onClick={() => editarCliente(c)}>
               Editar
             </button>
 
@@ -436,19 +414,11 @@ PIX: ${pixSistema}`;
               Permissões
             </button>
 
-            <button
-              onClick={() =>
-                enviarPix(c)
-              }
-            >
+            <button onClick={() => enviarPix(c)}>
               PIX
             </button>
 
-            <button
-              onClick={() =>
-                marcarPago(c)
-              }
-            >
+            <button onClick={() => marcarPago(c)}>
               Pago
             </button>
 
@@ -481,8 +451,7 @@ PIX: ${pixSistema}`;
                 excluirCliente(c.id)
               }
               style={{
-                background:
-                  "red",
+                background: "red",
                 color: "#fff",
               }}
             >
@@ -501,9 +470,7 @@ PIX: ${pixSistema}`;
                 borderRadius: 10,
               }}
             >
-              <h4>
-                ✅ Permissões
-              </h4>
+              <h4>✅ Permissões</h4>
 
               <div
                 style={{
@@ -515,51 +482,50 @@ PIX: ${pixSistema}`;
               >
                 {Object.keys(
                   permissoes
-                ).map(
-                  (modulo) => (
-                    <label
-                      key={
-                        modulo
+                ).map((modulo) => (
+                  <label
+                    key={modulo}
+                    style={{
+                      background:
+                        "#1f2937",
+                      padding: 8,
+                      borderRadius: 8,
+                      cursor:
+                        "pointer",
+                      fontSize: 14,
+                      display: "flex",
+                      alignItems:
+                        "center",
+                      gap: 8,
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        !!permissoes[
+                          modulo
+                        ]
+                      }
+                      onChange={(e) =>
+                        setPermissoes({
+                          ...permissoes,
+                          [modulo]:
+                            e.target.checked,
+                        })
                       }
                       style={{
-                        background:
-                          "#1f2937",
-                        padding: 8,
-                        borderRadius: 8,
+                        width: 18,
+                        height: 18,
+                        accentColor:
+                          "#22c55e",
                         cursor:
                           "pointer",
-                        fontSize: 14,
                       }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={
-                          !!permissoes[
-                            modulo
-                          ]
-                        }
-                        onChange={(
-                          e
-                        ) =>
-                          setPermissoes(
-                            {
-                              ...permissoes,
-                              [modulo]:
-                                e
-                                  .target
-                                  .checked,
-                            }
-                          )
-                        }
-                        style={{
-                          marginRight: 8,
-                        }}
-                      />
+                    />
 
-                      {modulo}
-                    </label>
-                  )
-                )}
+                    {modulo}
+                  </label>
+                ))}
               </div>
 
               <button
@@ -573,8 +539,7 @@ PIX: ${pixSistema}`;
                   background:
                     "#2563eb",
                   color: "#fff",
-                  border:
-                    "none",
+                  border: "none",
                   borderRadius: 8,
                 }}
               >
