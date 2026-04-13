@@ -5,6 +5,8 @@ export default function Recebimentos({ empresaId }) {
   const [lista, setLista] = useState([]);
   const [pix, setPix] = useState("");
   const [busca, setBusca] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
 
   useEffect(() => {
     carregarPix();
@@ -44,11 +46,12 @@ export default function Recebimentos({ empresaId }) {
       };
     });
 
-    listaCompleta.sort((a, b) =>
-      a.cliente_nome.localeCompare(
-        b.cliente_nome
-      )
-    );
+    // 🔥 ORDENAR POR DATA DE VENCIMENTO
+    listaCompleta.sort((a, b) => {
+      const dataA = normalizarData(a.data_vencimento);
+      const dataB = normalizarData(b.data_vencimento);
+      return dataA - dataB;
+    });
 
     setLista(listaCompleta);
   }
@@ -218,7 +221,6 @@ Aguardo 👍`;
     window.open(url, "_blank");
   }
 
-  // 🔥 CORREÇÃO DA DATA
   function normalizarData(dataTexto) {
     if (!dataTexto)
       return new Date();
@@ -280,6 +282,24 @@ Aguardo 👍`;
         }
       />
 
+      <input
+        type="date"
+        style={input}
+        value={dataInicio}
+        onChange={(e) =>
+          setDataInicio(e.target.value)
+        }
+      />
+
+      <input
+        type="date"
+        style={input}
+        value={dataFim}
+        onChange={(e) =>
+          setDataFim(e.target.value)
+        }
+      />
+
       {lista.length === 0 && (
         <p
           style={{
@@ -299,6 +319,25 @@ Aguardo 👍`;
               busca.toLowerCase()
             )
         )
+        .filter((r) => {
+          const venc = r.data_vencimento
+            ?.toString()
+            .slice(0, 10);
+
+          if (
+            dataInicio &&
+            venc < dataInicio
+          )
+            return false;
+
+          if (
+            dataFim &&
+            venc > dataFim
+          )
+            return false;
+
+          return true;
+        })
         .map((r) => {
           const hoje =
             new Date();
