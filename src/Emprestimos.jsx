@@ -1,244 +1,664 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-export default function EmprestimosLista(){
+export default function EmprestimosLista() {
+  const [dados, setDados] = useState([]);
+  const [pixChave, setPixChave] = useState("");
+  const [pixEdit, setPixEdit] = useState("");
+  const [empresaRealId, setEmpresaRealId] =
+    useState(null);
 
-const [dados, setDados] = useState([]);
-const [editandoId, setEditandoId] = useState(null);
+  const [cliente, setCliente] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [valor, setValor] = useState("");
+  const [juros, setJuros] = useState("");
+  const [
+    dataVencimento,
+    setDataVencimento,
+  ] = useState("");
 
-const [pixChave, setPixChave] = useState("");
-const [pixEdit, setPixEdit] = useState("");
-const [empresaRealId, setEmpresaRealId] = useState(null);
+  useEffect(() => {
+    carregarEmpresa();
+  }, []);
 
-const [cliente, setCliente] = useState("");
-const [telefone, setTelefone] = useState("");
-const [valor, setValor] = useState("");
-const [juros, setJuros] = useState("");
-const [dataVencimento, setDataVencimento] = useState("");
+  async function carregarEmpresa() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-// ================= INIT
-useEffect(()=>{
-carregarEmpresa();
-},[]);
+    if (!user) return;
 
-// ================= EMPRESA
-async function carregarEmpresa(){
+    const {
+      data: usuario,
+      error,
+    } = await supabase
+      .from("usuarios")
+      .select("empresa_id")
+      .eq("id", user.id)
+      .single();
 
-const { data:{ user } } = await supabase.auth.getUser();
+    if (error) return;
 
-if(!user){
-console.log("Sem usuário");
-return;
-}
+    setEmpresaRealId(
+      usuario.empresa_id
+    );
 
-const { data:usuario, error } = await supabase
-.from("usuarios")
-.select("empresa_id")
-.eq("id", user.id)
-.single();
+    carregarDados(
+      usuario.empresa_id
+    );
+    carregarPix(
+      usuario.empresa_id
+    );
+  }
 
-if(error){
-console.error("Erro usuario:", error);
-return;
-}
+  async function carregarDados(
+    empresa_id
+  ) {
+    const { data } =
+      await supabase
+        .from("emprestimos")
+        .select("*")
+        .eq(
+          "empresa_id",
+          empresa_id
+        )
+        .order(
+          "data_vencimento",
+          {
+            ascending: true,
+          }
+        );
 
-if(!usuario?.empresa_id){
-alert("Sem empresa vinculada");
-return;
-}
+    setDados(data || []);
+  }
 
-setEmpresaRealId(usuario.empresa_id);
+  async function carregarPix(
+    empresa_id
+  ) {
+    const { data } =
+      await supabase
+        .from("empresas")
+        .select(
+          "pix_chave"
+        )
+        .eq("id", empresa_id)
+        .single();
 
-carregarDados(usuario.empresa_id);
-carregarPix(usuario.empresa_id);
+    if (data) {
+      setPixChave(
+        data.pix_chave || ""
+      );
+      setPixEdit(
+        data.pix_chave || ""
+      );
+    }
+  }
 
-}
+  async function salvarPix() {
+    await supabase
+      .from("empresas")
+      .update({
+        pix_chave:
+          pixEdit,
+      })
+      .eq(
+        "id",
+        empresaRealId
+      );
 
-// ================= DADOS
-async function carregarDados(empresa_id){
+    setPixChave(pixEdit);
 
-const { data, error } = await supabase
-.from("emprestimos")
-.select("*")
-.eq("empresa_id", empresa_id)
-.order("data_vencimento",{ascending:true});
+    alert(
+      "PIX salvo!"
+    );
+  }
 
-if(error){
-console.error("Erro dados:", error);
-}
+  async function salvar() {
+    if (
+      !cliente ||
+      !valor ||
+      !dataVencimento
+    ) {
+      alert(
+        "Preencha os campos"
+      );
+      return;
+    }
 
-setDados(data || []);
+    const valorBase =
+      Number(valor);
 
-}
+    const jurosPct =
+      Number(
+        juros || 0
+      );
 
-// ================= PIX (CORRIGIDO)
-async function carregarPix(empresa_id){
+    const total =
+      valorBase +
+      (valorBase *
+        jurosPct) /
+        100;
 
-const { data, error } = await supabase
-.from("empresas")
-.select("pix_chave")
-.eq("id", empresa_id)
-.single();
+    await supabase
+      .from(
+        "emprestimos"
+      )
+      .insert([
+        {
+          empresa_id:
+            empresaRealId,
+          cliente,
+          telefone,
+          valor:
+            valorBase,
+          juros:
+            jurosPct,
+          total,
+          data_vencimento:
+            dataVencimento,
+          status:
+            "pendente",
+        },
+      ]);
 
-if(error){
-console.error("Erro carregar PIX:", error);
-return;
-}
+    setCliente("");
+    setTelefone("");
+    setValor("");
+    setJuros("");
+    setDataVencimento("");
 
-if(data){
-setPixChave(data.pix_chave || "");
-setPixEdit(data.pix_chave || "");
-}
+    carregarDados(
+      empresaRealId
+    );
+  }
 
-}
+  async function marcarPago(
+    id
+  ) {
+    await supabase
+      .from(
+        "emprestimos"
+      )
+      .update({
+        status: "pago",
+      })
+      .eq("id", id);
 
-async function salvarPix(){
+    carregarDados(
+      empresaRealId
+    );
+  }
 
-if(!empresaRealId){
-alert("Empresa não carregada");
-return;
-}
+  async function excluir(
+    id
+  ) {
+    if (
+      !window.confirm(
+        "Excluir empréstimo?"
+      )
+    )
+      return;
 
-const { data, error } = await supabase
-.from("empresas")
-.update({ pix_chave: pixEdit })
-.eq("id", empresaRealId)
-.select();
+    await supabase
+      .from(
+        "emprestimos"
+      )
+      .delete()
+      .eq("id", id);
 
-if(error){
-alert("Erro PIX: " + error.message);
-return;
-}
+    carregarDados(
+      empresaRealId
+    );
+  }
 
-if(!data || data.length === 0){
-alert("RLS bloqueando leitura do PIX");
-return;
-}
+  function cobrar(p) {
+    let numero = String(
+      p.telefone || ""
+    ).replace(/\D/g, "");
 
-// 🔥 ATUALIZA NA HORA
-setPixChave(pixEdit);
+    if (
+      numero &&
+      !numero.startsWith(
+        "55"
+      )
+    ) {
+      numero =
+        "55" + numero;
+    }
 
-alert("PIX salvo com sucesso!");
+    const msg = `Olá ${
+      p.cliente
+    }
 
-}
+Seu empréstimo está pendente.
 
-// ================= SALVAR EMPRÉSTIMO
-async function salvar(){
+Valor total: R$ ${Number(
+      p.total
+    ).toFixed(2)}
 
-if(!empresaRealId) return alert("Empresa não carregada");
+Vencimento: ${new Date(
+      p.data_vencimento
+    ).toLocaleDateString(
+      "pt-BR"
+    )}
 
-if(!cliente || !valor || !dataVencimento){
-alert("Preencha os campos");
-return;
-}
+PIX: ${
+      pixChave ||
+      "Informe sua chave PIX"
+    }`;
 
-const valorBase = Number(valor);
-const jurosPercentual = Number(juros || 0);
-const total = valorBase + (valorBase * jurosPercentual / 100);
+    const url = `https://wa.me/${numero}?text=${encodeURIComponent(
+      msg
+    )}`;
 
-const { error } = await supabase
-.from("emprestimos")
-.insert([{
-empresa_id: empresaRealId,
-cliente,
-telefone,
-valor: valorBase,
-juros: jurosPercentual,
-total,
-data_vencimento: dataVencimento,
-status: "pendente"
-}]);
+    window.open(
+      url,
+      "_blank"
+    );
+  }
 
-if(error){
-alert("Erro: " + error.message);
-return;
-}
+  function diasAtraso(
+    data
+  ) {
+    const hoje =
+      new Date();
+    hoje.setHours(
+      0,
+      0,
+      0,
+      0
+    );
 
-alert("Salvo!");
+    const venc =
+      new Date(data);
+    venc.setHours(
+      0,
+      0,
+      0,
+      0
+    );
 
-setCliente("");
-setTelefone("");
-setValor("");
-setJuros("");
-setDataVencimento("");
+    return Math.floor(
+      (hoje - venc) /
+        (1000 *
+          60 *
+          60 *
+          24)
+    );
+  }
 
-carregarDados(empresaRealId);
+  const totalCarteira =
+    dados.reduce(
+      (s, i) =>
+        s +
+        Number(
+          i.total || 0
+        ),
+      0
+    );
 
-}
+  const totalPago =
+    dados
+      .filter(
+        (i) =>
+          i.status ===
+          "pago"
+      )
+      .reduce(
+        (s, i) =>
+          s +
+          Number(
+            i.total ||
+              0
+          ),
+        0
+      );
 
-// ================= TELA
-return(
+  const totalPendente =
+    totalCarteira -
+    totalPago;
 
-<div style={{padding:20, color:"#fff", maxWidth:600, margin:"auto"}}>
+  return (
+    <div
+      style={{
+        padding: 20,
+        color:
+          "#fff",
+        maxWidth: 700,
+        margin:
+          "auto",
+      }}
+    >
+      <h2>
+        💰 Empréstimos
+      </h2>
 
-<h2 style={{marginBottom:20}}>💰 Empréstimos</h2>
+      <p>
+        💵 Carteira:
+        R${" "}
+        {totalCarteira.toFixed(
+          2
+        )}
+      </p>
 
-{/* PIX */}
-<div style={{
-background:"#1f2937",
-padding:15,
-borderRadius:8,
-marginBottom:20
-}}>
+      <p>
+        ✅ Pago:
+        R${" "}
+        {totalPago.toFixed(
+          2
+        )}
+      </p>
 
-<h3>Minha chave PIX</h3>
+      <p>
+        ⏳ Pendente:
+        R${" "}
+        {totalPendente.toFixed(
+          2
+        )}
+      </p>
 
-<div style={{marginBottom:10}}>
-{pixChave || "Nenhuma chave cadastrada"}
-</div>
+      <hr />
 
-<input
-value={pixEdit}
-onChange={e=>setPixEdit(e.target.value)}
-style={{width:"100%", padding:8}}
-/>
+      <div
+        style={{
+          background:
+            "#1f2937",
+          padding: 15,
+          borderRadius: 8,
+          marginBottom: 20,
+        }}
+      >
+        <h3>
+          Minha chave
+          PIX
+        </h3>
 
-<button onClick={salvarPix} style={{marginTop:10}}>
-Salvar PIX
-</button>
+        <input
+          value={
+            pixEdit
+          }
+          onChange={(
+            e
+          ) =>
+            setPixEdit(
+              e.target
+                .value
+            )
+          }
+          style={{
+            width:
+              "100%",
+            padding: 8,
+          }}
+        />
 
-</div>
+        <button
+          onClick={
+            salvarPix
+          }
+          style={{
+            marginTop: 10,
+          }}
+        >
+          Salvar PIX
+        </button>
+      </div>
 
-{/* FORM */}
-<div style={{
-background:"#111827",
-padding:15,
-borderRadius:8,
-marginBottom:20
-}}>
+      <div
+        style={{
+          background:
+            "#111827",
+          padding: 15,
+          borderRadius: 8,
+          marginBottom: 20,
+        }}
+      >
+        <input
+          placeholder="Cliente"
+          value={
+            cliente
+          }
+          onChange={(
+            e
+          ) =>
+            setCliente(
+              e.target
+                .value
+            )
+          }
+        />
+        <br />
+        <br />
 
-<input placeholder="Cliente" value={cliente} onChange={e=>setCliente(e.target.value)} /><br/><br/>
-<input placeholder="Telefone" value={telefone} onChange={e=>setTelefone(e.target.value)} /><br/><br/>
-<input placeholder="Valor" value={valor} onChange={e=>setValor(e.target.value)} /><br/><br/>
-<input placeholder="Juros %" value={juros} onChange={e=>setJuros(e.target.value)} /><br/><br/>
+        <input
+          placeholder="Telefone"
+          value={
+            telefone
+          }
+          onChange={(
+            e
+          ) =>
+            setTelefone(
+              e.target
+                .value
+            )
+          }
+        />
+        <br />
+        <br />
 
-<input type="date" value={dataVencimento} onChange={e=>setDataVencimento(e.target.value)} /><br/><br/>
+        <input
+          placeholder="Valor"
+          value={valor}
+          onChange={(
+            e
+          ) =>
+            setValor(
+              e.target
+                .value
+            )
+          }
+        />
+        <br />
+        <br />
 
-<button onClick={salvar}>
-Salvar
-</button>
+        <input
+          placeholder="Juros %"
+          value={juros}
+          onChange={(
+            e
+          ) =>
+            setJuros(
+              e.target
+                .value
+            )
+          }
+        />
+        <br />
+        <br />
 
-</div>
+        <input
+          type="date"
+          value={
+            dataVencimento
+          }
+          onChange={(
+            e
+          ) =>
+            setDataVencimento(
+              e.target
+                .value
+            )
+          }
+        />
+        <br />
+        <br />
 
-{/* LISTA */}
-{dados.map(p=>(
+        <button
+          onClick={
+            salvar
+          }
+        >
+          Salvar
+        </button>
+      </div>
 
-<div key={p.id} style={{
-background:"#1f2937",
-padding:10,
-borderRadius:6,
-marginBottom:10
-}}>
+      {dados.map(
+        (p) => {
+          const atraso =
+            diasAtraso(
+              p.data_vencimento
+            );
 
-<strong>{p.cliente}</strong><br/>
-R$ {p.total}
+          let cor =
+            "#22c55e";
 
-</div>
+          let texto =
+            "🟢 Em dia";
 
-))}
+          if (
+            p.status ===
+            "pago"
+          ) {
+            cor =
+              "#22c55e";
+            texto =
+              "✅ Pago";
+          } else if (
+            atraso ===
+            0
+          ) {
+            cor =
+              "#facc15";
+            texto =
+              "🟡 Vence hoje";
+          } else if (
+            atraso > 0
+          ) {
+            cor =
+              "#ef4444";
+            texto = `🔴 ${atraso} dia(s) atrasado`;
+          }
 
-</div>
+          return (
+            <div
+              key={
+                p.id
+              }
+              style={{
+                background:
+                  "#1f2937",
+                padding: 15,
+                marginBottom: 10,
+                borderLeft: `5px solid ${cor}`,
+                borderRadius: 8,
+              }}
+            >
+              <strong>
+                {
+                  p.cliente
+                }
+              </strong>
+              <br />
+              📞{" "}
+              {
+                p.telefone
+              }
+              <br />
+              💵 R${" "}
+              {Number(
+                p.valor
+              ).toFixed(
+                2
+              )}
+              <br />
+              📈 Juros:{" "}
+              {
+                p.juros
+              }
+              %
+              <br />
+              💰 Total:
+              R${" "}
+              {Number(
+                p.total
+              ).toFixed(
+                2
+              )}
+              <br />
+              📅{" "}
+              {new Date(
+                p.data_vencimento
+              ).toLocaleDateString(
+                "pt-BR"
+              )}
+              <br />
+              <span
+                style={{
+                  color:
+                    cor,
+                }}
+              >
+                {
+                  texto
+                }
+              </span>
 
-);
+              <div
+                style={{
+                  display:
+                    "flex",
+                  gap: 10,
+                  flexWrap:
+                    "wrap",
+                  marginTop: 10,
+                }}
+              >
+                {p.status !==
+                  "pago" && (
+                  <>
+                    <button
+                      onClick={() =>
+                        cobrar(
+                          p
+                        )
+                      }
+                    >
+                      📲 Cobrar
+                    </button>
 
+                    <button
+                      onClick={() =>
+                        marcarPago(
+                          p.id
+                        )
+                      }
+                    >
+                      ✅ Pago
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() =>
+                    excluir(
+                      p.id
+                    )
+                  }
+                  style={{
+                    background:
+                      "red",
+                    color:
+                      "#fff",
+                  }}
+                >
+                  🗑 Excluir
+                </button>
+              </div>
+            </div>
+          );
+        }
+      )}
+    </div>
+  );
 }
