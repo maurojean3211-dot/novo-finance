@@ -10,6 +10,9 @@ export default function Dashboard() {
   const [totalBloqueados, setTotalBloqueados] = useState(0);
   const [totalIsentos, setTotalIsentos] = useState(0);
 
+  const [venceHoje, setVenceHoje] = useState(0);
+  const [atrasados, setAtrasados] = useState(0);
+
   const [isMaster, setIsMaster] = useState(false);
   const [carregando, setCarregando] = useState(true);
 
@@ -27,8 +30,11 @@ export default function Dashboard() {
       return;
     }
 
-    // 🔥 MASTER (SEU LOGIN)
-    if (user.email === "maurojean3211@gmail.com") {
+    // LOGIN MASTER NÃO MEXER
+    if (
+      user.email ===
+      "maurojean3211@gmail.com"
+    ) {
       setIsMaster(true);
       await carregarMaster();
     } else {
@@ -39,11 +45,12 @@ export default function Dashboard() {
     setCarregando(false);
   }
 
-  // ================= DASHBOARD MASTER
+  // ================= MASTER
   async function carregarMaster() {
-    const { data, error } = await supabase
-      .from("empresas")
-      .select("*");
+    const { data, error } =
+      await supabase
+        .from("empresas")
+        .select("*");
 
     if (error) {
       alert(error.message);
@@ -57,9 +64,14 @@ export default function Dashboard() {
     let isentos = 0;
 
     (data || []).forEach((c) => {
-      const valor = Number(c.valor || 0);
+      const valor = Number(
+        c.valor || 0
+      );
 
-      if (c.status === "Bloqueado")
+      if (
+        c.status ===
+        "Bloqueado"
+      )
         bloqueados++;
 
       if (c.isento === true) {
@@ -86,14 +98,22 @@ export default function Dashboard() {
 
     setReceitas(recebido);
     setPendente(pend);
-    setTotalClientes(data.length);
+    setTotalClientes(
+      data.length
+    );
     setTotalPagos(pagos);
-    setTotalBloqueados(bloqueados);
-    setTotalIsentos(isentos);
+    setTotalBloqueados(
+      bloqueados
+    );
+    setTotalIsentos(
+      isentos
+    );
   }
 
-  // ================= DASHBOARD USUÁRIO ALUGADO
-  async function carregarUsuario(userId) {
+  // ================= USUÁRIO ALUGADO
+  async function carregarUsuario(
+    userId
+  ) {
     const { data: usuario } =
       await supabase
         .from("usuarios")
@@ -101,39 +121,87 @@ export default function Dashboard() {
         .eq("id", userId)
         .maybeSingle();
 
-    if (!usuario?.empresa_id) return;
+    if (
+      !usuario?.empresa_id
+    )
+      return;
 
-    const { data } = await supabase
-      .from("recebimentos")
-      .select("*")
-      .eq("empresa_id", usuario.empresa_id);
+    const { data } =
+      await supabase
+        .from("recebimentos")
+        .select("*")
+        .eq(
+          "empresa_id",
+          usuario.empresa_id
+        );
 
     let recebido = 0;
     let pend = 0;
     let pagos = 0;
+    let hojeQtd = 0;
+    let atrasadoQtd = 0;
 
-    (data || []).forEach((r) => {
-      const valor = Number(r.valor || 0);
+    const hoje =
+      new Date()
+        .toISOString()
+        .slice(0, 10);
 
-      const pago =
-        String(r.status || "")
-          .toLowerCase()
-          .trim() === "pago";
+    (data || []).forEach(
+      (r) => {
+        const valor =
+          Number(
+            r.valor || 0
+          );
 
-      if (pago) {
-        recebido += valor;
-        pagos++;
-      } else {
-        pend += valor;
+        const status =
+          String(
+            r.status || ""
+          )
+            .toLowerCase()
+            .trim();
+
+        const venc =
+          String(
+            r.data_vencimento ||
+              ""
+          ).slice(0, 10);
+
+        const pago =
+          status === "pago";
+
+        if (pago) {
+          recebido += valor;
+          pagos++;
+        } else {
+          pend += valor;
+
+          if (
+            venc === hoje
+          )
+            hojeQtd++;
+
+          if (
+            venc &&
+            venc < hoje
+          )
+            atrasadoQtd++;
+        }
       }
-    });
+    );
 
     setReceitas(recebido);
     setPendente(pend);
-    setTotalClientes(data?.length || 0);
+    setTotalClientes(
+      data?.length || 0
+    );
     setTotalPagos(pagos);
     setTotalBloqueados(0);
     setTotalIsentos(0);
+
+    setVenceHoje(hojeQtd);
+    setAtrasados(
+      atrasadoQtd
+    );
   }
 
   // ================= LOADING
@@ -142,7 +210,8 @@ export default function Dashboard() {
       <div
         style={{
           padding: 20,
-          color: "#fff",
+          color:
+            "#fff",
         }}
       >
         Carregando...
@@ -150,50 +219,75 @@ export default function Dashboard() {
     );
   }
 
-  // ================= VIEW MASTER
+  // ================= MASTER
   if (isMaster) {
     return (
       <div
         style={{
           padding: 20,
-          color: "#fff",
+          color:
+            "#fff",
         }}
       >
-        <h2>📊 Dashboard MASTER</h2>
+        <h2>
+          📊 Dashboard
+          MASTER
+        </h2>
 
         <p>
-          💰 Recebido: R$ {receitas}
+          💰 Recebido:
+          R$ {
+            receitas
+          }
         </p>
+
         <p>
-          ⏳ Pendente: R$ {pendente}
+          ⏳ Pendente:
+          R$ {
+            pendente
+          }
         </p>
+
         <p>
-          📊 Total: R${" "}
-          {receitas + pendente}
+          📊 Total: R$
+          {receitas +
+            pendente}
         </p>
 
         <hr />
 
         <p>
-          👥 Clientes:{" "}
-          {totalClientes}
+          👥 Clientes:
+          {
+            totalClientes
+          }
         </p>
+
         <p>
-          ✅ Pagos: {totalPagos}
+          ✅ Pagos:
+          {
+            totalPagos
+          }
         </p>
+
         <p>
-          🚫 Bloqueados:{" "}
-          {totalBloqueados}
+          🚫 Bloqueados:
+          {
+            totalBloqueados
+          }
         </p>
+
         <p>
-          🆓 Isentos:{" "}
-          {totalIsentos}
+          🆓 Isentos:
+          {
+            totalIsentos
+          }
         </p>
       </div>
     );
   }
 
-  // ================= VIEW USUÁRIO ALUGADO
+  // ================= ALUGADOS
   return (
     <div
       style={{
@@ -201,36 +295,58 @@ export default function Dashboard() {
         color: "#fff",
       }}
     >
-      <h2>📊 Dashboard</h2>
+      <h2>
+        📊 Dashboard
+      </h2>
 
       <p>
-        💰 Recebido: R$ {receitas}
+        💰 Recebido:
+        R$ {receitas}
       </p>
 
       <p>
-        ⏳ A Receber: R$ {pendente}
+        ⏳ A Receber:
+        R$ {pendente}
       </p>
 
       <p>
-        📊 Total: R${" "}
-        {receitas + pendente}
+        📊 Total: R$
+        {receitas +
+          pendente}
       </p>
 
       <hr />
 
       <p>
-        📄 Recebimentos:{" "}
-        {totalClientes}
+        📄
+        Recebimentos:
+        {
+          totalClientes
+        }
       </p>
 
       <p>
-        ✅ Pagos: {totalPagos}
+        ✅ Pagos:
+        {
+          totalPagos
+        }
       </p>
 
       <p>
-        🕒 Pendentes:{" "}
+        🕒 Pendentes:
         {totalClientes -
           totalPagos}
+      </p>
+
+      <p>
+        📅 Vence Hoje:
+        {venceHoje}
+      </p>
+
+      <p>
+        🔴
+        Atrasados:
+        {atrasados}
       </p>
     </div>
   );
