@@ -14,7 +14,9 @@ export default function MasterAdmin() {
   const [editandoId, setEditandoId] = useState(null);
   const [busca, setBusca] = useState("");
 
-  const [editandoPermissoesId, setEditandoPermissoesId] = useState(null);
+  const [editandoPermissoesId, setEditandoPermissoesId] =
+    useState(null);
+
   const [permissoes, setPermissoes] = useState({});
 
   const [pixSistema, setPixSistema] = useState("");
@@ -24,7 +26,8 @@ export default function MasterAdmin() {
   }, []);
 
   async function verificarUsuario() {
-    const { data: userData } = await supabase.auth.getUser();
+    const { data: userData } =
+      await supabase.auth.getUser();
 
     if (!userData?.user) return;
 
@@ -49,7 +52,9 @@ export default function MasterAdmin() {
     const { data } = await supabase
       .from("empresas")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", {
+        ascending: false,
+      });
 
     setClientes(data || []);
   }
@@ -65,16 +70,19 @@ export default function MasterAdmin() {
   }
 
   async function salvarPix() {
-    await supabase.from("configuracoes").upsert({
-      chave: "pix_sistema",
-      valor: pixSistema,
-    });
+    await supabase
+      .from("configuracoes")
+      .upsert({
+        chave: "pix_sistema",
+        valor: pixSistema,
+      });
 
     alert("PIX salvo!");
   }
 
   async function cadastrarCliente() {
-    if (!nome) return alert("Nome obrigatório");
+    if (!nome)
+      return alert("Nome obrigatório");
 
     if (editandoId) {
       await supabase
@@ -90,18 +98,20 @@ export default function MasterAdmin() {
 
       setEditandoId(null);
     } else {
-      await supabase.from("empresas").insert([
-        {
-          name: nome,
-          email,
-          cpf,
-          whatsapp,
-          valor: Number(valor),
-          status: "Ativo",
-          pagou: false,
-          isento: false,
-        },
-      ]);
+      await supabase
+        .from("empresas")
+        .insert([
+          {
+            name: nome,
+            email,
+            cpf,
+            whatsapp,
+            valor: Number(valor),
+            status: "Ativo",
+            pagou: false,
+            isento: false,
+          },
+        ]);
     }
 
     limpar();
@@ -147,10 +157,12 @@ export default function MasterAdmin() {
       recebimentos: true,
       clientes: true,
       emprestimos: true,
-      vendas: true,
-      compras: true,
+      vendas: false,
+      compras: false,
       contas_pagar: true,
-      relatorio: true,
+      contas_fixas: true,
+      pessoal: true,
+      relatorio: false,
       ...user.permissoes,
     });
   }
@@ -161,128 +173,232 @@ export default function MasterAdmin() {
       .update({ permissoes })
       .eq("email", editandoPermissoesId);
 
-    alert("Permissões salvas");
+    alert("Permissões salvas!");
     setEditandoPermissoesId(null);
   }
 
   async function excluirCliente(id) {
-    if (!window.confirm("Excluir cliente?")) return;
+    if (!window.confirm("Excluir cliente?"))
+      return;
 
-    await supabase.from("empresas").delete().eq("id", id);
+    await supabase
+      .from("empresas")
+      .delete()
+      .eq("id", id);
+
     carregarClientes();
   }
 
   async function marcarPago(c) {
-    await supabase.from("empresas").update({ pagou: true }).eq("id", c.id);
+    await supabase
+      .from("empresas")
+      .update({ pagou: true })
+      .eq("id", c.id);
+
     carregarClientes();
   }
 
   async function marcarPendente(c) {
-    await supabase.from("empresas").update({ pagou: false }).eq("id", c.id);
+    await supabase
+      .from("empresas")
+      .update({ pagou: false })
+      .eq("id", c.id);
+
     carregarClientes();
   }
 
   async function alterarStatus(c) {
-    const novo = c.status === "Ativo" ? "Bloqueado" : "Ativo";
+    const novo =
+      c.status === "Ativo"
+        ? "Bloqueado"
+        : "Ativo";
 
-    await supabase.from("empresas").update({ status: novo }).eq("id", c.id);
+    await supabase
+      .from("empresas")
+      .update({ status: novo })
+      .eq("id", c.id);
+
     carregarClientes();
   }
 
   async function alternarIsencao(c) {
     await supabase
       .from("empresas")
-      .update({ isento: !c.isento })
+      .update({
+        isento: !c.isento,
+      })
       .eq("id", c.id);
 
     carregarClientes();
   }
 
   function enviarPix(cliente) {
-    if (!pixSistema) return alert("Cadastre PIX");
+    if (!pixSistema)
+      return alert("Cadastre PIX");
 
-    const numero = (cliente.whatsapp || "").replace(/\D/g, "");
+    const numero = (
+      cliente.whatsapp || ""
+    ).replace(/\D/g, "");
 
     const msg = `Olá ${cliente.name}
-Valor: ${cliente.isento ? "ISENTO" : "R$ " + cliente.valor}
+Valor: ${
+      cliente.isento
+        ? "ISENTO"
+        : "R$ " + cliente.valor
+    }
 PIX: ${pixSistema}`;
 
     window.open(
-      `https://wa.me/55${numero}?text=${encodeURIComponent(msg)}`
+      `https://wa.me/55${numero}?text=${encodeURIComponent(
+        msg
+      )}`
     );
   }
 
   if (!usuario) {
-    return <div style={{ color: "#fff", padding: 20 }}>Carregando...</div>;
+    return (
+      <div
+        style={{
+          color: "#fff",
+          padding: 20,
+        }}
+      >
+        Carregando...
+      </div>
+    );
   }
 
-  const clientesFiltrados = clientes.filter((c) =>
-    (c.name || "").toLowerCase().includes(busca.toLowerCase())
-  );
+  const clientesFiltrados =
+    clientes.filter((c) =>
+      (c.name || "")
+        .toLowerCase()
+        .includes(
+          busca.toLowerCase()
+        )
+    );
 
-  const totalRecebido = clientes
-    .filter((c) => c.pagou)
-    .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+  const totalRecebido =
+    clientes
+      .filter((c) => c.pagou)
+      .reduce(
+        (soma, item) =>
+          soma +
+          Number(item.valor || 0),
+        0
+      );
 
-  const totalPendente = clientes
-    .filter((c) => !c.pagou)
-    .reduce((soma, item) => soma + Number(item.valor || 0), 0);
+  const totalPendente =
+    clientes
+      .filter((c) => !c.pagou)
+      .reduce(
+        (soma, item) =>
+          soma +
+          Number(item.valor || 0),
+        0
+      );
 
   return (
-    <div style={{ padding: 20, color: "#fff" }}>
+    <div
+      style={{
+        padding: 20,
+        color: "#fff",
+      }}
+    >
       <h2>👑 MASTER ADMIN</h2>
 
-      <div style={{ marginBottom: 20 }}>
-        <strong>Total Recebido:</strong> R$ {totalRecebido}
+      <div
+        style={{
+          marginBottom: 20,
+        }}
+      >
+        <strong>
+          Total Recebido:
+        </strong>{" "}
+        R$ {totalRecebido}
         <br />
-        <strong>Total Pendente:</strong> R$ {totalPendente}
+
+        <strong>
+          Total Pendente:
+        </strong>{" "}
+        R$ {totalPendente}
       </div>
 
       <input
         placeholder="PIX Sistema"
         value={pixSistema}
-        onChange={(e) => setPixSistema(e.target.value)}
+        onChange={(e) =>
+          setPixSistema(
+            e.target.value
+          )
+        }
       />
-      <button onClick={salvarPix}>Salvar PIX</button>
 
-      <br /><br />
+      <button onClick={salvarPix}>
+        Salvar PIX
+      </button>
+
+      <br />
+      <br />
 
       <input
         placeholder="Pesquisar cliente"
         value={busca}
-        onChange={(e) => setBusca(e.target.value)}
+        onChange={(e) =>
+          setBusca(e.target.value)
+        }
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <input
         placeholder="Nome"
         value={nome}
-        onChange={(e) => setNome(e.target.value)}
+        onChange={(e) =>
+          setNome(e.target.value)
+        }
       />
+
       <input
         placeholder="Email"
         value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        onChange={(e) =>
+          setEmail(e.target.value)
+        }
       />
+
       <input
         placeholder="CPF"
         value={cpf}
-        onChange={(e) => setCpf(e.target.value)}
+        onChange={(e) =>
+          setCpf(e.target.value)
+        }
       />
+
       <input
         placeholder="WhatsApp"
         value={whatsapp}
-        onChange={(e) => setWhatsapp(e.target.value)}
+        onChange={(e) =>
+          setWhatsapp(
+            e.target.value
+          )
+        }
       />
+
       <input
         placeholder="Valor"
         value={valor}
-        onChange={(e) => setValor(e.target.value)}
+        onChange={(e) =>
+          setValor(e.target.value)
+        }
       />
 
-      <button onClick={cadastrarCliente}>
-        {editandoId ? "Salvar" : "Cadastrar"}
+      <button
+        onClick={cadastrarCliente}
+      >
+        {editandoId
+          ? "Salvar"
+          : "Cadastrar"}
       </button>
 
       <hr />
@@ -291,56 +407,187 @@ PIX: ${pixSistema}`;
         <div
           key={c.id}
           style={{
-            borderBottom: "1px solid #333",
+            borderBottom:
+              "1px solid #333",
             padding: 10,
             marginBottom: 10,
           }}
         >
-          <strong>{c.name}</strong> | R$ {c.valor} | {c.status} |{" "}
-          {c.pagou ? "Pago" : "Pendente"}
+          <strong>{c.name}</strong> |
+          R$ {c.valor} |{" "}
+          {c.status} |{" "}
+          {c.pagou
+            ? "Pago"
+            : "Pendente"}
 
-          <div style={{ marginTop: 10, display: "flex", gap: 5, flexWrap: "wrap" }}>
-            <button onClick={() => editarCliente(c)}>Editar</button>
-            <button onClick={() => abrirPermissoes(c)}>Permissões</button>
-            <button onClick={() => enviarPix(c)}>PIX</button>
-            <button onClick={() => marcarPago(c)}>Pago</button>
-            <button onClick={() => marcarPendente(c)}>Pend.</button>
-            <button onClick={() => alterarStatus(c)}>Status</button>
-            <button onClick={() => alternarIsencao(c)}>Isentar</button>
+          <div
+            style={{
+              marginTop: 10,
+              display: "flex",
+              gap: 5,
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              onClick={() =>
+                editarCliente(c)
+              }
+            >
+              Editar
+            </button>
 
             <button
-              onClick={() => excluirCliente(c.id)}
-              style={{ background: "red", color: "#fff" }}
+              onClick={() =>
+                abrirPermissoes(c)
+              }
+            >
+              Permissões
+            </button>
+
+            <button
+              onClick={() =>
+                enviarPix(c)
+              }
+            >
+              PIX
+            </button>
+
+            <button
+              onClick={() =>
+                marcarPago(c)
+              }
+            >
+              Pago
+            </button>
+
+            <button
+              onClick={() =>
+                marcarPendente(c)
+              }
+            >
+              Pend.
+            </button>
+
+            <button
+              onClick={() =>
+                alterarStatus(c)
+              }
+            >
+              Status
+            </button>
+
+            <button
+              onClick={() =>
+                alternarIsencao(c)
+              }
+            >
+              Isentar
+            </button>
+
+            <button
+              onClick={() =>
+                excluirCliente(c.id)
+              }
+              style={{
+                background:
+                  "red",
+                color: "#fff",
+              }}
             >
               Excluir
             </button>
           </div>
 
-          {editandoPermissoesId === c.email && (
-            <div style={{ marginTop: 10 }}>
-              <h4>Permissões</h4>
+          {editandoPermissoesId ===
+            c.email && (
+            <div
+              style={{
+                marginTop: 15,
+                background:
+                  "#111827",
+                padding: 15,
+                borderRadius: 10,
+              }}
+            >
+              <h4>
+                ✅ Permissões
+              </h4>
 
-              {Object.keys(permissoes).map((modulo) => (
-                <label
-                  key={modulo}
-                  style={{ display: "block", marginBottom: 5 }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!permissoes[modulo]}
-                    onChange={(e) =>
-                      setPermissoes({
-                        ...permissoes,
-                        [modulo]: e.target.checked,
-                      })
-                    }
-                  />{" "}
-                  {modulo}
-                </label>
-              ))}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit,minmax(180px,1fr))",
+                  gap: 10,
+                }}
+              >
+                {Object.keys(
+                  permissoes
+                ).map(
+                  (modulo) => (
+                    <label
+                      key={
+                        modulo
+                      }
+                      style={{
+                        background:
+                          "#1f2937",
+                        padding: 8,
+                        borderRadius: 8,
+                        cursor:
+                          "pointer",
+                        fontSize: 14,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          !!permissoes[
+                            modulo
+                          ]
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          setPermissoes(
+                            {
+                              ...permissoes,
+                              [modulo]:
+                                e
+                                  .target
+                                  .checked,
+                            }
+                          )
+                        }
+                        style={{
+                          marginRight: 8,
+                        }}
+                      />
 
-              <button onClick={salvarPermissoes}>
-                Salvar Permissões
+                      {modulo}
+                    </label>
+                  )
+                )}
+              </div>
+
+              <button
+                onClick={
+                  salvarPermissoes
+                }
+                style={{
+                  marginTop: 15,
+                  padding:
+                    "10px 20px",
+                  background:
+                    "#2563eb",
+                  color: "#fff",
+                  border:
+                    "none",
+                  borderRadius: 8,
+                }}
+              >
+                💾 Salvar
+                Permissões
               </button>
             </div>
           )}
