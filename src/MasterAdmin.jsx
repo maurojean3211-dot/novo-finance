@@ -1,4 +1,4 @@
-mantenho o arquivo antigo com as permissoes do master dos clientes e acrescente nesseimport { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function MasterAdmin() {
@@ -11,21 +11,14 @@ export default function MasterAdmin() {
   const [whatsapp, setWhatsapp] = useState("");
   const [valor, setValor] = useState("");
 
-  const [editandoId, setEditandoId] =
-    useState(null);
-
+  const [editandoId, setEditandoId] = useState(null);
   const [busca, setBusca] = useState("");
 
-  const [
-    editandoPermissoesId,
-    setEditandoPermissoesId,
-  ] = useState(null);
+  const [editandoPermissoesId, setEditandoPermissoesId] =
+    useState(null);
 
-  const [permissoes, setPermissoes] =
-    useState({});
-
-  const [pixSistema, setPixSistema] =
-    useState("");
+  const [permissoes, setPermissoes] = useState({});
+  const [pixSistema, setPixSistema] = useState("");
 
   useEffect(() => {
     verificarUsuario();
@@ -40,22 +33,15 @@ export default function MasterAdmin() {
     const { data } = await supabase
       .from("usuarios")
       .select("*")
-      .eq(
-        "email",
-        userData.user.email
-      )
+      .eq("email", userData.user.email)
       .single();
 
-    if (
-      !data ||
-      data.role !== "master"
-    ) {
+    if (!data || data.role !== "master") {
       alert("Acesso negado");
       return;
     }
 
     setUsuario(data);
-
     await carregarClientes();
     await buscarPix();
   }
@@ -78,8 +64,7 @@ export default function MasterAdmin() {
       .eq("chave", "pix_sistema")
       .single();
 
-    if (data)
-      setPixSistema(data.valor);
+    if (data) setPixSistema(data.valor);
   }
 
   async function salvarPix() {
@@ -95,9 +80,7 @@ export default function MasterAdmin() {
 
   async function cadastrarCliente() {
     if (!nome)
-      return alert(
-        "Nome obrigatório"
-      );
+      return alert("Nome obrigatório");
 
     if (editandoId) {
       await supabase
@@ -107,8 +90,7 @@ export default function MasterAdmin() {
           email,
           cpf,
           whatsapp,
-          valor:
-            Number(valor),
+          valor: Number(valor),
         })
         .eq("id", editandoId);
 
@@ -122,10 +104,8 @@ export default function MasterAdmin() {
             email,
             cpf,
             whatsapp,
-            valor:
-              Number(valor),
-            status:
-              "Ativo",
+            valor: Number(valor),
+            status: "Ativo",
             pagou: false,
             isento: false,
           },
@@ -150,34 +130,24 @@ export default function MasterAdmin() {
     setNome(c.name || "");
     setEmail(c.email || "");
     setCpf(c.cpf || "");
-    setWhatsapp(
-      c.whatsapp || ""
-    );
+    setWhatsapp(c.whatsapp || "");
     setValor(c.valor || "");
   }
 
   async function abrirPermissoes(c) {
-    const { data } =
-      await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("email", c.email);
+    const { data } = await supabase
+      .from("usuarios")
+      .select("*")
+      .eq("email", c.email);
 
-    if (
-      !data ||
-      data.length === 0
-    ) {
-      alert(
-        "Cliente sem login"
-      );
+    if (!data || data.length === 0) {
+      alert("Cliente sem login");
       return;
     }
 
     const user = data[0];
 
-    setEditandoPermissoesId(
-      c.email
-    );
+    setEditandoPermissoesId(c.email);
 
     setPermissoes({
       dashboard: true,
@@ -198,29 +168,15 @@ export default function MasterAdmin() {
   async function salvarPermissoes() {
     await supabase
       .from("usuarios")
-      .update({
-        permissoes,
-      })
-      .eq(
-        "email",
-        editandoPermissoesId
-      );
+      .update({ permissoes })
+      .eq("email", editandoPermissoesId);
 
-    alert(
-      "Permissões salvas!"
-    );
-
-    setEditandoPermissoesId(
-      null
-    );
+    alert("Permissões salvas!");
+    setEditandoPermissoesId(null);
   }
 
   async function excluirCliente(id) {
-    if (
-      !window.confirm(
-        "Excluir cliente?"
-      )
-    )
+    if (!window.confirm("Excluir cliente?"))
       return;
 
     await supabase
@@ -234,9 +190,7 @@ export default function MasterAdmin() {
   async function marcarPago(c) {
     await supabase
       .from("empresas")
-      .update({
-        pagou: true,
-      })
+      .update({ pagou: true })
       .eq("id", c.id);
 
     carregarClientes();
@@ -245,9 +199,7 @@ export default function MasterAdmin() {
   async function marcarPendente(c) {
     await supabase
       .from("empresas")
-      .update({
-        pagou: false,
-      })
+      .update({ pagou: false })
       .eq("id", c.id);
 
     carregarClientes();
@@ -255,16 +207,13 @@ export default function MasterAdmin() {
 
   async function alterarStatus(c) {
     const novo =
-      c.status ===
-      "Ativo"
+      c.status === "Ativo"
         ? "Bloqueado"
         : "Ativo";
 
     await supabase
       .from("empresas")
-      .update({
-        status: novo,
-      })
+      .update({ status: novo })
       .eq("id", c.id);
 
     carregarClientes();
@@ -274,8 +223,7 @@ export default function MasterAdmin() {
     await supabase
       .from("empresas")
       .update({
-        isento:
-          !c.isento,
+        isento: !c.isento,
       })
       .eq("id", c.id);
 
@@ -284,23 +232,17 @@ export default function MasterAdmin() {
 
   function enviarPix(cliente) {
     if (!pixSistema)
-      return alert(
-        "Cadastre PIX"
-      );
+      return alert("Cadastre PIX");
 
     const numero = (
-      cliente.whatsapp ||
-      ""
+      cliente.whatsapp || ""
     ).replace(/\D/g, "");
 
-    const msg = `Olá ${
-      cliente.name
-    }
+    const msg = `Olá ${cliente.name}
 Valor: ${
       cliente.isento
         ? "ISENTO"
-        : "R$ " +
-          cliente.valor
+        : "R$ " + cliente.valor
     }
 PIX: ${pixSistema}`;
 
@@ -315,8 +257,7 @@ PIX: ${pixSistema}`;
     return (
       <div
         style={{
-          color:
-            "#fff",
+          color: "#fff",
           padding: 20,
         }}
       >
@@ -340,10 +281,7 @@ PIX: ${pixSistema}`;
       .reduce(
         (soma, item) =>
           soma +
-          Number(
-            item.valor ||
-              0
-          ),
+          Number(item.valor || 0),
         0
       );
 
@@ -353,10 +291,7 @@ PIX: ${pixSistema}`;
       .reduce(
         (soma, item) =>
           soma +
-          Number(
-            item.valor ||
-              0
-          ),
+          Number(item.valor || 0),
         0
       );
 
@@ -367,26 +302,13 @@ PIX: ${pixSistema}`;
         color: "#fff",
       }}
     >
-      <h2>
-        👑 MASTER ADMIN
-      </h2>
+      <h2>👑 MASTER ADMIN</h2>
 
-      <div
-        style={{
-          marginBottom: 20,
-        }}
-      >
-        <strong>
-          Total
-          Recebido:
-        </strong>{" "}
+      <div style={{ marginBottom: 20 }}>
+        <strong>Total Recebido:</strong>{" "}
         R$ {totalRecebido}
         <br />
-
-        <strong>
-          Total
-          Pendente:
-        </strong>{" "}
+        <strong>Total Pendente:</strong>{" "}
         R$ {totalPendente}
       </div>
 
@@ -400,9 +322,7 @@ PIX: ${pixSistema}`;
         }
       />
 
-      <button
-        onClick={salvarPix}
-      >
+      <button onClick={salvarPix}>
         Salvar PIX
       </button>
 
@@ -413,9 +333,7 @@ PIX: ${pixSistema}`;
         placeholder="Pesquisar cliente"
         value={busca}
         onChange={(e) =>
-          setBusca(
-            e.target.value
-          )
+          setBusca(e.target.value)
         }
       />
 
@@ -426,9 +344,7 @@ PIX: ${pixSistema}`;
         placeholder="Nome"
         value={nome}
         onChange={(e) =>
-          setNome(
-            e.target.value
-          )
+          setNome(e.target.value)
         }
       />
 
@@ -436,9 +352,7 @@ PIX: ${pixSistema}`;
         placeholder="Email"
         value={email}
         onChange={(e) =>
-          setEmail(
-            e.target.value
-          )
+          setEmail(e.target.value)
         }
       />
 
@@ -446,9 +360,7 @@ PIX: ${pixSistema}`;
         placeholder="CPF"
         value={cpf}
         onChange={(e) =>
-          setCpf(
-            e.target.value
-          )
+          setCpf(e.target.value)
         }
       />
 
@@ -466,16 +378,12 @@ PIX: ${pixSistema}`;
         placeholder="Valor"
         value={valor}
         onChange={(e) =>
-          setValor(
-            e.target.value
-          )
+          setValor(e.target.value)
         }
       />
 
       <button
-        onClick={
-          cadastrarCliente
-        }
+        onClick={cadastrarCliente}
       >
         {editandoId
           ? "Salvar"
@@ -484,230 +392,217 @@ PIX: ${pixSistema}`;
 
       <hr />
 
-      {clientesFiltrados.map(
-        (c) => (
+      {clientesFiltrados.map((c) => (
+        <div
+          key={c.id}
+          style={{
+            borderBottom:
+              "1px solid #333",
+            padding: 10,
+            marginBottom: 10,
+          }}
+        >
+          <strong>{c.name}</strong> |
+          R$ {c.valor} |{" "}
+          {c.status} |{" "}
+          {c.isento
+            ? "Isento"
+            : c.pagou
+            ? "Pago"
+            : "Pendente"}
+
           <div
-            key={c.id}
             style={{
-              borderBottom:
-                "1px solid #333",
-              padding: 10,
-              marginBottom: 10,
+              marginTop: 10,
+              display: "flex",
+              gap: 5,
+              flexWrap: "wrap",
             }}
           >
-            <strong>
-              {c.name}
-            </strong>{" "}
-            | R$ {c.valor} |
-            {` ${c.status} | `}
-            {c.isento
-              ? "Isento"
-              : c.pagou
-              ? "Pago"
-              : "Pendente"}
+            <button
+              onClick={() =>
+                editarCliente(c)
+              }
+            >
+              Editar
+            </button>
 
-            <div
+            <button
+              onClick={() =>
+                abrirPermissoes(c)
+              }
+            >
+              Permissões
+            </button>
+
+            <button
+              onClick={() =>
+                enviarPix(c)
+              }
+            >
+              PIX
+            </button>
+
+            <button
+              onClick={() =>
+                marcarPago(c)
+              }
+            >
+              Pago
+            </button>
+
+            <button
+              onClick={() =>
+                marcarPendente(c)
+              }
+            >
+              Pend.
+            </button>
+
+            <button
+              onClick={() =>
+                alterarStatus(c)
+              }
+            >
+              Status
+            </button>
+
+            <button
+              onClick={() =>
+                alternarIsencao(c)
+              }
+            >
+              Isentar
+            </button>
+
+            <button
+              onClick={() =>
+                excluirCliente(c.id)
+              }
               style={{
-                marginTop: 10,
-                display:
-                  "flex",
-                gap: 5,
-                flexWrap:
-                  "wrap",
+                background:
+                  "red",
+                color: "#fff",
               }}
             >
-              <button
-                onClick={() =>
-                  editarCliente(
-                    c
-                  )
-                }
-              >
-                Editar
-              </button>
+              Excluir
+            </button>
+          </div>
 
-              <button
-                onClick={() =>
-                  abrirPermissoes(
-                    c
-                  )
-                }
-              >
-                Permissões
-              </button>
+          {editandoPermissoesId ===
+            c.email && (
+            <div
+              style={{
+                marginTop: 15,
+                background:
+                  "#111827",
+                padding: 15,
+                borderRadius: 10,
+              }}
+            >
+              <h4>
+                ✅ Permissões
+              </h4>
 
-              <button
-                onClick={() =>
-                  enviarPix(
-                    c
-                  )
-                }
-              >
-                PIX
-              </button>
-
-              <button
-                onClick={() =>
-                  marcarPago(
-                    c
-                  )
-                }
-              >
-                Pago
-              </button>
-
-              <button
-                onClick={() =>
-                  marcarPendente(
-                    c
-                  )
-                }
-              >
-                Pend.
-              </button>
-
-              <button
-                onClick={() =>
-                  alterarStatus(
-                    c
-                  )
-                }
-              >
-                Status
-              </button>
-
-              <button
-                onClick={() =>
-                  alternarIsencao(
-                    c
-                  )
-                }
-              >
-                Isentar
-              </button>
-
-              <button
-                onClick={() =>
-                  excluirCliente(
-                    c.id
-                  )
-                }
-                style={{
-                  background:
-                    "red",
-                  color:
-                    "#fff",
-                }}
-              >
-                Excluir
-              </button>
-            </div>
-
-            {editandoPermissoesId ===
-              c.email && (
               <div
                 style={{
-                  marginTop: 15,
-                  background:
-                    "#111827",
-                  padding: 15,
-                  borderRadius: 10,
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit,minmax(180px,1fr))",
+                  gap: 10,
                 }}
               >
-                <h4>
-                  ✅
-                  Permissões
-                </h4>
-
-                <div
-                  style={{
-                    display:
-                      "grid",
-                    gridTemplateColumns:
-                      "repeat(auto-fit,minmax(180px,1fr))",
-                    gap: 10,
-                  }}
-                >
-                  {Object.keys(
-                    permissoes
-                  ).map(
-                    (
-                      modulo
-                    ) => (
-                      <label
-                        key={
-                          modulo
+                {Object.keys(
+                  permissoes
+                ).map(
+                  (modulo) => (
+                    <label
+                      key={
+                        modulo
+                      }
+                      style={{
+                        background:
+                          "#1f2937",
+                        padding: 8,
+                        borderRadius: 8,
+                        cursor:
+                          "pointer",
+                        fontSize: 14,
+                        display: "flex",
+                        alignItems:
+                          "center",
+                        gap: 8,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          !!permissoes[
+                            modulo
+                          ]
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          setPermissoes(
+                            {
+                              ...permissoes,
+                              [modulo]:
+                                e
+                                  .target
+                                  .checked,
+                            }
+                          )
                         }
                         style={{
-                          background:
-                            "#1f2937",
-                          padding: 8,
-                          borderRadius: 8,
+                          appearance:
+                            "auto",
+                          WebkitAppearance:
+                            "checkbox",
+                          width: 22,
+                          height: 22,
+                          minWidth: 22,
+                          minHeight: 22,
+                          accentColor:
+                            "#22c55e",
                           cursor:
                             "pointer",
-                          fontSize: 14,
-                          display:
-                            "flex",
-                          alignItems:
-                            "center",
-                          gap: 8,
+                          backgroundColor:
+                            "#fff",
+                          border:
+                            "2px solid #fff",
+                          borderRadius: 4,
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={
-                            !!permissoes[
-                              modulo
-                            ]
-                          }
-                          onChange={(
-                            e
-                          ) =>
-                            setPermissoes(
-                              {
-                                ...permissoes,
-                                [modulo]:
-                                  e
-                                    .target
-                                    .checked,
-                              }
-                            )
-                          }
-                        />
+                      />
 
-                        {
-                          modulo
-                        }
-                      </label>
-                    )
-                  )}
-                </div>
-
-                <button
-                  onClick={
-                    salvarPermissoes
-                  }
-                  style={{
-                    marginTop: 15,
-                    padding:
-                      "10px 20px",
-                    background:
-                      "#2563eb",
-                    color:
-                      "#fff",
-                    border:
-                      "none",
-                    borderRadius: 8,
-                  }}
-                >
-                  💾 Salvar
-                  Permissões
-                </button>
+                      {modulo}
+                    </label>
+                  )
+                )}
               </div>
-            )}
-          </div>
-        )
-      )}
+
+              <button
+                onClick={
+                  salvarPermissoes
+                }
+                style={{
+                  marginTop: 15,
+                  padding:
+                    "10px 20px",
+                  background:
+                    "#2563eb",
+                  color: "#fff",
+                  border:
+                    "none",
+                  borderRadius: 8,
+                }}
+              >
+                💾 Salvar Permissões
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }
