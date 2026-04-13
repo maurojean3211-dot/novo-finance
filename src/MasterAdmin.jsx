@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+mantenho o arquivo antigo com as permissoes do master dos clientes e acrescente nesseimport { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function MasterAdmin() {
