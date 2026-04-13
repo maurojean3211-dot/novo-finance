@@ -90,22 +90,53 @@ export default function Vendas() {
     setVendas(data || []);
   }
 
-  // ================= EXCLUIR BLINDADO
+  // ================= EXCLUIR SUPER BLINDADO
   async function excluirVenda(id) {
     if (!id) {
-      alert(
-        "ID inválido para excluir"
-      );
+      alert("ID inválido");
       return;
     }
 
     const confirmar =
       window.confirm(
-        "Deseja excluir esta venda?"
+        "Excluir venda e vínculos relacionados?"
       );
 
     if (!confirmar) return;
 
+    // 1 RECEBIMENTOS
+    const {
+      error: erroRecebimentos,
+    } = await supabase
+      .from("recebimentos")
+      .delete()
+      .eq("venda_id", id);
+
+    if (erroRecebimentos) {
+      alert(
+        "Erro recebimentos: " +
+          erroRecebimentos.message
+      );
+      return;
+    }
+
+    // 2 LANÇAMENTOS
+    const {
+      error: erroLancamentos,
+    } = await supabase
+      .from("lancamentos")
+      .delete()
+      .eq("venda_id", id);
+
+    if (erroLancamentos) {
+      alert(
+        "Erro lançamentos: " +
+          erroLancamentos.message
+      );
+      return;
+    }
+
+    // 3 VENDA
     const { error } =
       await supabase
         .from("vendas")
@@ -118,7 +149,7 @@ export default function Vendas() {
 
     if (error) {
       alert(
-        "Erro ao excluir: " +
+        "Erro venda: " +
           error.message
       );
       return;
@@ -132,7 +163,7 @@ export default function Vendas() {
     );
 
     alert(
-      "✅ Venda excluída!"
+      "✅ Venda excluída com sucesso!"
     );
   }
 
