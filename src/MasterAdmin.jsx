@@ -17,7 +17,23 @@ export default function MasterAdmin() {
   const [editandoPermissoesId, setEditandoPermissoesId] =
     useState(null);
 
-  const [permissoes, setPermissoes] = useState({});
+  const permissoesPadrao = {
+    dashboard: true,
+    financeiro: true,
+    recebimentos: true,
+    clientes: true,
+    emprestimos: true,
+    vendas: false,
+    compras: false,
+    contas_pagar: true,
+    contas_fixas: true,
+    pessoal: true,
+    relatorio: false,
+  };
+
+  const [permissoes, setPermissoes] =
+    useState(permissoesPadrao);
+
   const [pixSistema, setPixSistema] = useState("");
 
   useEffect(() => {
@@ -25,16 +41,17 @@ export default function MasterAdmin() {
   }, []);
 
   async function verificarUsuario() {
-    const { data: userData } =
-      await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    if (!userData?.user) return;
+    if (!user) return;
 
     const { data } = await supabase
       .from("usuarios")
       .select("*")
-      .eq("email", userData.user.email)
-      .single();
+      .eq("email", user.email)
+      .maybeSingle();
 
     if (!data || data.role !== "master") {
       alert("Acesso negado");
@@ -42,19 +59,21 @@ export default function MasterAdmin() {
     }
 
     setUsuario(data);
+
     await carregarClientes();
     await buscarPix();
   }
 
   async function carregarClientes() {
-    const { data } = await supabase
-      .from("empresas")
-      .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
+    const { data, error } =
+      await supabase
+        .from("empresas")
+        .select("*")
+        .order("created_at", {
+          ascending: false,
+        });
 
-    setClientes(data || []);
+    if (!error) setClientes(data || []);
   }
 
   async function buscarPix() {
@@ -62,18 +81,24 @@ export default function MasterAdmin() {
       .from("configuracoes")
       .select("*")
       .eq("chave", "pix_sistema")
-      .single();
+      .maybeSingle();
 
-    if (data) setPixSistema(data.valor);
+    if (data)
+      setPixSistema(data.valor || "");
   }
 
   async function salvarPix() {
-    await supabase
+    const { error } = await supabase
       .from("configuracoes")
       .upsert({
         chave: "pix_sistema",
         valor: pixSistema,
       });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     alert("PIX salvo!");
   }
@@ -93,8 +118,6 @@ export default function MasterAdmin() {
           valor: Number(valor),
         })
         .eq("id", editandoId);
-
-      setEditandoId(null);
     } else {
       await supabase
         .from("empresas")
@@ -137,46 +160,73 @@ export default function MasterAdmin() {
   async function abrirPermissoes(c) {
     const { data } = await supabase
       .from("usuarios")
-      .select("*")
-      .eq("email", c.email);
+      .select("email, permissoes")
+      .eq("email", c.email)
+      .maybeSingle();
 
-    if (!data || data.length === 0) {
+    if (!data) {
       alert("Cliente sem login");
       return;
     }
 
-    const user = data[0];
+    let permissoesBanco = {};
+
+    if (
+      data.permissoes &&
+      typeof data.permissoes === "string"
+    ) {
+      try {
+        permissoesBanco = JSON.parse(
+          data.permissoes
+        );
+      } catch {
+        permissoesBanco = {};
+      }
+    } else {
+      permissoesBanco =
+        data.permissoes || {};
+    }
 
     setEditandoPermissoesId(c.email);
 
     setPermissoes({
-      dashboard: true,
-      financeiro: true,
-      recebimentos: true,
-      clientes: true,
-      emprestimos: true,
-      vendas: false,
-      compras: false,
-      contas_pagar: true,
-      contas_fixas: true,
-      pessoal: true,
-      relatorio: false,
-      ...user.permissoes,
+      ...permissoesPadrao,
+      ...permissoesBanco,
     });
   }
 
   async function salvarPermissoes() {
-    await supabase
+    const { error } = await supabase
       .from("usuarios")
-      .update({ permissoes })
-      .eq("email", editandoPermissoesId);
+      .update({
+        permissoes:
+          JSON.parse(
+            JSON.stringify(
+              permissoes
+            )
+          ),
+      })
+      .eq(
+        "email",
+        editandoPermissoesId
+      );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     alert("Permissões salvas!");
+
     setEditandoPermissoesId(null);
   }
 
   async function excluirCliente(id) {
-    if (!window.confirm("Excluir cliente?"))
+    if (
+      !window.confirm(
+        "Excluir cliente?"
+      )
+    )
       return;
 
     await supabase
@@ -199,7 +249,9 @@ export default function MasterAdmin() {
   async function marcarPendente(c) {
     await supabase
       .from("empresas")
-      .update({ pagou: false })
+      .update({
+        pagou: false,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -234,9 +286,13 @@ export default function MasterAdmin() {
     if (!pixSistema)
       return alert("Cadastre PIX");
 
-    const numero = (
+    let numero = String(
       cliente.whatsapp || ""
     ).replace(/\D/g, "");
+
+    if (!numero.startsWith("55")) {
+      numero = "55" + numero;
+    }
 
     const msg = `Olá ${cliente.name}
 Valor: ${
@@ -247,9 +303,10 @@ Valor: ${
 PIX: ${pixSistema}`;
 
     window.open(
-      `https://wa.me/55${numero}?text=${encodeURIComponent(
+      `https://wa.me/${numero}?text=${encodeURIComponent(
         msg
-      )}`
+      )}`,
+      "_blank"
     );
   }
 
@@ -275,26 +332,6 @@ PIX: ${pixSistema}`;
         )
     );
 
-  const totalRecebido =
-    clientes
-      .filter((c) => c.pagou)
-      .reduce(
-        (soma, item) =>
-          soma +
-          Number(item.valor || 0),
-        0
-      );
-
-  const totalPendente =
-    clientes
-      .filter((c) => !c.pagou)
-      .reduce(
-        (soma, item) =>
-          soma +
-          Number(item.valor || 0),
-        0
-      );
-
   return (
     <div
       style={{
@@ -303,14 +340,6 @@ PIX: ${pixSistema}`;
       }}
     >
       <h2>👑 MASTER ADMIN</h2>
-
-      <div style={{ marginBottom: 20 }}>
-        <strong>Total Recebido:</strong>{" "}
-        R$ {totalRecebido}
-        <br />
-        <strong>Total Pendente:</strong>{" "}
-        R$ {totalPendente}
-      </div>
 
       <input
         placeholder="PIX Sistema"
@@ -326,8 +355,7 @@ PIX: ${pixSistema}`;
         Salvar PIX
       </button>
 
-      <br />
-      <br />
+      <br /><br />
 
       <input
         placeholder="Pesquisar cliente"
@@ -336,59 +364,6 @@ PIX: ${pixSistema}`;
           setBusca(e.target.value)
         }
       />
-
-      <br />
-      <br />
-
-      <input
-        placeholder="Nome"
-        value={nome}
-        onChange={(e) =>
-          setNome(e.target.value)
-        }
-      />
-
-      <input
-        placeholder="Email"
-        value={email}
-        onChange={(e) =>
-          setEmail(e.target.value)
-        }
-      />
-
-      <input
-        placeholder="CPF"
-        value={cpf}
-        onChange={(e) =>
-          setCpf(e.target.value)
-        }
-      />
-
-      <input
-        placeholder="WhatsApp"
-        value={whatsapp}
-        onChange={(e) =>
-          setWhatsapp(
-            e.target.value
-          )
-        }
-      />
-
-      <input
-        placeholder="Valor"
-        value={valor}
-        onChange={(e) =>
-          setValor(e.target.value)
-        }
-      />
-
-      <button
-        onClick={cadastrarCliente}
-      >
-        {editandoId
-          ? "Salvar"
-          : "Cadastrar"}
-      </button>
 
       <hr />
 
@@ -404,12 +379,7 @@ PIX: ${pixSistema}`;
         >
           <strong>{c.name}</strong> |
           R$ {c.valor} |{" "}
-          {c.status} |{" "}
-          {c.isento
-            ? "Isento"
-            : c.pagou
-            ? "Pago"
-            : "Pendente"}
+          {c.status}
 
           <div
             style={{
@@ -513,26 +483,13 @@ PIX: ${pixSistema}`;
                 }}
               >
                 {Object.keys(
-                  permissoes
+                  permissoesPadrao
                 ).map(
                   (modulo) => (
                     <label
                       key={
                         modulo
                       }
-                      style={{
-                        background:
-                          "#1f2937",
-                        padding: 8,
-                        borderRadius: 8,
-                        cursor:
-                          "pointer",
-                        fontSize: 14,
-                        display: "flex",
-                        alignItems:
-                          "center",
-                        gap: 8,
-                      }}
                     >
                       <input
                         type="checkbox"
@@ -554,27 +511,7 @@ PIX: ${pixSistema}`;
                             }
                           )
                         }
-                        style={{
-                          appearance:
-                            "auto",
-                          WebkitAppearance:
-                            "checkbox",
-                          width: 22,
-                          height: 22,
-                          minWidth: 22,
-                          minHeight: 22,
-                          accentColor:
-                            "#22c55e",
-                          cursor:
-                            "pointer",
-                          backgroundColor:
-                            "#fff",
-                          border:
-                            "2px solid #fff",
-                          borderRadius: 4,
-                        }}
-                      />
-
+                      />{" "}
                       {modulo}
                     </label>
                   )
@@ -587,14 +524,6 @@ PIX: ${pixSistema}`;
                 }
                 style={{
                   marginTop: 15,
-                  padding:
-                    "10px 20px",
-                  background:
-                    "#2563eb",
-                  color: "#fff",
-                  border:
-                    "none",
-                  borderRadius: 8,
                 }}
               >
                 💾 Salvar Permissões
