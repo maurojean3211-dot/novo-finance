@@ -5,17 +5,16 @@ export default function EmprestimosLista() {
   const [dados, setDados] = useState([]);
   const [pixChave, setPixChave] = useState("");
   const [pixEdit, setPixEdit] = useState("");
-  const [empresaRealId, setEmpresaRealId] =
-    useState(null);
+  const [empresaRealId, setEmpresaRealId] = useState(null);
 
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
   const [valor, setValor] = useState("");
   const [juros, setJuros] = useState("");
-  const [
-    dataVencimento,
-    setDataVencimento,
-  ] = useState("");
+  const [dataVencimento, setDataVencimento] =
+    useState("");
+
+  const [busca, setBusca] = useState("");
 
   useEffect(() => {
     carregarEmpresa();
@@ -39,58 +38,34 @@ export default function EmprestimosLista() {
 
     if (error) return;
 
-    setEmpresaRealId(
-      usuario.empresa_id
-    );
+    setEmpresaRealId(usuario.empresa_id);
 
-    carregarDados(
-      usuario.empresa_id
-    );
-    carregarPix(
-      usuario.empresa_id
-    );
+    carregarDados(usuario.empresa_id);
+    carregarPix(usuario.empresa_id);
   }
 
-  async function carregarDados(
-    empresa_id
-  ) {
-    const { data } =
-      await supabase
-        .from("emprestimos")
-        .select("*")
-        .eq(
-          "empresa_id",
-          empresa_id
-        )
-        .order(
-          "data_vencimento",
-          {
-            ascending: true,
-          }
-        );
+  async function carregarDados(empresa_id) {
+    const { data } = await supabase
+      .from("emprestimos")
+      .select("*")
+      .eq("empresa_id", empresa_id)
+      .order("data_vencimento", {
+        ascending: true,
+      });
 
     setDados(data || []);
   }
 
-  async function carregarPix(
-    empresa_id
-  ) {
-    const { data } =
-      await supabase
-        .from("empresas")
-        .select(
-          "pix_chave"
-        )
-        .eq("id", empresa_id)
-        .single();
+  async function carregarPix(empresa_id) {
+    const { data } = await supabase
+      .from("empresas")
+      .select("pix_chave")
+      .eq("id", empresa_id)
+      .single();
 
     if (data) {
-      setPixChave(
-        data.pix_chave || ""
-      );
-      setPixEdit(
-        data.pix_chave || ""
-      );
+      setPixChave(data.pix_chave || "");
+      setPixEdit(data.pix_chave || "");
     }
   }
 
@@ -98,19 +73,13 @@ export default function EmprestimosLista() {
     await supabase
       .from("empresas")
       .update({
-        pix_chave:
-          pixEdit,
+        pix_chave: pixEdit,
       })
-      .eq(
-        "id",
-        empresaRealId
-      );
+      .eq("id", empresaRealId);
 
     setPixChave(pixEdit);
 
-    alert(
-      "PIX salvo!"
-    );
+    alert("PIX salvo!");
   }
 
   async function salvar() {
@@ -119,45 +88,29 @@ export default function EmprestimosLista() {
       !valor ||
       !dataVencimento
     ) {
-      alert(
-        "Preencha os campos"
-      );
+      alert("Preencha os campos");
       return;
     }
 
-    const valorBase =
-      Number(valor);
-
-    const jurosPct =
-      Number(
-        juros || 0
-      );
+    const valorBase = Number(valor);
+    const jurosPct = Number(juros || 0);
 
     const total =
       valorBase +
-      (valorBase *
-        jurosPct) /
-        100;
+      (valorBase * jurosPct) / 100;
 
     await supabase
-      .from(
-        "emprestimos"
-      )
+      .from("emprestimos")
       .insert([
         {
-          empresa_id:
-            empresaRealId,
+          empresa_id: empresaRealId,
           cliente,
           telefone,
-          valor:
-            valorBase,
-          juros:
-            jurosPct,
+          valor: valorBase,
+          juros: jurosPct,
           total,
-          data_vencimento:
-            dataVencimento,
-          status:
-            "pendente",
+          data_vencimento: dataVencimento,
+          status: "pendente",
         },
       ]);
 
@@ -167,31 +120,21 @@ export default function EmprestimosLista() {
     setJuros("");
     setDataVencimento("");
 
-    carregarDados(
-      empresaRealId
-    );
+    carregarDados(empresaRealId);
   }
 
-  async function marcarPago(
-    id
-  ) {
+  async function marcarPago(id) {
     await supabase
-      .from(
-        "emprestimos"
-      )
+      .from("emprestimos")
       .update({
         status: "pago",
       })
       .eq("id", id);
 
-    carregarDados(
-      empresaRealId
-    );
+    carregarDados(empresaRealId);
   }
 
-  async function excluir(
-    id
-  ) {
+  async function excluir(id) {
     if (
       !window.confirm(
         "Excluir empréstimo?"
@@ -200,15 +143,11 @@ export default function EmprestimosLista() {
       return;
 
     await supabase
-      .from(
-        "emprestimos"
-      )
+      .from("emprestimos")
       .delete()
       .eq("id", id);
 
-    carregarDados(
-      empresaRealId
-    );
+    carregarDados(empresaRealId);
   }
 
   function cobrar(p) {
@@ -216,19 +155,16 @@ export default function EmprestimosLista() {
       p.telefone || ""
     ).replace(/\D/g, "");
 
-    if (
-      numero &&
-      !numero.startsWith(
-        "55"
-      )
-    ) {
-      numero =
-        "55" + numero;
+    if (!numero) {
+      alert("Cliente sem telefone");
+      return;
     }
 
-    const msg = `Olá ${
-      p.cliente
+    if (!numero.startsWith("55")) {
+      numero = "55" + numero;
     }
+
+    const msg = `Olá ${p.cliente}
 
 Seu empréstimo está pendente.
 
@@ -236,10 +172,8 @@ Valor total: R$ ${Number(
       p.total
     ).toFixed(2)}
 
-Vencimento: ${new Date(
+Vencimento: ${formatarData(
       p.data_vencimento
-    ).toLocaleDateString(
-      "pt-BR"
     )}
 
 PIX: ${
@@ -251,32 +185,43 @@ PIX: ${
       msg
     )}`;
 
-    window.open(
-      url,
-      "_blank"
-    );
+    window.open(url, "_blank");
   }
 
-  function diasAtraso(
-    data
-  ) {
-    const hoje =
-      new Date();
-    hoje.setHours(
-      0,
-      0,
-      0,
-      0
-    );
+  function normalizarData(data) {
+    if (!data) return new Date();
+
+    const txt = data
+      .toString()
+      .slice(0, 10);
+
+    const partes = txt.split("-");
+
+    if (partes.length === 3) {
+      return new Date(
+        Number(partes[0]),
+        Number(partes[1]) - 1,
+        Number(partes[2])
+      );
+    }
+
+    return new Date(data);
+  }
+
+  function formatarData(data) {
+    return normalizarData(
+      data
+    ).toLocaleDateString("pt-BR");
+  }
+
+  function diasAtraso(data) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
 
     const venc =
-      new Date(data);
-    venc.setHours(
-      0,
-      0,
-      0,
-      0
-    );
+      normalizarData(data);
+
+    venc.setHours(0, 0, 0, 0);
 
     return Math.floor(
       (hoje - venc) /
@@ -287,13 +232,20 @@ PIX: ${
     );
   }
 
+  const dadosFiltrados =
+    dados.filter((p) =>
+      String(p.cliente || "")
+        .toLowerCase()
+        .includes(
+          busca.toLowerCase()
+        )
+    );
+
   const totalCarteira =
     dados.reduce(
       (s, i) =>
         s +
-        Number(
-          i.total || 0
-        ),
+        Number(i.total || 0),
       0
     );
 
@@ -301,101 +253,71 @@ PIX: ${
     dados
       .filter(
         (i) =>
-          i.status ===
-          "pago"
+          i.status === "pago"
       )
       .reduce(
         (s, i) =>
           s +
-          Number(
-            i.total ||
-              0
-          ),
+          Number(i.total || 0),
         0
       );
 
   const totalPendente =
-    totalCarteira -
-    totalPago;
+    totalCarteira - totalPago;
 
   return (
     <div
       style={{
         padding: 20,
-        color:
-          "#fff",
+        color: "#fff",
         maxWidth: 700,
-        margin:
-          "auto",
+        margin: "auto",
       }}
     >
-      <h2>
-        💰 Empréstimos
-      </h2>
+      <h2>💰 Empréstimos</h2>
 
       <p>
-        💵 Carteira:
-        R${" "}
-        {totalCarteira.toFixed(
-          2
-        )}
+        💵 Carteira: R${" "}
+        {totalCarteira.toFixed(2)}
       </p>
 
       <p>
-        ✅ Pago:
-        R${" "}
-        {totalPago.toFixed(
-          2
-        )}
+        ✅ Pago: R${" "}
+        {totalPago.toFixed(2)}
       </p>
 
       <p>
-        ⏳ Pendente:
-        R${" "}
-        {totalPendente.toFixed(
-          2
-        )}
+        ⏳ Pendente: R${" "}
+        {totalPendente.toFixed(2)}
       </p>
 
       <hr />
 
       <div
         style={{
-          background:
-            "#1f2937",
+          background: "#1f2937",
           padding: 15,
           borderRadius: 8,
           marginBottom: 20,
         }}
       >
-        <h3>
-          Minha chave
-          PIX
-        </h3>
+        <h3>Minha chave PIX</h3>
 
         <input
-          value={
-            pixEdit
-          }
-          onChange={(
-            e
-          ) =>
+          value={pixEdit}
+          onChange={(e) =>
             setPixEdit(
-              e.target
-                .value
+              e.target.value
             )
           }
           style={{
-            width:
-              "100%",
+            width: "100%",
             padding: 8,
           }}
         />
 
         <button
-          onClick={
-            salvarPix
-          }
+          onClick={salvarPix}
           style={{
             marginTop: 10,
           }}
@@ -406,8 +328,7 @@ PIX: ${
 
       <div
         style={{
-          background:
-            "#111827",
+          background: "#111827",
           padding: 15,
           borderRadius: 8,
           marginBottom: 20,
@@ -415,15 +336,10 @@ PIX: ${
       >
         <input
           placeholder="Cliente"
-          value={
-            cliente
-          }
-          onChange={(
-            e
-          ) =>
+          value={cliente}
+          onChange={(e) =>
             setCliente(
-              e.target
-                .value
+              e.target.value
             )
           }
         />
@@ -432,15 +348,10 @@ PIX: ${
 
         <input
           placeholder="Telefone"
-          value={
-            telefone
-          }
-          onChange={(
-            e
-          ) =>
+          value={telefone}
+          onChange={(e) =>
             setTelefone(
-              e.target
-                .value
+              e.target.value
             )
           }
         />
@@ -450,12 +361,9 @@ PIX: ${
         <input
           placeholder="Valor"
           value={valor}
-          onChange={(
-            e
-          ) =>
+          onChange={(e) =>
             setValor(
-              e.target
-                .value
+              e.target.value
             )
           }
         />
@@ -465,12 +373,9 @@ PIX: ${
         <input
           placeholder="Juros %"
           value={juros}
-          onChange={(
-            e
-          ) =>
+          onChange={(e) =>
             setJuros(
-              e.target
-                .value
+              e.target.value
             )
           }
         />
@@ -479,186 +384,156 @@ PIX: ${
 
         <input
           type="date"
-          value={
-            dataVencimento
-          }
-          onChange={(
-            e
-          ) =>
+          value={dataVencimento}
+          onChange={(e) =>
             setDataVencimento(
-              e.target
-                .value
+              e.target.value
             )
           }
         />
         <br />
         <br />
 
-        <button
-          onClick={
-            salvar
-          }
-        >
+        <button onClick={salvar}>
           Salvar
         </button>
       </div>
 
-      {dados.map(
-        (p) => {
-          const atraso =
-            diasAtraso(
+      <input
+        placeholder="🔍 Buscar cliente"
+        value={busca}
+        onChange={(e) =>
+          setBusca(e.target.value)
+        }
+        style={{
+          width: "100%",
+          padding: 10,
+          marginBottom: 20,
+        }}
+      />
+
+      {dadosFiltrados.map((p) => {
+        const atraso =
+          diasAtraso(
+            p.data_vencimento
+          );
+
+        let cor = "#22c55e";
+        let texto = "🟢 Em dia";
+
+        if (
+          p.status === "pago"
+        ) {
+          cor = "#22c55e";
+          texto = "✅ Pago";
+        } else if (
+          atraso === 0
+        ) {
+          cor = "#facc15";
+          texto =
+            "🟡 Vence hoje";
+        } else if (
+          atraso > 0
+        ) {
+          cor = "#ef4444";
+          texto = `🔴 ${atraso} dia(s) atrasado`;
+        }
+
+        return (
+          <div
+            key={p.id}
+            style={{
+              background:
+                "#1f2937",
+              padding: 15,
+              marginBottom: 10,
+              borderLeft: `5px solid ${cor}`,
+              borderRadius: 8,
+            }}
+          >
+            <strong>
+              {p.cliente}
+            </strong>
+            <br />
+            📞 {p.telefone}
+            <br />
+            💵 R${" "}
+            {Number(
+              p.valor
+            ).toFixed(2)}
+            <br />
+            📈 Juros: {p.juros}%
+            <br />
+            💰 Total: R${" "}
+            {Number(
+              p.total
+            ).toFixed(2)}
+            <br />
+            📅{" "}
+            {formatarData(
               p.data_vencimento
-            );
+            )}
+            <br />
 
-          let cor =
-            "#22c55e";
-
-          let texto =
-            "🟢 Em dia";
-
-          if (
-            p.status ===
-            "pago"
-          ) {
-            cor =
-              "#22c55e";
-            texto =
-              "✅ Pago";
-          } else if (
-            atraso ===
-            0
-          ) {
-            cor =
-              "#facc15";
-            texto =
-              "🟡 Vence hoje";
-          } else if (
-            atraso > 0
-          ) {
-            cor =
-              "#ef4444";
-            texto = `🔴 ${atraso} dia(s) atrasado`;
-          }
-
-          return (
-            <div
-              key={
-                p.id
-              }
+            <span
               style={{
-                background:
-                  "#1f2937",
-                padding: 15,
-                marginBottom: 10,
-                borderLeft: `5px solid ${cor}`,
-                borderRadius: 8,
+                color: cor,
               }}
             >
-              <strong>
-                {
-                  p.cliente
+              {texto}
+            </span>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+                marginTop: 10,
+              }}
+            >
+              {p.status !==
+                "pago" && (
+                <>
+                  <button
+                    onClick={() =>
+                      cobrar(
+                        p
+                      )
+                    }
+                  >
+                    📲 Cobrar
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      marcarPago(
+                        p.id
+                      )
+                    }
+                  >
+                    ✅ Pago
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() =>
+                  excluir(
+                    p.id
+                  )
                 }
-              </strong>
-              <br />
-              📞{" "}
-              {
-                p.telefone
-              }
-              <br />
-              💵 R${" "}
-              {Number(
-                p.valor
-              ).toFixed(
-                2
-              )}
-              <br />
-              📈 Juros:{" "}
-              {
-                p.juros
-              }
-              %
-              <br />
-              💰 Total:
-              R${" "}
-              {Number(
-                p.total
-              ).toFixed(
-                2
-              )}
-              <br />
-              📅{" "}
-              {new Date(
-                p.data_vencimento
-              ).toLocaleDateString(
-                "pt-BR"
-              )}
-              <br />
-              <span
                 style={{
-                  color:
-                    cor,
+                  background:
+                    "red",
+                  color: "#fff",
                 }}
               >
-                {
-                  texto
-                }
-              </span>
-
-              <div
-                style={{
-                  display:
-                    "flex",
-                  gap: 10,
-                  flexWrap:
-                    "wrap",
-                  marginTop: 10,
-                }}
-              >
-                {p.status !==
-                  "pago" && (
-                  <>
-                    <button
-                      onClick={() =>
-                        cobrar(
-                          p
-                        )
-                      }
-                    >
-                      📲 Cobrar
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        marcarPago(
-                          p.id
-                        )
-                      }
-                    >
-                      ✅ Pago
-                    </button>
-                  </>
-                )}
-
-                <button
-                  onClick={() =>
-                    excluir(
-                      p.id
-                    )
-                  }
-                  style={{
-                    background:
-                      "red",
-                    color:
-                      "#fff",
-                  }}
-                >
-                  🗑 Excluir
-                </button>
-              </div>
+                🗑 Excluir
+              </button>
             </div>
-          );
-        }
-      )}
+          </div>
+        );
+      })}
     </div>
   );
 }
