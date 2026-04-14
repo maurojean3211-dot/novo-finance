@@ -5,7 +5,8 @@ export default function EmprestimosLista() {
   const [dados, setDados] = useState([]);
   const [pixChave, setPixChave] = useState("");
   const [pixEdit, setPixEdit] = useState("");
-  const [empresaRealId, setEmpresaRealId] = useState(null);
+  const [empresaRealId, setEmpresaRealId] =
+    useState(null);
 
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -88,7 +89,6 @@ export default function EmprestimosLista() {
     }
 
     setPixChave(pixEdit);
-
     alert("✅ PIX salvo com sucesso!");
   }
 
@@ -292,18 +292,15 @@ PIX: ${
       <h2>💰 Empréstimos</h2>
 
       <p>
-        💵 Carteira: R${" "}
-        {totalCarteira.toFixed(2)}
+        💵 Carteira: R$ {totalCarteira.toFixed(2)}
       </p>
 
       <p>
-        ✅ Pago: R${" "}
-        {totalPago.toFixed(2)}
+        ✅ Pago: R$ {totalPago.toFixed(2)}
       </p>
 
       <p>
-        ⏳ Pendente: R${" "}
-        {totalPendente.toFixed(2)}
+        ⏳ Pendente: R$ {totalPendente.toFixed(2)}
       </p>
 
       <hr />
@@ -445,8 +442,7 @@ PIX: ${
           atraso === 0
         ) {
           cor = "#facc15";
-          texto =
-            "🟡 Vence hoje";
+          texto = "🟡 Vence hoje";
         } else if (
           atraso > 0
         ) {
@@ -458,34 +454,28 @@ PIX: ${
           <div
             key={p.id}
             style={{
-              background:
-                "#1f2937",
+              background: "#1f2937",
               padding: 15,
               marginBottom: 10,
               borderLeft: `5px solid ${cor}`,
               borderRadius: 8,
             }}
           >
-            <strong>
-              {p.cliente}
-            </strong>
+            <strong>{p.cliente}</strong>
             <br />
             📞 {p.telefone}
             <br />
-            💵 R${" "}
-            {Number(
+            💵 R$ {Number(
               p.valor
             ).toFixed(2)}
             <br />
             📈 Juros: {p.juros}%
             <br />
-            💰 Total: R${" "}
-            {Number(
+            💰 Total: R$ {Number(
               p.total
             ).toFixed(2)}
             <br />
-            📅{" "}
-            {formatarData(
+            📅 {formatarData(
               p.data_vencimento
             )}
             <br />
