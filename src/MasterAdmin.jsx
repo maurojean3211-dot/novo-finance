@@ -4,10 +4,8 @@ import { supabase } from "./supabase";
 export default function MasterAdmin() {
   const [clientes, setClientes] = useState([]);
   const [usuario, setUsuario] = useState(null);
-
   const [busca, setBusca] = useState("");
   const [pixSistema, setPixSistema] = useState("");
-
   const [editandoPermissoesId, setEditandoPermissoesId] =
     useState(null);
 
@@ -37,7 +35,10 @@ export default function MasterAdmin() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) return;
+    if (!user) {
+      window.location.href = "/";
+      return;
+    }
 
     const { data } = await supabase
       .from("usuarios")
@@ -47,6 +48,8 @@ export default function MasterAdmin() {
 
     if (!data || data.role !== "master") {
       alert("Acesso negado");
+      await supabase.auth.signOut();
+      window.location.href = "/";
       return;
     }
 
@@ -54,6 +57,11 @@ export default function MasterAdmin() {
 
     carregarClientes();
     buscarPix();
+  }
+
+  async function sairSistema() {
+    await supabase.auth.signOut();
+    window.location.href = "/";
   }
 
   async function carregarClientes() {
@@ -144,19 +152,14 @@ export default function MasterAdmin() {
       .eq(
         "email",
         editandoPermissoesId
-      )
-      .select();
+      );
 
     if (error) {
-      alert(
-        "Erro: " +
-          error.message
-      );
+      alert(error.message);
       return;
     }
 
     alert("Permissões salvas!");
-
     setEditandoPermissoesId(null);
   }
 
@@ -264,6 +267,23 @@ PIX: ${pixSistema}`;
       }}
     >
       <h2>👑 MASTER ADMIN</h2>
+
+      <button
+        onClick={sairSistema}
+        style={{
+          background: "red",
+          color: "#fff",
+          padding: "10px 15px",
+          border: "none",
+          borderRadius: 8,
+          cursor: "pointer",
+          marginBottom: 15,
+        }}
+      >
+        🚪 Sair
+      </button>
+
+      <br />
 
       <input
         placeholder="PIX Sistema"
