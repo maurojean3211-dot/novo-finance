@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function EmprestimosLista() {
+  const PIX_FIXO = "11963068079";
+
   const [dados, setDados] = useState([]);
-  const [pixChave, setPixChave] = useState("");
-  const [pixEdit, setPixEdit] = useState("");
+  const [pixChave, setPixChave] = useState(PIX_FIXO);
+  const [pixEdit, setPixEdit] = useState(PIX_FIXO);
   const [empresaRealId, setEmpresaRealId] = useState(null);
 
   const [cliente, setCliente] = useState("");
@@ -35,9 +37,6 @@ export default function EmprestimosLista() {
       .eq("email", user.email)
       .maybeSingle();
 
-    console.log("USUARIO:", usuario);
-    console.log("ERRO USUARIO:", error);
-
     if (error) {
       alert("Erro usuário: " + error.message);
       return;
@@ -52,36 +51,7 @@ export default function EmprestimosLista() {
 
     setEmpresaRealId(empresaId);
 
-    await carregarPix(empresaId);
     await carregarDados(empresaId);
-  }
-
-  async function carregarPix(empresa_id) {
-    console.log("EMPRESA PIX:", empresa_id);
-
-    const { data, error } = await supabase
-      .from("empresas")
-      .select("*")
-      .eq("id", empresa_id)
-      .maybeSingle();
-
-    console.log("PIX DATA:", data);
-    console.log("PIX ERROR:", error);
-
-    if (error) {
-      alert("Erro PIX: " + error.message);
-      return;
-    }
-
-    if (!data) {
-      alert("Empresa não encontrada na tabela empresas");
-      setPixChave("");
-      setPixEdit("");
-      return;
-    }
-
-    setPixChave(data.pix_chave || "");
-    setPixEdit(data.pix_chave || "");
   }
 
   async function carregarDados(empresa_id) {
@@ -101,26 +71,9 @@ export default function EmprestimosLista() {
     setDados(data || []);
   }
 
-  async function salvarPix() {
-    if (!empresaRealId) {
-      alert("Empresa não carregada");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("empresas")
-      .update({
-        pix_chave: pixEdit,
-      })
-      .eq("id", empresaRealId);
-
-    if (error) {
-      alert("Erro PIX: " + error.message);
-      return;
-    }
-
+  function salvarPix() {
     setPixChave(pixEdit);
-    alert("✅ PIX salvo!");
+    alert("✅ PIX alterado localmente!");
   }
 
   async function salvar() {
@@ -247,7 +200,7 @@ Vencimento: ${formatarData(
       p.data_vencimento
     )}
 
-PIX: ${pixChave || "Informe sua chave PIX"}`;
+PIX: ${pixChave}`;
 
     window.open(
       `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`,
@@ -323,174 +276,6 @@ PIX: ${pixChave || "Informe sua chave PIX"}`;
           Salvar PIX
         </button>
       </div>
-
-      <div
-        style={{
-          background: "#111827",
-          padding: 15,
-          borderRadius: 8,
-          marginBottom: 20,
-        }}
-      >
-        <input
-          placeholder="Cliente"
-          value={cliente}
-          onChange={(e) =>
-            setCliente(e.target.value)
-          }
-        />
-        <br /><br />
-
-        <input
-          placeholder="Telefone"
-          value={telefone}
-          onChange={(e) =>
-            setTelefone(e.target.value)
-          }
-        />
-        <br /><br />
-
-        <input
-          placeholder="Valor"
-          value={valor}
-          onChange={(e) =>
-            setValor(e.target.value)
-          }
-        />
-        <br /><br />
-
-        <input
-          placeholder="Juros %"
-          value={juros}
-          onChange={(e) =>
-            setJuros(e.target.value)
-          }
-        />
-        <br /><br />
-
-        <input
-          type="date"
-          value={dataVencimento}
-          onChange={(e) =>
-            setDataVencimento(e.target.value)
-          }
-        />
-        <br /><br />
-
-        <button onClick={salvar}>
-          Salvar
-        </button>
-      </div>
-
-      <input
-        placeholder="🔍 Buscar cliente"
-        value={busca}
-        onChange={(e) =>
-          setBusca(e.target.value)
-        }
-        style={{
-          width: "100%",
-          padding: 10,
-          marginBottom: 20,
-        }}
-      />
-
-      {dadosFiltrados.map((p) => {
-        const atraso =
-          diasAtraso(
-            p.data_vencimento
-          );
-
-        let cor = "#22c55e";
-        let texto = "🟢 Em dia";
-
-        if (p.status === "pago") {
-          texto = "✅ Pago";
-        } else if (atraso === 0) {
-          cor = "#facc15";
-          texto = "🟡 Vence hoje";
-        } else if (atraso > 0) {
-          cor = "#ef4444";
-          texto = `🔴 ${atraso} dia(s) atrasado`;
-        }
-
-        return (
-          <div
-            key={p.id}
-            style={{
-              background: "#1f2937",
-              padding: 15,
-              marginBottom: 10,
-              borderLeft: `5px solid ${cor}`,
-              borderRadius: 8,
-            }}
-          >
-            <strong>{p.cliente}</strong>
-            <br />
-            📞 {p.telefone}
-            <br />
-            💵 R$ {Number(
-              p.valor
-            ).toFixed(2)}
-            <br />
-            📈 Juros: {p.juros}%
-            <br />
-            💰 Total: R$ {Number(
-              p.total
-            ).toFixed(2)}
-            <br />
-            📅 {formatarData(
-              p.data_vencimento
-            )}
-            <br />
-
-            <span style={{ color: cor }}>
-              {texto}
-            </span>
-
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                marginTop: 10,
-              }}
-            >
-              {p.status !== "pago" && (
-                <>
-                  <button
-                    onClick={() =>
-                      cobrar(p)
-                    }
-                  >
-                    📲 Cobrar
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      marcarPago(p.id)
-                    }
-                  >
-                    ✅ Pago
-                  </button>
-                </>
-              )}
-
-              <button
-                onClick={() =>
-                  excluir(p.id)
-                }
-                style={{
-                  background: "red",
-                  color: "#fff",
-                }}
-              >
-                🗑 Excluir
-              </button>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
