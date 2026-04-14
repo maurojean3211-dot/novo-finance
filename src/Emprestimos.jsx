@@ -35,9 +35,12 @@ export default function EmprestimosLista() {
       .from("usuarios")
       .select("empresa_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (error || !usuario) return;
+    if (error || !usuario?.empresa_id) {
+      alert("Empresa não encontrada");
+      return;
+    }
 
     setEmpresaRealId(usuario.empresa_id);
 
@@ -62,7 +65,7 @@ export default function EmprestimosLista() {
       .from("empresas")
       .select("pix_chave")
       .eq("id", empresa_id)
-      .single();
+      .maybeSingle();
 
     if (data) {
       setPixChave(data.pix_chave || "");
@@ -89,7 +92,7 @@ export default function EmprestimosLista() {
     }
 
     setPixChave(pixEdit);
-    alert("✅ PIX salvo com sucesso!");
+    alert("✅ PIX salvo!");
   }
 
   async function salvar() {
@@ -165,6 +168,46 @@ export default function EmprestimosLista() {
     carregarDados(empresaRealId);
   }
 
+  function normalizarData(data) {
+    if (!data) return new Date();
+
+    const txt = data
+      .toString()
+      .slice(0, 10);
+
+    const partes = txt.split("-");
+
+    return new Date(
+      Number(partes[0]),
+      Number(partes[1]) - 1,
+      Number(partes[2])
+    );
+  }
+
+  function formatarData(data) {
+    return normalizarData(
+      data
+    ).toLocaleDateString("pt-BR");
+  }
+
+  function diasAtraso(data) {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const venc =
+      normalizarData(data);
+
+    venc.setHours(0, 0, 0, 0);
+
+    return Math.floor(
+      (hoje - venc) /
+        (1000 *
+          60 *
+          60 *
+          24)
+    );
+  }
+
   function cobrar(p) {
     let numero = String(
       p.telefone || ""
@@ -196,54 +239,11 @@ PIX: ${
       "Informe sua chave PIX"
     }`;
 
-    const url = `https://wa.me/${numero}?text=${encodeURIComponent(
-      msg
-    )}`;
-
-    window.open(url, "_blank");
-  }
-
-  function normalizarData(data) {
-    if (!data) return new Date();
-
-    const txt = data
-      .toString()
-      .slice(0, 10);
-
-    const partes = txt.split("-");
-
-    if (partes.length === 3) {
-      return new Date(
-        Number(partes[0]),
-        Number(partes[1]) - 1,
-        Number(partes[2])
-      );
-    }
-
-    return new Date(data);
-  }
-
-  function formatarData(data) {
-    return normalizarData(
-      data
-    ).toLocaleDateString("pt-BR");
-  }
-
-  function diasAtraso(data) {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-
-    const venc =
-      normalizarData(data);
-
-    venc.setHours(0, 0, 0, 0);
-
-    return Math.floor(
-      (hoje - venc) /
-        (1000 *
-          60 *
-          60 *
-          24)
+    window.open(
+      `https://wa.me/${numero}?text=${encodeURIComponent(
+        msg
+      )}`,
+      "_blank"
     );
   }
 
@@ -355,8 +355,7 @@ PIX: ${
             )
           }
         />
-        <br />
-        <br />
+        <br /><br />
 
         <input
           placeholder="Telefone"
@@ -367,8 +366,7 @@ PIX: ${
             )
           }
         />
-        <br />
-        <br />
+        <br /><br />
 
         <input
           placeholder="Valor"
@@ -379,8 +377,7 @@ PIX: ${
             )
           }
         />
-        <br />
-        <br />
+        <br /><br />
 
         <input
           placeholder="Juros %"
@@ -391,8 +388,7 @@ PIX: ${
             )
           }
         />
-        <br />
-        <br />
+        <br /><br />
 
         <input
           type="date"
@@ -403,8 +399,7 @@ PIX: ${
             )
           }
         />
-        <br />
-        <br />
+        <br /><br />
 
         <button onClick={salvar}>
           Salvar
@@ -436,7 +431,6 @@ PIX: ${
         if (
           p.status === "pago"
         ) {
-          cor = "#22c55e";
           texto = "✅ Pago";
         } else if (
           atraso === 0
