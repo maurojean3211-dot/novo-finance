@@ -5,14 +5,8 @@ export default function MasterAdmin() {
   const [clientes, setClientes] = useState([]);
   const [usuario, setUsuario] = useState(null);
 
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [whatsapp, setWhatsapp] = useState("");
-  const [valor, setValor] = useState("");
-
-  const [editandoId, setEditandoId] = useState(null);
   const [busca, setBusca] = useState("");
+  const [pixSistema, setPixSistema] = useState("");
 
   const [editandoPermissoesId, setEditandoPermissoesId] =
     useState(null);
@@ -33,8 +27,6 @@ export default function MasterAdmin() {
 
   const [permissoes, setPermissoes] =
     useState(permissoesPadrao);
-
-  const [pixSistema, setPixSistema] = useState("");
 
   useEffect(() => {
     verificarUsuario();
@@ -60,20 +52,19 @@ export default function MasterAdmin() {
 
     setUsuario(data);
 
-    await carregarClientes();
-    await buscarPix();
+    carregarClientes();
+    buscarPix();
   }
 
   async function carregarClientes() {
-    const { data, error } =
-      await supabase
-        .from("empresas")
-        .select("*")
-        .order("created_at", {
-          ascending: false,
-        });
+    const { data } = await supabase
+      .from("empresas")
+      .select("*")
+      .order("created_at", {
+        ascending: false,
+      });
 
-    if (!error) setClientes(data || []);
+    setClientes(data || []);
   }
 
   async function buscarPix() {
@@ -83,8 +74,9 @@ export default function MasterAdmin() {
       .eq("chave", "pix_sistema")
       .maybeSingle();
 
-    if (data)
+    if (data) {
       setPixSistema(data.valor || "");
+    }
   }
 
   async function salvarPix() {
@@ -103,60 +95,6 @@ export default function MasterAdmin() {
     alert("PIX salvo!");
   }
 
-  async function cadastrarCliente() {
-    if (!nome)
-      return alert("Nome obrigatório");
-
-    if (editandoId) {
-      await supabase
-        .from("empresas")
-        .update({
-          name: nome,
-          email,
-          cpf,
-          whatsapp,
-          valor: Number(valor),
-        })
-        .eq("id", editandoId);
-    } else {
-      await supabase
-        .from("empresas")
-        .insert([
-          {
-            name: nome,
-            email,
-            cpf,
-            whatsapp,
-            valor: Number(valor),
-            status: "Ativo",
-            pagou: false,
-            isento: false,
-          },
-        ]);
-    }
-
-    limpar();
-    carregarClientes();
-  }
-
-  function limpar() {
-    setNome("");
-    setEmail("");
-    setCpf("");
-    setWhatsapp("");
-    setValor("");
-    setEditandoId(null);
-  }
-
-  function editarCliente(c) {
-    setEditandoId(c.id);
-    setNome(c.name || "");
-    setEmail(c.email || "");
-    setCpf(c.cpf || "");
-    setWhatsapp(c.whatsapp || "");
-    setValor(c.valor || "");
-  }
-
   async function abrirPermissoes(c) {
     const { data } = await supabase
       .from("usuarios")
@@ -169,50 +107,51 @@ export default function MasterAdmin() {
       return;
     }
 
-    let permissoesBanco = {};
+    let banco = {};
 
-    if (
-      data.permissoes &&
-      typeof data.permissoes === "string"
-    ) {
-      try {
-        permissoesBanco = JSON.parse(
-          data.permissoes
-        );
-      } catch {
-        permissoesBanco = {};
-      }
-    } else {
-      permissoesBanco =
-        data.permissoes || {};
+    try {
+      banco =
+        typeof data.permissoes === "string"
+          ? JSON.parse(data.permissoes)
+          : data.permissoes || {};
+    } catch {
+      banco = {};
     }
 
     setEditandoPermissoesId(c.email);
 
     setPermissoes({
       ...permissoesPadrao,
-      ...permissoesBanco,
+      ...banco,
     });
   }
 
   async function salvarPermissoes() {
+    const payload = {};
+
+    Object.keys(permissoesPadrao).forEach(
+      (item) => {
+        payload[item] =
+          !!permissoes[item];
+      }
+    );
+
     const { error } = await supabase
       .from("usuarios")
       .update({
-        permissoes:
-          JSON.parse(
-            JSON.stringify(
-              permissoes
-            )
-          ),
+        permissoes: payload,
       })
       .eq(
         "email",
         editandoPermissoesId
-      );
+      )
+      .select();
 
     if (error) {
-      alert(error.message);
+      alert(
+        "Erro: " +
+          error.message
+      );
       return;
     }
 
@@ -221,26 +160,12 @@ export default function MasterAdmin() {
     setEditandoPermissoesId(null);
   }
 
-  async function excluirCliente(id) {
-    if (
-      !window.confirm(
-        "Excluir cliente?"
-      )
-    )
-      return;
-
-    await supabase
-      .from("empresas")
-      .delete()
-      .eq("id", id);
-
-    carregarClientes();
-  }
-
   async function marcarPago(c) {
     await supabase
       .from("empresas")
-      .update({ pagou: true })
+      .update({
+        pagou: true,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -265,7 +190,9 @@ export default function MasterAdmin() {
 
     await supabase
       .from("empresas")
-      .update({ status: novo })
+      .update({
+        status: novo,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -283,9 +210,6 @@ export default function MasterAdmin() {
   }
 
   function enviarPix(cliente) {
-    if (!pixSistema)
-      return alert("Cadastre PIX");
-
     let numero = String(
       cliente.whatsapp || ""
     ).replace(/\D/g, "");
@@ -383,20 +307,12 @@ PIX: ${pixSistema}`;
 
           <div
             style={{
-              marginTop: 10,
               display: "flex",
               gap: 5,
               flexWrap: "wrap",
+              marginTop: 10,
             }}
           >
-            <button
-              onClick={() =>
-                editarCliente(c)
-              }
-            >
-              Editar
-            </button>
-
             <button
               onClick={() =>
                 abrirPermissoes(c)
@@ -443,19 +359,6 @@ PIX: ${pixSistema}`;
               }
             >
               Isentar
-            </button>
-
-            <button
-              onClick={() =>
-                excluirCliente(c.id)
-              }
-              style={{
-                background:
-                  "red",
-                color: "#fff",
-              }}
-            >
-              Excluir
             </button>
           </div>
 
