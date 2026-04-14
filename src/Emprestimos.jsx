@@ -36,7 +36,7 @@ export default function EmprestimosLista() {
       .eq("id", user.id)
       .single();
 
-    if (error) return;
+    if (error || !usuario) return;
 
     setEmpresaRealId(usuario.empresa_id);
 
@@ -70,16 +70,26 @@ export default function EmprestimosLista() {
   }
 
   async function salvarPix() {
-    await supabase
+    if (!empresaRealId) {
+      alert("Empresa não carregada");
+      return;
+    }
+
+    const { error } = await supabase
       .from("empresas")
       .update({
         pix_chave: pixEdit,
       })
       .eq("id", empresaRealId);
 
+    if (error) {
+      alert("Erro PIX: " + error.message);
+      return;
+    }
+
     setPixChave(pixEdit);
 
-    alert("PIX salvo!");
+    alert("✅ PIX salvo com sucesso!");
   }
 
   async function salvar() {
@@ -99,7 +109,7 @@ export default function EmprestimosLista() {
       valorBase +
       (valorBase * jurosPct) / 100;
 
-    await supabase
+    const { error } = await supabase
       .from("emprestimos")
       .insert([
         {
@@ -113,6 +123,11 @@ export default function EmprestimosLista() {
           status: "pendente",
         },
       ]);
+
+    if (error) {
+      alert("Erro: " + error.message);
+      return;
+    }
 
     setCliente("");
     setTelefone("");
