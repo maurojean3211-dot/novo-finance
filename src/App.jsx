@@ -10,152 +10,133 @@ import MasterAdmin from "./MasterAdmin";
 import Financeiro from "./Financeiro.jsx";
 import DespesasPessoais from "./DespesasPessoais.jsx";
 import Relatorio from "./Relatorio.jsx";
-
 import Clientes from "./Clientes.jsx";
 import Recebimentos from "./Recebimentos.jsx";
-
 import Vendas from "./Vendas.jsx";
 import Compras from "./Compras.jsx";
-
 import Emprestimos from "./Emprestimos.jsx";
 import Atrasos from "./Atrasos.jsx";
 import EmprestimosLista from "./EmprestimosLista.jsx";
-
 import ContasPagar from "./ContasPagar.jsx";
 import ContasFixas from "./ContasFixas.jsx";
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [loadingSession, setLoadingSession] = useState(true);
+  const [loadingSession, setLoadingSession] =
+    useState(true);
 
-  const [pagina, setPagina] = useState("dashboard");
-  const [subPaginaEmprestimo, setSubPaginaEmprestimo] =
-    useState("cadastro");
+  const [pagina, setPagina] =
+    useState("dashboard");
 
-  const [role, setRole] = useState(null);
-  const [empresaId, setEmpresaId] = useState(null);
-  const [permissoes, setPermissoes] = useState({});
-  const [nomeUsuario, setNomeUsuario] = useState("");
+  const [
+    subPaginaEmprestimo,
+    setSubPaginaEmprestimo,
+  ] = useState("cadastro");
+
+  const [role, setRole] =
+    useState(null);
+
+  const [empresaId, setEmpresaId] =
+    useState(null);
+
+  const [permissoes, setPermissoes] =
+    useState({});
+
+  const [nomeUsuario, setNomeUsuario] =
+    useState("");
 
   const [isMobile, setIsMobile] =
     useState(window.innerWidth < 768);
 
   useEffect(() => {
-    const splash =
-      document.getElementById("splash");
-    if (splash) splash.style.display = "none";
-  }, []);
-
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(window.innerWidth < 768);
-    }
-
-    window.addEventListener(
-      "resize",
-      handleResize
-    );
-
-    return () =>
-      window.removeEventListener(
-        "resize",
-        handleResize
-      );
-  }, []);
-
-  useEffect(() => {
-    async function carregarSessao() {
-      try {
-        const { data } =
-          await supabase.auth.getUser();
-
-        const user = data?.user || null;
-
-        setSession(user ? { user } : null);
-
-        if (user) {
-          let { data: usuario } =
-            await supabase
-              .from("usuarios")
-              .select(
-                "role,empresa_id,permissoes,nome"
-              )
-              .ilike(
-                "email",
-                user.email
-              );
-
-          usuario = usuario?.[0];
-
-          setEmpresaId(
-            usuario?.empresa_id || null
-          );
-
-          setRole(usuario?.role || null);
-
-          setPermissoes(
-            usuario?.permissoes || {}
-          );
-
-          setNomeUsuario(
-            usuario?.nome ||
-              user.email
-          );
-        }
-      } catch (err) {
-        console.log(err);
-      } finally {
-        setLoadingSession(false);
-      }
-    }
-
     carregarSessao();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
-        setSession(newSession);
-
-        if (newSession?.user) {
-          let { data: usuario } =
-            await supabase
-              .from("usuarios")
-              .select(
-                "role,empresa_id,permissoes,nome"
-              )
-              .ilike(
-                "email",
-                newSession.user.email
-              );
-
-          usuario = usuario?.[0];
-
-          setEmpresaId(
-            usuario?.empresa_id || null
-          );
-
-          setRole(usuario?.role || null);
-
-          setPermissoes(
-            usuario?.permissoes || {}
-          );
-
-          setNomeUsuario(
-            usuario?.nome ||
-              newSession.user.email
-          );
-        }
-      }
+      () => carregarSessao()
     );
 
     return () =>
       subscription?.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    function resize() {
+      setIsMobile(
+        window.innerWidth < 768
+      );
+    }
+
+    window.addEventListener(
+      "resize",
+      resize
+    );
+
+    return () =>
+      window.removeEventListener(
+        "resize",
+        resize
+      );
+  }, []);
+
+  async function carregarSessao() {
+    try {
+      const {
+        data: { user },
+      } =
+        await supabase.auth.getUser();
+
+      if (!user) {
+        setSession(null);
+        setLoadingSession(false);
+        return;
+      }
+
+      setSession({ user });
+
+      const { data } =
+        await supabase
+          .from("usuarios")
+          .select(
+            "role,empresa_id,permissoes,nome"
+          )
+          .eq("email", user.email)
+          .maybeSingle();
+
+      let perms = {};
+
+      try {
+        perms =
+          typeof data?.permissoes ===
+          "string"
+            ? JSON.parse(
+                data.permissoes
+              )
+            : data?.permissoes ||
+              {};
+      } catch {
+        perms = {};
+      }
+
+      setRole(data?.role || null);
+      setEmpresaId(
+        data?.empresa_id || null
+      );
+      setPermissoes(perms);
+      setNomeUsuario(
+        data?.nome || user.email
+      );
+    } catch (e) {
+      console.log(e);
+    }
+
+    setLoadingSession(false);
+  }
+
   async function sair() {
     await supabase.auth.signOut();
-    setSession(null);
+    window.location.href = "/";
   }
 
   if (loadingSession) {
@@ -189,7 +170,6 @@ export default function App() {
         flexDirection: isMobile
           ? "column"
           : "row",
-        width: "100%",
         minHeight: "100vh",
         background: "#020617",
         color: "#fff",
@@ -208,19 +188,9 @@ export default function App() {
           gap: 10,
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <img
-            src="/logo.png"
-            width={40}
-          />
-          <h2>Cunha Finance</h2>
-        </div>
+        <h2>
+          Cunha Finance
+        </h2>
 
         <div
           style={{
@@ -283,7 +253,7 @@ export default function App() {
                 : botaoMenu
             }
           >
-            💰 Recebimentos
+            💵 Recebimentos
           </button>
         )}
 
@@ -305,37 +275,41 @@ export default function App() {
           </button>
         )}
 
-        <button
-          onClick={() =>
-            setPagina(
+        {permissoes.contas_pagar && (
+          <button
+            onClick={() =>
+              setPagina(
+                "contas_pagar"
+              )
+            }
+            style={
+              pagina ===
               "contas_pagar"
-            )
-          }
-          style={
-            pagina ===
-            "contas_pagar"
-              ? botaoAtivo
-              : botaoMenu
-          }
-        >
-          💸 Contas a Pagar
-        </button>
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            💸 Contas a Pagar
+          </button>
+        )}
 
-        <button
-          onClick={() =>
-            setPagina(
+        {permissoes.contas_fixas && (
+          <button
+            onClick={() =>
+              setPagina(
+                "contas_fixas"
+              )
+            }
+            style={
+              pagina ===
               "contas_fixas"
-            )
-          }
-          style={
-            pagina ===
-            "contas_fixas"
-              ? botaoAtivo
-              : botaoMenu
-          }
-        >
-          🔁 Contas Fixas
-        </button>
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            🔁 Contas Fixas
+          </button>
+        )}
 
         {permissoes.emprestimos && (
           <button
@@ -355,72 +329,58 @@ export default function App() {
           </button>
         )}
 
-        {loginMaster && (
-          <>
-            <button
-              onClick={() =>
-                setPagina(
-                  "master"
-                )
-              }
-              style={
-                pagina ===
-                "master"
-                  ? botaoAtivo
-                  : botaoMenu
-              }
-            >
-              👑 Master Admin
-            </button>
-
-            <button
-              onClick={() =>
-                setPagina(
-                  "vendas"
-                )
-              }
-              style={
-                pagina ===
+        {permissoes.vendas && (
+          <button
+            onClick={() =>
+              setPagina(
                 "vendas"
-                  ? botaoAtivo
-                  : botaoMenu
-              }
-            >
-              📦 Vendas
-            </button>
+              )
+            }
+            style={
+              pagina ===
+              "vendas"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            📦 Vendas
+          </button>
+        )}
 
-            <button
-              onClick={() =>
-                setPagina(
-                  "compras"
-                )
-              }
-              style={
-                pagina ===
+        {permissoes.compras && (
+          <button
+            onClick={() =>
+              setPagina(
                 "compras"
-                  ? botaoAtivo
-                  : botaoMenu
-              }
-            >
-              🧱 Compras
-            </button>
+              )
+            }
+            style={
+              pagina ===
+              "compras"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            🧱 Compras
+          </button>
+        )}
 
-            <button
-              onClick={() =>
-                setPagina(
-                  "relatorio"
-                )
-              }
-              style={
-                pagina ===
+        {permissoes.relatorio && (
+          <button
+            onClick={() =>
+              setPagina(
                 "relatorio"
-                  ? botaoAtivo
-                  : botaoMenu
-              }
-            >
-              📄 Relatórios
-            </button>
-          </>
+              )
+            }
+            style={
+              pagina ===
+              "relatorio"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            📄 Relatório
+          </button>
         )}
 
         {permissoes.pessoal && (
@@ -441,6 +401,24 @@ export default function App() {
           </button>
         )}
 
+        {loginMaster && (
+          <button
+            onClick={() =>
+              setPagina(
+                "master"
+              )
+            }
+            style={
+              pagina ===
+              "master"
+                ? botaoAtivo
+                : botaoMenu
+            }
+          >
+            👑 Master Admin
+          </button>
+        )}
+
         <button
           onClick={sair}
           style={{
@@ -453,7 +431,7 @@ export default function App() {
         </button>
       </div>
 
-      {/* CONTEÚDO */}
+      {/* CONTEUDO */}
       <div
         style={{
           flex: 1,
@@ -493,136 +471,51 @@ export default function App() {
           )}
 
         {pagina ===
-          "contas_pagar" && (
-          <ContasPagar
-            empresaId={
-              empresaId
-            }
-          />
-        )}
+          "contas_pagar" &&
+          permissoes.contas_pagar && (
+            <ContasPagar
+              empresaId={
+                empresaId
+              }
+            />
+          )}
 
         {pagina ===
-          "contas_fixas" && (
-          <ContasFixas
-            empresaId={
-              empresaId
-            }
-          />
-        )}
+          "contas_fixas" &&
+          permissoes.contas_fixas && (
+            <ContasFixas
+              empresaId={
+                empresaId
+              }
+            />
+          )}
 
         {pagina ===
           "emprestimos" &&
           permissoes.emprestimos && (
-            <div>
-              <h2>
-                💸 Empréstimos
-              </h2>
-
-              <div
-                style={{
-                  display:
-                    "flex",
-                  gap: 10,
-                  marginBottom: 20,
-                }}
-              >
-                <button
-                  onClick={() =>
-                    setSubPaginaEmprestimo(
-                      "cadastro"
-                    )
-                  }
-                  style={
-                    botaoMenu
-                  }
-                >
-                  ➕ Novo
-                </button>
-
-                <button
-                  onClick={() =>
-                    setSubPaginaEmprestimo(
-                      "lista"
-                    )
-                  }
-                  style={
-                    botaoMenu
-                  }
-                >
-                  📋 Cobrança
-                </button>
-
-                <button
-                  onClick={() =>
-                    setSubPaginaEmprestimo(
-                      "atrasos"
-                    )
-                  }
-                  style={
-                    botaoMenu
-                  }
-                >
-                  🚨 Atrasos
-                </button>
-              </div>
-
-              {subPaginaEmprestimo ===
-                "cadastro" && (
-                <Emprestimos
-                  empresaId={
-                    empresaId
-                  }
-                />
-              )}
-
-              {subPaginaEmprestimo ===
-                "lista" && (
-                <EmprestimosLista
-                  empresaId={
-                    empresaId
-                  }
-                />
-              )}
-
-              {subPaginaEmprestimo ===
-                "atrasos" && (
-                <Atrasos
-                  empresaId={
-                    empresaId
-                  }
-                />
-              )}
-            </div>
+            <EmprestimosLista
+              empresaId={
+                empresaId
+              }
+            />
           )}
 
         {pagina ===
           "vendas" &&
-          loginMaster && (
-            <Vendas
-              empresaId={
-                empresaId
-              }
-            />
+          permissoes.vendas && (
+            <Vendas />
           )}
 
         {pagina ===
           "compras" &&
-          loginMaster && (
-            <Compras
-              empresaId={
-                empresaId
-              }
-            />
+          permissoes.compras && (
+            <Compras />
           )}
 
         {pagina ===
           "relatorio" &&
-          loginMaster && (
-            <Relatorio
-              empresaId={
-                empresaId
-              }
-            />
+          permissoes.relatorio && (
+            <Relatorio />
           )}
 
         {pagina ===
@@ -632,15 +525,15 @@ export default function App() {
           )}
 
         {pagina ===
-          "admin" && (
-          <Admin />
-        )}
-
-        {pagina ===
           "master" &&
           loginMaster && (
             <MasterAdmin />
           )}
+
+        {pagina ===
+          "admin" && (
+          <Admin />
+        )}
       </div>
     </div>
   );
