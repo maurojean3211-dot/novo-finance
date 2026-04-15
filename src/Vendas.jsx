@@ -6,25 +6,28 @@ export default function Vendas() {
   const [cliente, setCliente] = useState("");
   const [produto, setProduto] = useState("");
   const [kilos, setKilos] = useState("");
-
   const [dataVenda, setDataVenda] = useState(
     new Date().toISOString().split("T")[0]
   );
 
-  const [empresaId, setEmpresaId] =
-    useState(null);
-
-  const [userId, setUserId] =
-    useState(null);
-
-  const [editandoId, setEditandoId] =
-    useState(null);
-
+  const [empresaId, setEmpresaId] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [editandoId, setEditandoId] = useState(null);
   const [busca, setBusca] = useState("");
 
   useEffect(() => {
     carregarEmpresa();
   }, []);
+
+  // ================= FORMATAR DATA
+  function formatarData(data) {
+    if (!data) return "-";
+
+    const partes = data.split("-");
+    if (partes.length !== 3) return data;
+
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
 
   // ================= EMPRESA
   async function carregarEmpresa() {
@@ -39,53 +42,38 @@ export default function Vendas() {
 
     setUserId(user.id);
 
-    const { data, error } =
-      await supabase
-        .from("usuarios")
-        .select("empresa_id")
-        .eq("email", user.email)
-        .single();
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select("empresa_id")
+      .eq("email", user.email)
+      .single();
 
     if (error) {
-      alert(
-        "Erro ao buscar empresa"
-      );
+      alert("Erro ao buscar empresa");
       return;
     }
 
     if (!data?.empresa_id) {
-      alert(
-        "Empresa não encontrada"
-      );
+      alert("Empresa não encontrada");
       return;
     }
 
     setEmpresaId(data.empresa_id);
-
-    carregarVendas(
-      data.empresa_id
-    );
+    carregarVendas(data.empresa_id);
   }
 
   // ================= LISTAR
-  async function carregarVendas(
-    empId
-  ) {
+  async function carregarVendas(empId) {
     if (!empId) return;
 
-    const { data, error } =
-      await supabase
-        .from("vendas")
-        .select("*")
-        .eq("empresa_id", empId)
-        .order("id", {
-          ascending: false,
-        });
+    const { data, error } = await supabase
+      .from("vendas")
+      .select("*")
+      .eq("empresa_id", empId)
+      .order("id", { ascending: false });
 
     if (error) {
-      alert(
-        "Erro ao carregar vendas"
-      );
+      alert("Erro ao carregar vendas");
       return;
     }
 
@@ -99,73 +87,35 @@ export default function Vendas() {
       return;
     }
 
-    const confirmar =
-      window.confirm(
-        "Excluir venda?"
-      );
-
+    const confirmar = window.confirm("Excluir venda?");
     if (!confirmar) return;
 
-    // RECEBIMENTOS
-    const { error: erroReceb } =
-      await supabase
-        .from("recebimentos")
-        .delete()
-        .eq("venda_id", id);
+    await supabase
+      .from("recebimentos")
+      .delete()
+      .eq("venda_id", id);
 
-    if (erroReceb) {
-      alert(
-        "Erro recebimentos: " +
-          erroReceb.message
-      );
-      return;
-    }
-
-    // VENDA
-    const { error } =
-      await supabase
-        .from("vendas")
-        .delete()
-        .eq("id", id)
-        .eq(
-          "empresa_id",
-          empresaId
-        );
+    const { error } = await supabase
+      .from("vendas")
+      .delete()
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
 
     if (error) {
-      alert(
-        "Erro venda: " +
-          error.message
-      );
+      alert("Erro: " + error.message);
       return;
     }
 
-    setVendas((prev) =>
-      prev.filter(
-        (item) =>
-          item.id !== id
-      )
-    );
-
-    alert(
-      "✅ Venda excluída!"
-    );
+    carregarVendas(empresaId);
   }
 
   // ================= EDITAR
   function editarVenda(v) {
     setEditandoId(v.id);
-
-    setCliente(
-      v.cliente_nome || ""
-    );
-    setProduto(
-      v.produto || ""
-    );
+    setCliente(v.cliente_nome || "");
+    setProduto(v.produto || "");
     setKilos(v.kilos || "");
-    setDataVenda(
-      v.data_venda || ""
-    );
+    setDataVenda(v.data_venda || "");
 
     window.scrollTo({
       top: 0,
@@ -180,203 +130,134 @@ export default function Vendas() {
   // ================= SALVAR
   async function salvarVenda() {
     if (!empresaId) {
-      alert(
-        "Empresa ainda não carregada"
-      );
-      return;
-    }
-
-    if (!userId) {
-      alert(
-        "Usuário não carregado"
-      );
+      alert("Empresa não carregada");
       return;
     }
 
     if (!produto.trim()) {
-      alert(
-        "Informe o produto"
-      );
+      alert("Informe o produto");
       return;
     }
 
     if (kg <= 0) {
-      alert(
-        "Kilos inválido"
-      );
+      alert("Kilos inválido");
       return;
     }
 
     if (editandoId) {
-      const { error } =
-        await supabase
-          .from("vendas")
-          .update({
-            cliente_nome:
-              cliente || "",
+      const { error } = await supabase
+        .from("vendas")
+        .update({
+          cliente_nome: cliente,
+          produto,
+          kilos: kg,
+          comissao,
+          data_venda: dataVenda,
+        })
+        .eq("id", editandoId);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      alert("✅ Atualizado!");
+      setEditandoId(null);
+    } else {
+      const { error } = await supabase
+        .from("vendas")
+        .insert([
+          {
+            empresa_id: empresaId,
+            cliente_nome: cliente,
             produto,
             kilos: kg,
             comissao,
-            data_venda:
-              dataVenda,
-          })
-          .eq(
-            "id",
-            editandoId
-          )
-          .eq(
-            "empresa_id",
-            empresaId
-          );
+            data_venda: dataVenda,
+            user_id: userId,
+          },
+        ]);
 
       if (error) {
-        alert(
-          "Erro: " +
-            error.message
-        );
+        alert(error.message);
         return;
       }
 
-      alert(
-        "✅ Atualizado!"
-      );
-
-      setEditandoId(null);
-    } else {
-      const { error } =
-        await supabase
-          .from("vendas")
-          .insert([
-            {
-              empresa_id:
-                empresaId,
-              cliente_nome:
-                cliente || "",
-              produto,
-              kilos: kg,
-              comissao,
-              data_venda:
-                dataVenda,
-              user_id:
-                userId,
-            },
-          ]);
-
-      if (error) {
-        alert(
-          "Erro: " +
-            error.message
-        );
-        return;
-      }
-
-      alert(
-        "✅ Venda salva!"
-      );
+      alert("✅ Venda salva!");
     }
 
     setCliente("");
     setProduto("");
     setKilos("");
-
-    carregarVendas(
-      empresaId
-    );
+    carregarVendas(empresaId);
   }
 
   // ================= BUSCA
-  const vendasFiltradas =
-    vendas.filter((v) =>
-      (v.cliente_nome || "")
-        .toLowerCase()
-        .includes(
-          busca.toLowerCase()
-        )
-    );
+  const vendasFiltradas = vendas.filter((v) =>
+    (v.cliente_nome || "")
+      .toLowerCase()
+      .includes(busca.toLowerCase())
+  );
 
   // ================= TELA
   return (
-    <div
-      style={{
-        padding: 20,
-      }}
-    >
+    <div style={{ padding: 20 }}>
       <h1>
-        🛒{" "}
-        {editandoId
-          ? "Editar Venda"
-          : "Vendas"}
+        🛒 {editandoId ? "Editar Venda" : "Vendas"}
       </h1>
 
       <input
         type="date"
         value={dataVenda}
         onChange={(e) =>
-          setDataVenda(
-            e.target.value
-          )
+          setDataVenda(e.target.value)
         }
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <input
         placeholder="Cliente"
         value={cliente}
         onChange={(e) =>
-          setCliente(
-            e.target.value
-          )
+          setCliente(e.target.value)
         }
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <input
         placeholder="Produto"
         value={produto}
         onChange={(e) =>
-          setProduto(
-            e.target.value
-          )
+          setProduto(e.target.value)
         }
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <input
         type="number"
         placeholder="Kilos"
         value={kilos}
         onChange={(e) =>
-          setKilos(
-            e.target.value
-          )
+          setKilos(e.target.value)
         }
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <p>
-        <strong>
-          Comissão:
-        </strong>{" "}
-        R${" "}
-        {comissao.toFixed(2)}
+        <strong>Comissão:</strong> R$ {comissao.toFixed(2)}
       </p>
 
       <button
         onClick={salvarVenda}
         style={{
           padding: 10,
-          background:
-            editandoId
-              ? "orange"
-              : "green",
+          background: editandoId
+            ? "orange"
+            : "green",
           color: "#fff",
           border: "none",
         }}
@@ -388,82 +269,64 @@ export default function Vendas() {
 
       <hr />
 
-      <h3>
-        🔍 Buscar Cliente
-      </h3>
+      <h3>🔍 Buscar Cliente</h3>
 
       <input
-        placeholder="Digite o nome do cliente"
+        placeholder="Digite o nome"
         value={busca}
         onChange={(e) =>
-          setBusca(
-            e.target.value
-          )
+          setBusca(e.target.value)
         }
       />
 
       <hr />
 
-      {vendasFiltradas.map(
-        (v) => (
-          <div
-            key={v.id}
+      {vendasFiltradas.map((v) => (
+        <div
+          key={v.id}
+          style={{
+            border: "1px solid #ccc",
+            padding: 12,
+            marginBottom: 10,
+            borderRadius: 10,
+            background: "#f9f9f9",
+          }}
+        >
+          📅 {formatarData(v.data_venda)}
+          <br />
+          👤 {v.cliente_nome || "-"}
+          <br />
+          📦 {v.produto}
+          <br />
+          ⚖️ {v.kilos} kg
+          <br />
+          💸 Comissão: R${" "}
+          {Number(v.comissao || 0).toFixed(2)}
+
+          <br /><br />
+
+          <button
+            onClick={() =>
+              editarVenda(v)
+            }
+          >
+            ✏️ Editar
+          </button>
+
+          <button
+            onClick={() =>
+              excluirVenda(v.id)
+            }
             style={{
-              border:
-                "1px solid #ccc",
-              padding: 10,
-              marginBottom: 10,
+              marginLeft: 10,
+              background: "red",
+              color: "#fff",
             }}
           >
-            📅 {v.data_venda}
-            <br />
-            👤{" "}
-            {v.cliente_nome ||
-              "-"}
-            <br />
-            📦 {v.produto}
-            <br />
-            ⚖️ {v.kilos} kg
-            <br />
-            💸 Comissão:
-            R${" "}
-            {Number(
-              v.comissao ||
-                0
-            ).toFixed(2)}
-
-            <br />
-            <br />
-
-            <button
-              onClick={() =>
-                editarVenda(
-                  v
-                )
-              }
-            >
-              ✏️ Editar
-            </button>
-
-            <button
-              onClick={() =>
-                excluirVenda(
-                  v.id
-                )
-              }
-              style={{
-                marginLeft: 10,
-                background:
-                  "red",
-                color:
-                  "#fff",
-              }}
-            >
-              🗑️ Excluir
-            </button>
-          </div>
-        )
-      )}
+            🗑️ Excluir
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
