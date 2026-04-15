@@ -23,10 +23,13 @@ export default function Vendas() {
   function formatarData(data) {
     if (!data) return "-";
 
-    const partes = data.split("-");
-    if (partes.length !== 3) return data;
+    try {
+      const dataObj = new Date(data + "T00:00:00");
 
-    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+      return dataObj.toLocaleDateString("pt-BR");
+    } catch {
+      return data;
+    }
   }
 
   // ================= EMPRESA
@@ -82,10 +85,7 @@ export default function Vendas() {
 
   // ================= EXCLUIR
   async function excluirVenda(id) {
-    if (!id) {
-      alert("ID inválido");
-      return;
-    }
+    if (!id) return;
 
     const confirmar = window.confirm("Excluir venda?");
     if (!confirmar) return;
@@ -102,7 +102,7 @@ export default function Vendas() {
       .eq("empresa_id", empresaId);
 
     if (error) {
-      alert("Erro: " + error.message);
+      alert(error.message);
       return;
     }
 
@@ -202,9 +202,7 @@ export default function Vendas() {
   // ================= TELA
   return (
     <div style={{ padding: 20 }}>
-      <h1>
-        🛒 {editandoId ? "Editar Venda" : "Vendas"}
-      </h1>
+      <h1>🔥 VENDAS NOVA</h1>
 
       <input
         type="date"
@@ -255,16 +253,12 @@ export default function Vendas() {
         onClick={salvarVenda}
         style={{
           padding: 10,
-          background: editandoId
-            ? "orange"
-            : "green",
+          background: editandoId ? "orange" : "green",
           color: "#fff",
           border: "none",
         }}
       >
-        {editandoId
-          ? "Atualizar"
-          : "Salvar Venda"}
+        {editandoId ? "Atualizar" : "Salvar Venda"}
       </button>
 
       <hr />
@@ -300,23 +294,16 @@ export default function Vendas() {
           <br />
           ⚖️ {v.kilos} kg
           <br />
-          💸 Comissão: R${" "}
-          {Number(v.comissao || 0).toFixed(2)}
+          💸 Comissão: R$ {Number(v.comissao || 0).toFixed(2)}
 
           <br /><br />
 
-          <button
-            onClick={() =>
-              editarVenda(v)
-            }
-          >
+          <button onClick={() => editarVenda(v)}>
             ✏️ Editar
           </button>
 
           <button
-            onClick={() =>
-              excluirVenda(v.id)
-            }
+            onClick={() => excluirVenda(v.id)}
             style={{
               marginLeft: 10,
               background: "red",
