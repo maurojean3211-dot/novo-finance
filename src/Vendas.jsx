@@ -100,7 +100,7 @@ export default function Vendas() {
     setCliente(v.cliente_nome || "");
     setProduto(v.produto || "");
     setKilos(v.kilos || "");
-    setDataVenda(v.data_venda || "");
+    setDataVenda((v.data_venda || "").substring(0, 10));
 
     window.scrollTo({
       top: 0,
@@ -172,6 +172,8 @@ export default function Vendas() {
     setCliente("");
     setProduto("");
     setKilos("");
+    setDataVenda(new Date().toISOString().split("T")[0]);
+
     carregarVendas(empresaId);
   }
 
