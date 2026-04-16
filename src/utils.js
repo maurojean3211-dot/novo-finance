@@ -1,7 +1,13 @@
-// src/utils.js
+// utils.js
 
 export function formatarData(data) {
-  if (!data) return "";
+  if (!data) return "-";
 
-  return data.split("-").reverse().join("/");
+  const d = new Date(data);
+
+  if (isNaN(d)) return data;
+
+  return d.toLocaleDateString("pt-BR", {
+    timeZone: "UTC",
+  });
 }

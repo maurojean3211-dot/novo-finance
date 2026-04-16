@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { formatarData } from "./utils";
 
 export default function Vendas() {
   const [vendas, setVendas] = useState([]);
@@ -18,17 +19,6 @@ export default function Vendas() {
   useEffect(() => {
     carregarEmpresa();
   }, []);
-
-  // ================= FORMATAR DATA BR
-  function formatarData(data) {
-    if (!data) return "-";
-
-    try {
-      return data.split("-").reverse().join("/");
-    } catch {
-      return data;
-    }
-  }
 
   // ================= EMPRESA
   async function carregarEmpresa() {
@@ -201,8 +191,7 @@ export default function Vendas() {
         onChange={(e) => setDataVenda(e.target.value)}
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <input
         placeholder="Cliente"
@@ -210,8 +199,7 @@ export default function Vendas() {
         onChange={(e) => setCliente(e.target.value)}
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <input
         placeholder="Produto"
@@ -219,8 +207,7 @@ export default function Vendas() {
         onChange={(e) => setProduto(e.target.value)}
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <input
         type="number"
@@ -229,8 +216,7 @@ export default function Vendas() {
         onChange={(e) => setKilos(e.target.value)}
       />
 
-      <br />
-      <br />
+      <br /><br />
 
       <p>
         <strong>Comissão:</strong> R$ {comissao.toFixed(2)}
@@ -280,8 +266,8 @@ export default function Vendas() {
           ⚖️ {v.kilos} kg
           <br />
           💸 Comissão: R$ {Number(v.comissao || 0).toFixed(2)}
-          <br />
-          <br />
+
+          <br /><br />
 
           <button onClick={() => editarVenda(v)}>✏️ Editar</button>
 
