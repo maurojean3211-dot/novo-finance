@@ -19,14 +19,12 @@ export default function Vendas() {
     carregarEmpresa();
   }, []);
 
-  // ================= FORMATAR DATA
+  // ================= FORMATAR DATA BR
   function formatarData(data) {
     if (!data) return "-";
 
     try {
-      const dataObj = new Date(data + "T00:00:00");
-
-      return dataObj.toLocaleDateString("pt-BR");
+      return data.split("-").reverse().join("/");
     } catch {
       return data;
     }
@@ -90,10 +88,7 @@ export default function Vendas() {
     const confirmar = window.confirm("Excluir venda?");
     if (!confirmar) return;
 
-    await supabase
-      .from("recebimentos")
-      .delete()
-      .eq("venda_id", id);
+    await supabase.from("recebimentos").delete().eq("venda_id", id);
 
     const { error } = await supabase
       .from("vendas")
@@ -164,19 +159,17 @@ export default function Vendas() {
       alert("✅ Atualizado!");
       setEditandoId(null);
     } else {
-      const { error } = await supabase
-        .from("vendas")
-        .insert([
-          {
-            empresa_id: empresaId,
-            cliente_nome: cliente,
-            produto,
-            kilos: kg,
-            comissao,
-            data_venda: dataVenda,
-            user_id: userId,
-          },
-        ]);
+      const { error } = await supabase.from("vendas").insert([
+        {
+          empresa_id: empresaId,
+          cliente_nome: cliente,
+          produto,
+          kilos: kg,
+          comissao,
+          data_venda: dataVenda,
+          user_id: userId,
+        },
+      ]);
 
       if (error) {
         alert(error.message);
@@ -194,9 +187,7 @@ export default function Vendas() {
 
   // ================= BUSCA
   const vendasFiltradas = vendas.filter((v) =>
-    (v.cliente_nome || "")
-      .toLowerCase()
-      .includes(busca.toLowerCase())
+    (v.cliente_nome || "").toLowerCase().includes(busca.toLowerCase())
   );
 
   // ================= TELA
@@ -207,43 +198,39 @@ export default function Vendas() {
       <input
         type="date"
         value={dataVenda}
-        onChange={(e) =>
-          setDataVenda(e.target.value)
-        }
+        onChange={(e) => setDataVenda(e.target.value)}
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <input
         placeholder="Cliente"
         value={cliente}
-        onChange={(e) =>
-          setCliente(e.target.value)
-        }
+        onChange={(e) => setCliente(e.target.value)}
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <input
         placeholder="Produto"
         value={produto}
-        onChange={(e) =>
-          setProduto(e.target.value)
-        }
+        onChange={(e) => setProduto(e.target.value)}
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <input
         type="number"
         placeholder="Kilos"
         value={kilos}
-        onChange={(e) =>
-          setKilos(e.target.value)
-        }
+        onChange={(e) => setKilos(e.target.value)}
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <p>
         <strong>Comissão:</strong> R$ {comissao.toFixed(2)}
@@ -268,9 +255,7 @@ export default function Vendas() {
       <input
         placeholder="Digite o nome"
         value={busca}
-        onChange={(e) =>
-          setBusca(e.target.value)
-        }
+        onChange={(e) => setBusca(e.target.value)}
       />
 
       <hr />
@@ -295,12 +280,10 @@ export default function Vendas() {
           ⚖️ {v.kilos} kg
           <br />
           💸 Comissão: R$ {Number(v.comissao || 0).toFixed(2)}
+          <br />
+          <br />
 
-          <br /><br />
-
-          <button onClick={() => editarVenda(v)}>
-            ✏️ Editar
-          </button>
+          <button onClick={() => editarVenda(v)}>✏️ Editar</button>
 
           <button
             onClick={() => excluirVenda(v.id)}
