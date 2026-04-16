@@ -8,6 +8,7 @@ export default function ContasPagar({ empresaId }) {
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
   const [vencimento, setVencimento] = useState("");
+  const [status, setStatus] = useState("Pendente");
 
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("Todos");
@@ -64,6 +65,7 @@ export default function ContasPagar({ empresaId }) {
           descricao,
           valor: valorNumero,
           vencimento,
+          status,
         })
         .eq("id", editandoId)
         .eq("empresa_id", empresaId);
@@ -81,7 +83,7 @@ export default function ContasPagar({ empresaId }) {
             descricao,
             valor: valorNumero,
             vencimento,
-            status: "Pendente",
+            status,
           },
         ]);
 
@@ -104,6 +106,7 @@ export default function ContasPagar({ empresaId }) {
     setDescricao("");
     setValor("");
     setVencimento("");
+    setStatus("Pendente");
     setEditandoId(null);
   }
 
@@ -113,6 +116,7 @@ export default function ContasPagar({ empresaId }) {
     setDescricao(item.descricao || "");
     setValor(String(item.valor || ""));
     setVencimento(item.vencimento || "");
+    setStatus(item.status || "Pendente");
   }
 
   async function pagar(id) {
@@ -181,40 +185,6 @@ export default function ContasPagar({ empresaId }) {
     return dataConta < hoje;
   }
 
-  function imprimirRelatorio() {
-    const conteudo = document.getElementById("area-relatorio").innerHTML;
-
-    const tela = window.open("", "", "width=900,height=700");
-
-    tela.document.write(`
-      <html>
-      <head>
-        <title>Relatório Contas a Pagar</title>
-        <style>
-          body{font-family:Arial;padding:20px;}
-          h2{margin-bottom:20px;}
-          table{width:100%;border-collapse:collapse;}
-          th,td{border:1px solid #000;padding:8px;text-align:left;}
-          .totais{margin-bottom:20px;}
-        </style>
-      </head>
-      <body>
-        <h2>Relatório Contas a Pagar</h2>
-
-        <div class="totais">
-          <strong>Total Pendente:</strong> R$ ${dinheiro(totalPendente)}<br>
-          <strong>Total Pago:</strong> R$ ${dinheiro(totalPago)}
-        </div>
-
-        ${conteudo}
-      </body>
-      </html>
-    `);
-
-    tela.document.close();
-    tela.print();
-  }
-
   const filtrados = dados.filter((item) => {
     const texto = `${item.fornecedor || ""} ${item.descricao || ""}`.toLowerCase();
 
@@ -243,14 +213,7 @@ export default function ContasPagar({ empresaId }) {
       <h2>💸 Contas a Pagar</h2>
 
       {contasVencidas.length > 0 && (
-        <div
-          style={{
-            background: "#7f1d1d",
-            padding: 12,
-            borderRadius: 8,
-            marginBottom: 15,
-          }}
-        >
+        <div style={{ background: "#7f1d1d", padding: 12, borderRadius: 8, marginBottom: 15 }}>
           ⚠️ Você possui {contasVencidas.length} conta(s) vencida(s)
         </div>
       )}
@@ -286,6 +249,14 @@ export default function ContasPagar({ empresaId }) {
           onChange={(e) => setVencimento(e.target.value)}
         />
 
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+        >
+          <option value="Pendente">Pendente</option>
+          <option value="Pago">Pago</option>
+        </select>
+
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={salvar}>
             {editandoId ? "Salvar Alteração" : "Salvar Conta"}
@@ -300,62 +271,6 @@ export default function ContasPagar({ empresaId }) {
       </div>
 
       <hr />
-
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          marginBottom: 20,
-          flexWrap: "wrap",
-        }}
-      >
-        <input
-          placeholder="Buscar fornecedor ou descrição"
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-        />
-
-        <select
-          value={filtroStatus}
-          onChange={(e) => setFiltroStatus(e.target.value)}
-        >
-          <option>Todos</option>
-          <option>Pendente</option>
-          <option>Pago</option>
-        </select>
-
-        <button onClick={imprimirRelatorio}>
-          📄 Relatório
-        </button>
-      </div>
-
-      <hr />
-
-      <div id="area-relatorio" style={{ display: "none" }}>
-        <table>
-          <thead>
-            <tr>
-              <th>Fornecedor</th>
-              <th>Descrição</th>
-              <th>Valor</th>
-              <th>Vencimento</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            {filtrados.map((item) => (
-              <tr key={item.id}>
-                <td>{item.fornecedor}</td>
-                <td>{item.descricao}</td>
-                <td>R$ {dinheiro(item.valor)}</td>
-                <td>{item.vencimento}</td>
-                <td>{item.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
 
       {filtrados.map((item) => (
         <div
@@ -373,30 +288,15 @@ export default function ContasPagar({ empresaId }) {
                 : "#0f172a",
           }}
         >
-          <strong style={{ fontSize: 18 }}>
-            {item.fornecedor}
-          </strong>
-
-          <div style={{ marginTop: 8 }}>
-            {item.descricao}
-          </div>
-
-          <div style={{ marginTop: 8 }}>
-            💰 R$ {dinheiro(item.valor)}
-          </div>
-
+          <strong>{item.fornecedor}</strong>
+          <div>{item.descricao}</div>
+          <div>💰 R$ {dinheiro(item.valor)}</div>
           <div>📅 {item.vencimento}</div>
-
           <div>📌 {item.status}</div>
 
-          <div
-            style={{
-              marginTop: 12,
-              display: "flex",
-              gap: 10,
-              flexWrap: "wrap",
-            }}
-          >
+          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={() => editar(item)}>✏️ Editar</button>
+
             {item.status !== "Pago" ? (
               <button onClick={() => pagar(item.id)}>
                 ✅ Marcar Pago
@@ -407,26 +307,15 @@ export default function ContasPagar({ empresaId }) {
               </button>
             )}
 
-            <button onClick={() => editar(item)}>
-              ✏️ Editar
-            </button>
-
             <button
               onClick={() => excluir(item.id)}
-              style={{
-                background: "red",
-                color: "#fff",
-              }}
+              style={{ background: "red", color: "#fff" }}
             >
               🗑 Excluir
             </button>
           </div>
         </div>
       ))}
-
-      {filtrados.length === 0 && (
-        <p>Nenhuma conta encontrada.</p>
-      )}
     </div>
   );
 }
