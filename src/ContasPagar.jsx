@@ -65,9 +65,11 @@ export default function ContasPagar({ empresaId }) {
           valor: valorNumero,
           vencimento,
         })
-        .eq("id", editandoId);
+        .eq("id", editandoId)
+        .eq("empresa_id", empresaId);
 
       error = retorno.error;
+
       if (!error) alert("Conta alterada com sucesso!");
     } else {
       const retorno = await supabase
@@ -84,6 +86,7 @@ export default function ContasPagar({ empresaId }) {
         ]);
 
       error = retorno.error;
+
       if (!error) alert("Conta salva com sucesso!");
     }
 
@@ -108,7 +111,7 @@ export default function ContasPagar({ empresaId }) {
     setEditandoId(item.id);
     setFornecedor(item.fornecedor || "");
     setDescricao(item.descricao || "");
-    setValor(item.valor || "");
+    setValor(String(item.valor || ""));
     setVencimento(item.vencimento || "");
   }
 
@@ -116,7 +119,23 @@ export default function ContasPagar({ empresaId }) {
     const { error } = await supabase
       .from("contas_pagar")
       .update({ status: "Pago" })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    carregar();
+  }
+
+  async function voltarPendente(id) {
+    const { error } = await supabase
+      .from("contas_pagar")
+      .update({ status: "Pendente" })
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
 
     if (error) {
       alert(error.message);
@@ -132,7 +151,8 @@ export default function ContasPagar({ empresaId }) {
     const { error } = await supabase
       .from("contas_pagar")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
 
     if (error) {
       alert(error.message);
@@ -151,12 +171,12 @@ export default function ContasPagar({ empresaId }) {
 
   function vencida(item) {
     if (item.status === "Pago") return false;
+    if (!item.vencimento) return false;
 
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
-    const dataConta = new Date(item.vencimento);
-    dataConta.setHours(0, 0, 0, 0);
+    const dataConta = new Date(item.vencimento + "T00:00:00");
 
     return dataConta < hoje;
   }
@@ -196,10 +216,7 @@ export default function ContasPagar({ empresaId }) {
   }
 
   const filtrados = dados.filter((item) => {
-    const texto =
-      (item.fornecedor || "").toLowerCase() +
-      " " +
-      (item.descricao || "").toLowerCase();
+    const texto = `${item.fornecedor || ""} ${item.descricao || ""}`.toLowerCase();
 
     const passouBusca = texto.includes(busca.toLowerCase());
 
@@ -284,7 +301,14 @@ export default function ContasPagar({ empresaId }) {
 
       <hr />
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          marginBottom: 20,
+          flexWrap: "wrap",
+        }}
+      >
         <input
           placeholder="Buscar fornecedor ou descrição"
           value={busca}
@@ -373,9 +397,13 @@ export default function ContasPagar({ empresaId }) {
               flexWrap: "wrap",
             }}
           >
-            {item.status !== "Pago" && (
+            {item.status !== "Pago" ? (
               <button onClick={() => pagar(item.id)}>
-                Marcar Pago
+                ✅ Marcar Pago
+              </button>
+            ) : (
+              <button onClick={() => voltarPendente(item.id)}>
+                ↩️ Voltar Pendente
               </button>
             )}
 
