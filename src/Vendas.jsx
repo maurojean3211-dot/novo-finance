@@ -3,13 +3,16 @@ import { supabase } from "./supabase";
 import { formatarData } from "./utils";
 
 export default function Vendas() {
+  const hoje = new Date();
+  const dataHoje = `${hoje.getFullYear()}-${String(
+    hoje.getMonth() + 1
+  ).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+
   const [vendas, setVendas] = useState([]);
   const [cliente, setCliente] = useState("");
   const [produto, setProduto] = useState("");
   const [kilos, setKilos] = useState("");
-  const [dataVenda, setDataVenda] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [dataVenda, setDataVenda] = useState(dataHoje);
 
   const [empresaId, setEmpresaId] = useState(null);
   const [userId, setUserId] = useState(null);
@@ -20,16 +23,12 @@ export default function Vendas() {
     carregarEmpresa();
   }, []);
 
-  // ================= EMPRESA
   async function carregarEmpresa() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      alert("Usuário não logado");
-      return;
-    }
+    if (!user) return alert("Usuário não logado");
 
     setUserId(user.id);
 
@@ -39,12 +38,7 @@ export default function Vendas() {
       .eq("email", user.email)
       .single();
 
-    if (error) {
-      alert("Erro ao buscar empresa");
-      return;
-    }
-
-    if (!data?.empresa_id) {
+    if (error || !data?.empresa_id) {
       alert("Empresa não encontrada");
       return;
     }
@@ -53,136 +47,96 @@ export default function Vendas() {
     carregarVendas(data.empresa_id);
   }
 
-  // ================= LISTAR
   async function carregarVendas(empId) {
-    if (!empId) return;
-
     const { data, error } = await supabase
       .from("vendas")
       .select("*")
       .eq("empresa_id", empId)
       .order("data_venda", { ascending: false });
 
-    if (error) {
-      alert("Erro ao carregar vendas");
-      return;
-    }
-
-    setVendas(data || []);
+    if (!error) setVendas(data || []);
   }
 
-  // ================= EXCLUIR
   async function excluirVenda(id) {
-    if (!id) return;
-
-    const confirmar = window.confirm("Excluir venda?");
-    if (!confirmar) return;
+    if (!window.confirm("Excluir venda?")) return;
 
     await supabase.from("recebimentos").delete().eq("venda_id", id);
 
-    const { error } = await supabase
+    await supabase
       .from("vendas")
       .delete()
       .eq("id", id)
       .eq("empresa_id", empresaId);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
     carregarVendas(empresaId);
   }
 
-  // ================= EDITAR
   function editarVenda(v) {
     setEditandoId(v.id);
     setCliente(v.cliente_nome || "");
     setProduto(v.produto || "");
     setKilos(v.kilos || "");
-    setDataVenda((v.data_venda || "").substring(0, 10));
 
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    // DATA CORRIGIDA
+    setDataVenda(String(v.data_venda).slice(0, 10));
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  // ================= CÁLCULO
   const kg = Number(kilos || 0);
   const comissao = kg * 0.05;
 
-  // ================= SALVAR
   async function salvarVenda() {
-    if (!empresaId) {
-      alert("Empresa não carregada");
-      return;
-    }
+    if (!empresaId) return alert("Empresa não carregada");
+    if (!produto.trim()) return alert("Informe o produto");
+    if (kg <= 0) return alert("Kilos inválido");
 
-    if (!produto.trim()) {
-      alert("Informe o produto");
-      return;
-    }
+    const payload = {
+      cliente_nome: cliente,
+      produto,
+      kilos: kg,
+      comissao,
+      data_venda: dataVenda,
+    };
 
-    if (kg <= 0) {
-      alert("Kilos inválido");
-      return;
-    }
+    let error = null;
 
     if (editandoId) {
-      const { error } = await supabase
+      const res = await supabase
         .from("vendas")
-        .update({
-          cliente_nome: cliente,
-          produto,
-          kilos: kg,
-          comissao,
-          data_venda: dataVenda,
-        })
+        .update(payload)
         .eq("id", editandoId);
 
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      alert("✅ Atualizado!");
-      setEditandoId(null);
+      error = res.error;
     } else {
-      const { error } = await supabase.from("vendas").insert([
+      const res = await supabase.from("vendas").insert([
         {
+          ...payload,
           empresa_id: empresaId,
-          cliente_nome: cliente,
-          produto,
-          kilos: kg,
-          comissao,
-          data_venda: dataVenda,
           user_id: userId,
         },
       ]);
 
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      alert("✅ Venda salva!");
+      error = res.error;
     }
+
+    if (error) return alert(error.message);
+
+    alert(editandoId ? "✅ Atualizado!" : "✅ Venda salva!");
 
     setCliente("");
     setProduto("");
     setKilos("");
-    setDataVenda(new Date().toISOString().split("T")[0]);
+    setDataVenda(dataHoje);
+    setEditandoId(null);
 
     carregarVendas(empresaId);
   }
 
-  // ================= BUSCA
   const vendasFiltradas = vendas.filter((v) =>
     (v.cliente_nome || "").toLowerCase().includes(busca.toLowerCase())
   );
 
-  // ================= TELA
   return (
     <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
       <h1>🔥 VENDAS</h1>
@@ -237,7 +191,6 @@ export default function Vendas() {
           color: "#fff",
           border: "none",
           borderRadius: 8,
-          cursor: "pointer",
         }}
       >
         {editandoId ? "Atualizar Venda" : "Salvar Venda"}
@@ -279,30 +232,16 @@ export default function Vendas() {
 
           <br /><br />
 
-          <button
-            onClick={() => editarVenda(v)}
-            style={{
-              padding: 8,
-              background: "#007bff",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
+          <button onClick={() => editarVenda(v)}>
             ✏️ Editar
           </button>
 
           <button
             onClick={() => excluirVenda(v.id)}
             style={{
-              padding: 8,
               marginLeft: 10,
               background: "red",
               color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: "pointer",
             }}
           >
             🗑️ Excluir
