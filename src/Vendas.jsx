@@ -1,16 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
-// FORMATADOR DEFINITIVO
-function formatarData(data) {
-  if (!data) return "";
-
-  const limpa = String(data).slice(0, 10);
-  const [ano, mes, dia] = limpa.split("-");
-
-  return `${dia}/${mes}/${ano}`;
-}
-
 export default function Vendas() {
   const hoje = new Date();
 
@@ -230,7 +220,7 @@ export default function Vendas() {
             background: "#f9f9f9",
           }}
         >
-          📅 {formatarData(v.data_venda)}
+          📅 {String(v.data_venda).slice(8,10)}/{String(v.data_venda).slice(5,7)}/{String(v.data_venda).slice(0,4)}
           <br />
           👤 {v.cliente_nome || "-"}
           <br />
