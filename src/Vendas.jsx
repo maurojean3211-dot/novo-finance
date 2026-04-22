@@ -61,7 +61,7 @@ export default function Vendas() {
       .from("vendas")
       .select("*")
       .eq("empresa_id", empId)
-      .order("id", { ascending: false });
+      .order("data_venda", { ascending: false });
 
     if (error) {
       alert("Erro ao carregar vendas");
@@ -108,7 +108,7 @@ export default function Vendas() {
     });
   }
 
-  // ================= CALCULO
+  // ================= CÁLCULO
   const kg = Number(kilos || 0);
   const comissao = kg * 0.05;
 
@@ -184,13 +184,14 @@ export default function Vendas() {
 
   // ================= TELA
   return (
-    <div style={{ padding: 20 }}>
-      <h1>🔥 VENDAS NOVA</h1>
+    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+      <h1>🔥 VENDAS</h1>
 
       <input
         type="date"
         value={dataVenda}
         onChange={(e) => setDataVenda(e.target.value)}
+        style={{ width: "100%", padding: 8 }}
       />
 
       <br /><br />
@@ -199,6 +200,7 @@ export default function Vendas() {
         placeholder="Cliente"
         value={cliente}
         onChange={(e) => setCliente(e.target.value)}
+        style={{ width: "100%", padding: 8 }}
       />
 
       <br /><br />
@@ -207,6 +209,7 @@ export default function Vendas() {
         placeholder="Produto"
         value={produto}
         onChange={(e) => setProduto(e.target.value)}
+        style={{ width: "100%", padding: 8 }}
       />
 
       <br /><br />
@@ -216,24 +219,28 @@ export default function Vendas() {
         placeholder="Kilos"
         value={kilos}
         onChange={(e) => setKilos(e.target.value)}
+        style={{ width: "100%", padding: 8 }}
       />
 
       <br /><br />
 
       <p>
-        <strong>Comissão:</strong> R$ {comissao.toFixed(2)}
+        <strong>💸 Comissão:</strong> R$ {comissao.toFixed(2)}
       </p>
 
       <button
         onClick={salvarVenda}
         style={{
-          padding: 10,
+          padding: 12,
+          width: "100%",
           background: editandoId ? "orange" : "green",
           color: "#fff",
           border: "none",
+          borderRadius: 8,
+          cursor: "pointer",
         }}
       >
-        {editandoId ? "Atualizar" : "Salvar Venda"}
+        {editandoId ? "Atualizar Venda" : "Salvar Venda"}
       </button>
 
       <hr />
@@ -244,6 +251,7 @@ export default function Vendas() {
         placeholder="Digite o nome"
         value={busca}
         onChange={(e) => setBusca(e.target.value)}
+        style={{ width: "100%", padding: 8 }}
       />
 
       <hr />
@@ -252,9 +260,9 @@ export default function Vendas() {
         <div
           key={v.id}
           style={{
-            border: "1px solid #ccc",
-            padding: 12,
-            marginBottom: 10,
+            border: "1px solid #ddd",
+            padding: 15,
+            marginBottom: 12,
             borderRadius: 10,
             background: "#f9f9f9",
           }}
@@ -265,20 +273,36 @@ export default function Vendas() {
           <br />
           📦 {v.produto}
           <br />
-          ⚖️ {v.kilos} kg
+          ⚖️ {Number(v.kilos).toLocaleString("pt-BR")} kg
           <br />
           💸 Comissão: R$ {Number(v.comissao || 0).toFixed(2)}
 
           <br /><br />
 
-          <button onClick={() => editarVenda(v)}>✏️ Editar</button>
+          <button
+            onClick={() => editarVenda(v)}
+            style={{
+              padding: 8,
+              background: "#007bff",
+              color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            ✏️ Editar
+          </button>
 
           <button
             onClick={() => excluirVenda(v.id)}
             style={{
+              padding: 8,
               marginLeft: 10,
               background: "red",
               color: "#fff",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
             }}
           >
             🗑️ Excluir
