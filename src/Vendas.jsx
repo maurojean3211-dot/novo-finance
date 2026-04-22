@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import { formatarData } from "./utils";
+
+// FORMATADOR DEFINITIVO
+function formatarData(data) {
+  if (!data) return "";
+
+  const limpa = String(data).slice(0, 10);
+  const [ano, mes, dia] = limpa.split("-");
+
+  return `${dia}/${mes}/${ano}`;
+}
 
 export default function Vendas() {
   const hoje = new Date();
+
   const dataHoje = `${hoje.getFullYear()}-${String(
     hoje.getMonth() + 1
   ).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
@@ -39,8 +49,7 @@ export default function Vendas() {
       .single();
 
     if (error || !data?.empresa_id) {
-      alert("Empresa não encontrada");
-      return;
+      return alert("Empresa não encontrada");
     }
 
     setEmpresaId(data.empresa_id);
@@ -76,11 +85,12 @@ export default function Vendas() {
     setCliente(v.cliente_nome || "");
     setProduto(v.produto || "");
     setKilos(v.kilos || "");
-
-    // DATA CORRIGIDA
     setDataVenda(String(v.data_venda).slice(0, 10));
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   const kg = Number(kilos || 0);
