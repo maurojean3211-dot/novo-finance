@@ -22,7 +22,6 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [loadingSession, setLoadingSession] = useState(true);
   const [pagina, setPagina] = useState("dashboard");
-  const [role, setRole] = useState(null);
   const [empresaId, setEmpresaId] = useState(null);
   const [permissoes, setPermissoes] = useState({});
   const [nomeUsuario, setNomeUsuario] = useState("");
@@ -65,7 +64,7 @@ export default function App() {
 
       const { data } = await supabase
         .from("usuarios")
-        .select("role,empresa_id,permissoes,nome")
+        .select("empresa_id,permissoes,nome")
         .eq("email", user.email)
         .maybeSingle();
 
@@ -80,7 +79,6 @@ export default function App() {
         perms = {};
       }
 
-      setRole(data?.role || null);
       setEmpresaId(data?.empresa_id || null);
       setPermissoes(perms);
       setNomeUsuario(data?.nome || user.email);
@@ -111,107 +109,16 @@ export default function App() {
   const loginMaster =
     emailLogado === "maurojean3211@gmail.com";
 
-  function renderPagina() {
-    if (
-      pagina === "dashboard" &&
-      permissoes.dashboard
-    )
-      return <Dashboard />;
-
-    if (
-      pagina === "financeiro" &&
-      permissoes.financeiro
-    )
-      return (
-        <Financeiro empresaId={empresaId} />
-      );
-
-    if (
-      pagina === "recebimentos" &&
-      permissoes.recebimentos
-    )
-      return (
-        <Recebimentos empresaId={empresaId} />
-      );
-
-    if (
-      pagina === "clientes" &&
-      permissoes.clientes
-    )
-      return <Clientes />;
-
-    if (
-      pagina === "contas_pagar" &&
-      permissoes.contas_pagar
-    )
-      return (
-        <ContasPagar empresaId={empresaId} />
-      );
-
-    if (
-      pagina === "contas_fixas" &&
-      permissoes.contas_fixas
-    )
-      return (
-        <ContasFixas empresaId={empresaId} />
-      );
-
-    if (
-      pagina === "emprestimos" &&
-      permissoes.emprestimos
-    )
-      return (
-        <EmprestimosLista empresaId={empresaId} />
-      );
-
-    if (
-      pagina === "vendas" &&
-      permissoes.vendas
-    )
-      return <Vendas key={pagina} />;
-
-    if (
-      pagina === "compras" &&
-      permissoes.compras
-    )
-      return <Compras />;
-
-    if (
-      pagina === "relatorio" &&
-      permissoes.relatorio
-    )
-      return <Relatorio />;
-
-    if (
-      pagina === "despesas" &&
-      permissoes.pessoal
-    )
-      return <DespesasPessoais />;
-
-    if (
-      pagina === "master" &&
-      loginMaster
-    )
-      return <MasterAdmin />;
-
-    if (pagina === "admin")
-      return <Admin />;
-
-    return <Dashboard />;
-  }
-
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: isMobile
-          ? "column"
-          : "row",
+        flexDirection: isMobile ? "column" : "row",
         minHeight: "100vh",
         background: "#020617",
-        color: "#fff",
       }}
     >
+      {/* MENU */}
       <div
         style={{
           width: isMobile ? "100%" : 230,
@@ -220,6 +127,7 @@ export default function App() {
           display: "flex",
           flexDirection: "column",
           gap: 10,
+          color: "#fff",
         }}
       >
         <h2>Cunha Finance</h2>
@@ -318,8 +226,21 @@ export default function App() {
         </button>
       </div>
 
+      {/* CONTEÚDO */}
       <div style={{ flex: 1, padding: 20 }}>
-        {renderPagina()}
+        {pagina === "dashboard" && permissoes.dashboard && <Dashboard />}
+        {pagina === "financeiro" && permissoes.financeiro && <Financeiro empresaId={empresaId} />}
+        {pagina === "recebimentos" && permissoes.recebimentos && <Recebimentos empresaId={empresaId} />}
+        {pagina === "clientes" && permissoes.clientes && <Clientes />}
+        {pagina === "contas_pagar" && permissoes.contas_pagar && <ContasPagar empresaId={empresaId} />}
+        {pagina === "contas_fixas" && permissoes.contas_fixas && <ContasFixas empresaId={empresaId} />}
+        {pagina === "emprestimos" && permissoes.emprestimos && <EmprestimosLista empresaId={empresaId} />}
+        {pagina === "vendas" && permissoes.vendas && <Vendas />}
+        {pagina === "compras" && permissoes.compras && <Compras />}
+        {pagina === "relatorio" && permissoes.relatorio && <Relatorio />}
+        {pagina === "despesas" && permissoes.pessoal && <DespesasPessoais />}
+        {pagina === "master" && loginMaster && <MasterAdmin />}
+        {pagina === "admin" && <Admin />}
       </div>
     </div>
   );
