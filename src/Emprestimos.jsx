@@ -3,13 +3,15 @@ import { supabase } from "./supabase";
 
 export default function EmprestimosLista() {
   const [dados, setDados] = useState([]);
-  const [carregandoId, setCarregandoId] = useState(null);
+  const [carregandoId, setCarregandoId] =
+    useState(null);
 
   const [empresaRealId, setEmpresaRealId] =
     useState(null);
 
   const [cliente, setCliente] = useState("");
-  const [telefone, setTelefone] = useState("");
+  const [telefone, setTelefone] =
+    useState("");
   const [valor, setValor] = useState("");
   const [juros, setJuros] = useState("");
   const [prazo, setPrazo] = useState("");
@@ -18,17 +20,21 @@ export default function EmprestimosLista() {
 
   const [busca, setBusca] = useState("");
 
-  const [pixChave, setPixChave] = useState(
-    () =>
-      localStorage.getItem("chave_pix") ||
-      "11963068079"
-  );
+  const [pixChave, setPixChave] =
+    useState(
+      () =>
+        localStorage.getItem(
+          "chave_pix"
+        ) || "11963068079"
+    );
 
-  const [pixEdit, setPixEdit] = useState(
-    () =>
-      localStorage.getItem("chave_pix") ||
-      "11963068079"
-  );
+  const [pixEdit, setPixEdit] =
+    useState(
+      () =>
+        localStorage.getItem(
+          "chave_pix"
+        ) || "11963068079"
+    );
 
   useEffect(() => {
     carregarEmpresa();
@@ -67,10 +73,12 @@ export default function EmprestimosLista() {
 
   function salvarPix() {
     setPixChave(pixEdit);
+
     localStorage.setItem(
       "chave_pix",
       pixEdit
     );
+
     alert("PIX salvo!");
   }
 
@@ -203,15 +211,11 @@ export default function EmprestimosLista() {
         "55" + numero;
     }
 
-    const msg = `Olá ${
-      p.cliente
-    } seu empréstimo venceu. Valor R$ ${Number(
+    const msg = `Olá ${p.cliente}, seu empréstimo venceu. Valor R$ ${Number(
       p.total
     ).toFixed(
       2
-    )}. PIX ${
-      pixChave
-    }`;
+    )}. PIX ${pixChave}`;
 
     window.open(
       `https://wa.me/${numero}?text=${encodeURIComponent(
@@ -380,14 +384,34 @@ export default function EmprestimosLista() {
               {p.cliente}
             </strong>
             <br />
-            💰 R${" "}
-            {Number(
+            💰 R$ {Number(
               p.total
             ).toFixed(2)}
             <br />
-            📅{" "}
-            {formatarData(
+            📅 {formatarData(
               p.data_vencimento
+            )}
+
+            {p.juros_recebido >
+              0 && (
+              <>
+                <br />
+                💵 Juros Pago:
+                R$ {Number(
+                  p.juros_recebido
+                ).toFixed(2)}
+              </>
+            )}
+
+            {p.ultimo_pagamento && (
+              <>
+                <br />
+                📌 Último
+                Pagamento:{" "}
+                {formatarData(
+                  p.ultimo_pagamento
+                )}
+              </>
             )}
 
             <div
