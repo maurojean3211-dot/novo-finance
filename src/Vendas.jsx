@@ -60,7 +60,8 @@ export default function Vendas() {
       .from("vendas")
       .select("*")
       .eq("empresa_id", empId)
-      .order("data_venda", { ascending: false });
+      .order("data_venda", { ascending: false })
+      .order("id", { ascending: false });
 
     if (!error) setVendas(data || []);
   }
@@ -114,7 +115,8 @@ export default function Vendas() {
       const res = await supabase
         .from("vendas")
         .update(payload)
-        .eq("id", editandoId);
+        .eq("id", editandoId)
+        .eq("empresa_id", empresaId);
 
       error = res.error;
     } else {
@@ -204,6 +206,7 @@ export default function Vendas() {
           color: "#fff",
           border: "none",
           borderRadius: 8,
+          cursor: "pointer",
         }}
       >
         {editandoId ? "Atualizar Venda" : "Salvar Venda"}
