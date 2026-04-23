@@ -149,7 +149,14 @@ export default function Vendas() {
   );
 
   return (
-    <div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+    <div
+      style={{
+        padding: 20,
+        maxWidth: 600,
+        margin: "0 auto",
+        color: "#fff",
+      }}
+    >
       <h1>🔥 VENDAS</h1>
 
       <input
@@ -159,7 +166,7 @@ export default function Vendas() {
         style={{ width: "100%", padding: 8 }}
       />
 
-      <p style={{ marginTop: 5, color: "#666" }}>
+      <p style={{ marginTop: 5, color: "#cbd5e1" }}>
         📅 {formatarData(dataVenda)}
       </p>
 
@@ -233,7 +240,8 @@ export default function Vendas() {
             padding: 15,
             marginBottom: 12,
             borderRadius: 10,
-            background: "#f9f9f9",
+            background: "#ffffff",
+            color: "#111",
           }}
         >
           <strong>📅 {formatarData(v.data_venda)}</strong>
