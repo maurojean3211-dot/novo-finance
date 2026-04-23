@@ -236,11 +236,11 @@ export default function Vendas() {
             background: "#f9f9f9",
           }}
         >
-          📅 {formatarData(v.data_venda)}
+          <strong>📅 {formatarData(v.data_venda)}</strong>
           <br />
           👤 {v.cliente_nome || "-"}
           <br />
-          📦 {v.produto}
+          📦 {String(v.produto || "").toUpperCase()}
           <br />
           ⚖️ {Number(v.kilos).toLocaleString("pt-BR")} kg
           <br />
