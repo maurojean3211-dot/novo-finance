@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
+function formatarData(data) {
+  if (!data) return "";
+
+  const limpa = String(data).slice(0, 10);
+  const [ano, mes, dia] = limpa.split("-");
+
+  return `${dia}/${mes}/${ano}`;
+}
+
 export default function Vendas() {
   const hoje = new Date();
 
@@ -148,7 +157,11 @@ export default function Vendas() {
         style={{ width: "100%", padding: 8 }}
       />
 
-      <br /><br />
+      <p style={{ marginTop: 5, color: "#666" }}>
+        📅 {formatarData(dataVenda)}
+      </p>
+
+      <br />
 
       <input
         placeholder="Cliente"
@@ -220,7 +233,7 @@ export default function Vendas() {
             background: "#f9f9f9",
           }}
         >
-          📅 {String(v.data_venda).slice(8,10)}/{String(v.data_venda).slice(5,7)}/{String(v.data_venda).slice(0,4)}
+          📅 {formatarData(v.data_venda)}
           <br />
           👤 {v.cliente_nome || "-"}
           <br />
