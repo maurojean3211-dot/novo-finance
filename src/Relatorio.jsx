@@ -39,14 +39,14 @@ export default function Relatorio({ empresaId }) {
       .eq("empresa_id", empresaId);
 
     let resumo = {};
-    let total = 0;
-    let comissao = 0;
+    let totalKg = 0;
+    let totalCom = 0;
 
     let hojeRecebido = 0;
-    let hojeComissao = 0;
+    let hojeCom = 0;
 
     let mesRecebido = 0;
-    let mesComissao = 0;
+    let mesCom = 0;
 
     // ================= VENDAS =================
     (vendas || []).forEach((item) => {
@@ -66,30 +66,33 @@ export default function Relatorio({ empresaId }) {
       }
 
       const kg = Number(item.kilos) || 0;
-      const valor = Number(item.valor_total || item.valor || 0);
+      const valor =
+        Number(item.valor_total) ||
+        Number(item.valor) ||
+        0;
+
+      const com =
+        Number(item.comissao) ||
+        kg * 0.05;
 
       resumo[cliente].vendas += kg;
-      total += kg;
-
-      const com = Number(item.comissao) || kg * 0.05;
-
       resumo[cliente].comissao += com;
-      comissao += com;
 
-      const dataVenda = (
-        item.created_at ||
-        item.data ||
-        ""
+      totalKg += kg;
+      totalCom += com;
+
+      const dataVenda = String(
+        item.created_at || item.data || ""
       ).slice(0, 10);
 
       if (dataVenda === dataHoje) {
         hojeRecebido += valor;
-        hojeComissao += com;
+        hojeCom += com;
       }
 
       if (dataVenda.slice(0, 7) === mesAtual) {
         mesRecebido += valor;
-        mesComissao += com;
+        mesCom += com;
       }
     });
 
@@ -113,7 +116,7 @@ export default function Relatorio({ empresaId }) {
 
       resumo[fornecedor].compras += kg;
 
-      const nomeProduto = (
+      const nomeProduto = String(
         item.produto || ""
       ).toUpperCase();
 
@@ -129,39 +132,40 @@ export default function Relatorio({ empresaId }) {
       }
 
       resumo[fornecedor].comissao += com;
-      comissao += com;
+      totalCom += com;
 
-      const dataCompra = (
-        item.created_at ||
-        item.data ||
-        ""
+      const dataCompra = String(
+        item.created_at || item.data || ""
       ).slice(0, 10);
 
       if (dataCompra === dataHoje) {
-        hojeComissao += com;
+        hojeCom += com;
       }
 
       if (dataCompra.slice(0, 7) === mesAtual) {
-        mesComissao += com;
+        mesCom += com;
       }
     });
 
     setDados(Object.values(resumo));
-    setTotalVendas(total);
-    setTotalComissao(comissao);
+    setTotalVendas(totalKg);
+    setTotalComissao(totalCom);
 
     setRecebidoHoje(hojeRecebido);
-    setComissaoHoje(hojeComissao);
+    setComissaoHoje(hojeCom);
 
     setRecebidoMes(mesRecebido);
-    setComissaoMes(mesComissao);
+    setComissaoMes(mesCom);
   }
 
-  function dinheiro(v) {
-    return Number(v || 0).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
+  function dinheiro(valor) {
+    return Number(valor || 0).toLocaleString(
+      "pt-BR",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    );
   }
 
   return (
@@ -186,32 +190,44 @@ export default function Relatorio({ empresaId }) {
       >
         <div style={card}>
           <strong>Recebido Hoje</strong>
-          <div>R$ {dinheiro(recebidoHoje)}</div>
+          <div>
+            R$ {dinheiro(recebidoHoje)}
+          </div>
         </div>
 
         <div style={card}>
           <strong>Comissão Hoje</strong>
-          <div>R$ {dinheiro(comissaoHoje)}</div>
+          <div>
+            R$ {dinheiro(comissaoHoje)}
+          </div>
         </div>
 
         <div style={card}>
           <strong>Recebido no Mês</strong>
-          <div>R$ {dinheiro(recebidoMes)}</div>
+          <div>
+            R$ {dinheiro(recebidoMes)}
+          </div>
         </div>
 
         <div style={card}>
           <strong>Comissão no Mês</strong>
-          <div>R$ {dinheiro(comissaoMes)}</div>
+          <div>
+            R$ {dinheiro(comissaoMes)}
+          </div>
         </div>
 
         <div style={card}>
           <strong>Total KG</strong>
-          <div>{totalVendas.toFixed(2)}</div>
+          <div>
+            {Number(totalVendas).toFixed(2)}
+          </div>
         </div>
 
         <div style={card}>
           <strong>Comissão Geral</strong>
-          <div>R$ {dinheiro(totalComissao)}</div>
+          <div>
+            R$ {dinheiro(totalComissao)}
+          </div>
         </div>
       </div>
 
@@ -220,12 +236,17 @@ export default function Relatorio({ empresaId }) {
         cellPadding="10"
         style={{
           width: "100%",
-          background: "#ffffff",
-          color: "#000000",
+          background: "#fff",
+          color: "#000",
           borderCollapse: "collapse",
         }}
       >
-        <thead style={{ background: "#2563eb", color: "#fff" }}>
+        <thead
+          style={{
+            background: "#2563eb",
+            color: "#fff",
+          }}
+        >
           <tr>
             <th>Cliente / Fornecedor</th>
             <th>Vendas (kg)</th>
@@ -241,14 +262,20 @@ export default function Relatorio({ empresaId }) {
               <td>{item.vendas}</td>
               <td>{item.compras}</td>
               <td>
-                R$ {dinheiro(item.comissao)}
+                R${" "}
+                {dinheiro(
+                  item.comissao
+                )}
               </td>
             </tr>
           ))}
 
           {dados.length === 0 && (
             <tr>
-              <td colSpan="4" align="center">
+              <td
+                colSpan="4"
+                align="center"
+              >
                 Nenhum registro encontrado
               </td>
             </tr>
