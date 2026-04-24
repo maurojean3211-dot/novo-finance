@@ -22,7 +22,8 @@ export default function MasterAdmin() {
     relatorio: false,
   };
 
-  const [permissoes, setPermissoes] = useState(permissoesPadrao);
+  const [permissoes, setPermissoes] =
+    useState(permissoesPadrao);
 
   useEffect(() => {
     verificarUsuario();
@@ -56,16 +57,13 @@ export default function MasterAdmin() {
     buscarPix();
   }
 
-  async function sairSistema() {
-    await supabase.auth.signOut();
-    window.location.href = "/";
-  }
-
   async function carregarClientes() {
     const { data } = await supabase
       .from("empresas")
       .select("*")
-      .order("created_at", { ascending: false });
+      .order("created_at", {
+        ascending: false,
+      });
 
     setClientes(data || []);
   }
@@ -77,14 +75,18 @@ export default function MasterAdmin() {
       .eq("chave", "pix_sistema")
       .maybeSingle();
 
-    if (data) setPixSistema(data.valor || "");
+    if (data) {
+      setPixSistema(data.valor || "");
+    }
   }
 
   async function salvarPix() {
-    const { error } = await supabase.from("configuracoes").upsert({
-      chave: "pix_sistema",
-      valor: pixSistema,
-    });
+    const { error } = await supabase
+      .from("configuracoes")
+      .upsert({
+        chave: "pix_sistema",
+        valor: pixSistema,
+      });
 
     if (error) {
       alert(error.message);
@@ -128,16 +130,22 @@ export default function MasterAdmin() {
   async function salvarPermissoes() {
     const payload = {};
 
-    Object.keys(permissoesPadrao).forEach((item) => {
-      payload[item] = !!permissoes[item];
-    });
+    Object.keys(permissoesPadrao).forEach(
+      (item) => {
+        payload[item] =
+          !!permissoes[item];
+      }
+    );
 
     const { error } = await supabase
       .from("usuarios")
       .update({
         permissoes: payload,
       })
-      .eq("email", editandoPermissoesId);
+      .eq(
+        "email",
+        editandoPermissoesId
+      );
 
     if (error) {
       alert(error.message);
@@ -151,7 +159,9 @@ export default function MasterAdmin() {
   async function marcarPago(c) {
     await supabase
       .from("empresas")
-      .update({ pagou: true })
+      .update({
+        pagou: true,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -160,7 +170,9 @@ export default function MasterAdmin() {
   async function marcarPendente(c) {
     await supabase
       .from("empresas")
-      .update({ pagou: false })
+      .update({
+        pagou: false,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -168,11 +180,15 @@ export default function MasterAdmin() {
 
   async function alterarStatus(c) {
     const novo =
-      c.status === "Ativo" ? "Bloqueado" : "Ativo";
+      c.status === "Ativo"
+        ? "Bloqueado"
+        : "Ativo";
 
     await supabase
       .from("empresas")
-      .update({ status: novo })
+      .update({
+        status: novo,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -190,61 +206,69 @@ export default function MasterAdmin() {
   }
 
   function enviarPix(cliente) {
-    let numero = String(cliente.whatsapp || "").replace(/\D/g, "");
+    let numero = String(
+      cliente.whatsapp || ""
+    ).replace(/\D/g, "");
 
     if (!numero.startsWith("55")) {
       numero = "55" + numero;
     }
 
     const msg = `Olá ${cliente.name}
-Valor: ${cliente.isento ? "ISENTO" : "R$ " + cliente.valor}
+Valor: ${
+      cliente.isento
+        ? "ISENTO"
+        : "R$ " + cliente.valor
+    }
 PIX: ${pixSistema}`;
 
     window.open(
-      `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`,
+      `https://wa.me/${numero}?text=${encodeURIComponent(
+        msg
+      )}`,
       "_blank"
     );
   }
 
   if (!usuario) {
     return (
-      <div style={{ color: "#fff", padding: 20 }}>
+      <div
+        style={{
+          color: "#fff",
+          padding: 20,
+        }}
+      >
         Carregando...
       </div>
     );
   }
 
-  const clientesFiltrados = clientes.filter((c) =>
-    (c.name || "")
-      .toLowerCase()
-      .includes(busca.toLowerCase())
-  );
+  const clientesFiltrados =
+    clientes.filter((c) =>
+      (c.name || "")
+        .toLowerCase()
+        .includes(
+          busca.toLowerCase()
+        )
+    );
 
   return (
-    <div style={{ padding: 20, color: "#fff" }}>
+    <div
+      style={{
+        padding: 20,
+        color: "#fff",
+      }}
+    >
       <h2>👑 MASTER ADMIN</h2>
-
-      <button
-        onClick={sairSistema}
-        style={{
-          background: "red",
-          color: "#fff",
-          padding: "10px 15px",
-          border: "none",
-          borderRadius: 8,
-          cursor: "pointer",
-          marginBottom: 15,
-        }}
-      >
-        🚪 Sair
-      </button>
-
-      <br />
 
       <input
         placeholder="PIX Sistema"
         value={pixSistema}
-        onChange={(e) => setPixSistema(e.target.value)}
+        onChange={(e) =>
+          setPixSistema(
+            e.target.value
+          )
+        }
       />
 
       <button onClick={salvarPix}>
@@ -257,7 +281,9 @@ PIX: ${pixSistema}`;
       <input
         placeholder="Pesquisar cliente"
         value={busca}
-        onChange={(e) => setBusca(e.target.value)}
+        onChange={(e) =>
+          setBusca(e.target.value)
+        }
       />
 
       <hr />
@@ -266,7 +292,8 @@ PIX: ${pixSistema}`;
         <div
           key={c.id}
           style={{
-            borderBottom: "1px solid #333",
+            borderBottom:
+              "1px solid #333",
             padding: 10,
             marginBottom: 10,
           }}
@@ -281,41 +308,69 @@ PIX: ${pixSistema}`;
               marginTop: 10,
             }}
           >
-            <button onClick={() => abrirPermissoes(c)}>
+            <button
+              onClick={() =>
+                abrirPermissoes(c)
+              }
+            >
               Permissões
             </button>
 
-            <button onClick={() => enviarPix(c)}>
+            <button
+              onClick={() =>
+                enviarPix(c)
+              }
+            >
               PIX
             </button>
 
-            <button onClick={() => marcarPago(c)}>
+            <button
+              onClick={() =>
+                marcarPago(c)
+              }
+            >
               Pago
             </button>
 
-            <button onClick={() => marcarPendente(c)}>
+            <button
+              onClick={() =>
+                marcarPendente(c)
+              }
+            >
               Pend.
             </button>
 
-            <button onClick={() => alterarStatus(c)}>
+            <button
+              onClick={() =>
+                alterarStatus(c)
+              }
+            >
               Status
             </button>
 
-            <button onClick={() => alternarIsencao(c)}>
+            <button
+              onClick={() =>
+                alternarIsencao(c)
+              }
+            >
               Isentar
             </button>
           </div>
 
-          {editandoPermissoesId === c.email && (
+          {editandoPermissoesId ===
+            c.email && (
             <div
               style={{
                 marginTop: 15,
-                background: "#111827",
+                background:
+                  "#111827",
                 padding: 15,
                 borderRadius: 10,
               }}
             >
-              <h4>✅ Permissões</h4>
+              <h4>
+                ✅ Permissões
+              </h4>
 
               <div
                 style={{
@@ -325,53 +380,87 @@ PIX: ${pixSistema}`;
                   gap: 12,
                 }}
               >
-                {Object.keys(permissoesPadrao).map((modulo) => (
-                  <label
-                    key={modulo}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      background: "#1f2937",
-                      padding: 10,
-                      borderRadius: 8,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={permissoes?.[modulo] || false}
-                      onChange={(e) =>
-                        setPermissoes({
-                          ...permissoes,
-                          [modulo]: e.target.checked,
-                        })
+                {Object.keys(
+                  permissoesPadrao
+                ).map(
+                  (modulo) => (
+                    <label
+                      key={
+                        modulo
                       }
                       style={{
-                        width: 18,
-                        height: 18,
-                        accentColor: "#22c55e",
-                        cursor: "pointer",
+                        display:
+                          "flex",
+                        alignItems:
+                          "center",
+                        gap: 10,
+                        background:
+                          "#1f2937",
+                        padding: 10,
+                        borderRadius: 8,
+                        cursor:
+                          "pointer",
                       }}
-                    />
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          permissoes?.[
+                            modulo
+                          ] ||
+                          false
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          setPermissoes(
+                            {
+                              ...permissoes,
+                              [modulo]:
+                                e
+                                  .target
+                                  .checked,
+                            }
+                          )
+                        }
+                        style={{
+                          width: 18,
+                          height: 18,
+                          accentColor:
+                            "#22c55e",
+                          cursor:
+                            "pointer",
+                        }}
+                      />
 
-                    <span style={{ color: "#fff" }}>
-                      {modulo}
-                    </span>
-                  </label>
-                ))}
+                      <span
+                        style={{
+                          color:
+                            "#fff",
+                        }}
+                      >
+                        {modulo}
+                      </span>
+                    </label>
+                  )
+                )}
               </div>
 
               <button
-                onClick={salvarPermissoes}
+                onClick={
+                  salvarPermissoes
+                }
                 style={{
                   marginTop: 15,
-                  background: "#06b6d4",
+                  background:
+                    "#06b6d4",
                   color: "#fff",
                   border: "none",
-                  padding: "10px 15px",
+                  padding:
+                    "10px 15px",
                   borderRadius: 8,
-                  cursor: "pointer",
+                  cursor:
+                    "pointer",
                 }}
               >
                 💾 Salvar Permissões
