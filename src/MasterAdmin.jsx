@@ -7,6 +7,12 @@ export default function MasterAdmin() {
   const [busca, setBusca] = useState("");
   const [pixSistema, setPixSistema] = useState("");
   const [editandoPermissoesId, setEditandoPermissoesId] = useState(null);
+  const [editandoId, setEditandoId] = useState(null);
+  const [form, setForm] = useState({
+    name: "",
+    valor: "",
+    whatsapp: "",
+  });
 
   const permissoesPadrao = {
     dashboard: true,
@@ -75,9 +81,7 @@ export default function MasterAdmin() {
       .eq("chave", "pix_sistema")
       .maybeSingle();
 
-    if (data) {
-      setPixSistema(data.valor || "");
-    }
+    if (data) setPixSistema(data.valor || "");
   }
 
   async function salvarPix() {
@@ -88,12 +92,56 @@ export default function MasterAdmin() {
         valor: pixSistema,
       });
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    if (error) return alert(error.message);
 
     alert("PIX salvo!");
+  }
+
+  function abrirEditar(c) {
+    setEditandoId(c.id);
+    setForm({
+      name: c.name || "",
+      valor: c.valor || "",
+      whatsapp: c.whatsapp || "",
+    });
+  }
+
+  async function salvarEdicao() {
+    const { error } = await supabase
+      .from("empresas")
+      .update({
+        name: form.name,
+        valor: form.valor,
+        whatsapp: form.whatsapp,
+      })
+      .eq("id", editandoId);
+
+    if (error) return alert(error.message);
+
+    alert("Cliente atualizado!");
+    setEditandoId(null);
+    carregarClientes();
+  }
+
+  async function excluirCliente(c) {
+    const ok = confirm(
+      "Deseja excluir este cliente?"
+    );
+
+    if (!ok) return;
+
+    await supabase
+      .from("usuarios")
+      .delete()
+      .eq("email", c.email);
+
+    await supabase
+      .from("empresas")
+      .delete()
+      .eq("id", c.id);
+
+    alert("Cliente excluído!");
+    carregarClientes();
   }
 
   async function abrirPermissoes(c) {
@@ -147,10 +195,7 @@ export default function MasterAdmin() {
         editandoPermissoesId
       );
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    if (error) return alert(error.message);
 
     alert("Permissões salvas!");
     setEditandoPermissoesId(null);
@@ -159,9 +204,7 @@ export default function MasterAdmin() {
   async function marcarPago(c) {
     await supabase
       .from("empresas")
-      .update({
-        pagou: true,
-      })
+      .update({ pagou: true })
       .eq("id", c.id);
 
     carregarClientes();
@@ -170,9 +213,7 @@ export default function MasterAdmin() {
   async function marcarPendente(c) {
     await supabase
       .from("empresas")
-      .update({
-        pagou: false,
-      })
+      .update({ pagou: false })
       .eq("id", c.id);
 
     carregarClientes();
@@ -186,9 +227,7 @@ export default function MasterAdmin() {
 
     await supabase
       .from("empresas")
-      .update({
-        status: novo,
-      })
+      .update({ status: novo })
       .eq("id", c.id);
 
     carregarClientes();
@@ -230,18 +269,8 @@ PIX: ${pixSistema}`;
     );
   }
 
-  if (!usuario) {
-    return (
-      <div
-        style={{
-          color: "#fff",
-          padding: 20,
-        }}
-      >
-        Carregando...
-      </div>
-    );
-  }
+  if (!usuario)
+    return <div style={{ color: "#fff" }}>Carregando...</div>;
 
   const clientesFiltrados =
     clientes.filter((c) =>
@@ -253,12 +282,7 @@ PIX: ${pixSistema}`;
     );
 
   return (
-    <div
-      style={{
-        padding: 20,
-        color: "#fff",
-      }}
-    >
+    <div style={{ padding: 20, color: "#fff" }}>
       <h2>👑 MASTER ADMIN</h2>
 
       <input
@@ -308,162 +332,77 @@ PIX: ${pixSistema}`;
               marginTop: 10,
             }}
           >
-            <button
-              onClick={() =>
-                abrirPermissoes(c)
-              }
-            >
+            <button onClick={() => abrirEditar(c)}>
+              ✏️ Editar
+            </button>
+
+            <button onClick={() => excluirCliente(c)}>
+              🗑 Excluir
+            </button>
+
+            <button onClick={() => abrirPermissoes(c)}>
               Permissões
             </button>
 
-            <button
-              onClick={() =>
-                enviarPix(c)
-              }
-            >
+            <button onClick={() => enviarPix(c)}>
               PIX
             </button>
 
-            <button
-              onClick={() =>
-                marcarPago(c)
-              }
-            >
+            <button onClick={() => marcarPago(c)}>
               Pago
             </button>
 
-            <button
-              onClick={() =>
-                marcarPendente(c)
-              }
-            >
+            <button onClick={() => marcarPendente(c)}>
               Pend.
             </button>
 
-            <button
-              onClick={() =>
-                alterarStatus(c)
-              }
-            >
+            <button onClick={() => alterarStatus(c)}>
               Status
             </button>
 
-            <button
-              onClick={() =>
-                alternarIsencao(c)
-              }
-            >
+            <button onClick={() => alternarIsencao(c)}>
               Isentar
             </button>
           </div>
 
-          {editandoPermissoesId ===
-            c.email && (
-            <div
-              style={{
-                marginTop: 15,
-                background:
-                  "#111827",
-                padding: 15,
-                borderRadius: 10,
-              }}
-            >
-              <h4>
-                ✅ Permissões
-              </h4>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    "repeat(auto-fit,minmax(180px,1fr))",
-                  gap: 12,
-                }}
-              >
-                {Object.keys(
-                  permissoesPadrao
-                ).map(
-                  (modulo) => (
-                    <label
-                      key={
-                        modulo
-                      }
-                      style={{
-                        display:
-                          "flex",
-                        alignItems:
-                          "center",
-                        gap: 10,
-                        background:
-                          "#1f2937",
-                        padding: 10,
-                        borderRadius: 8,
-                        cursor:
-                          "pointer",
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={
-                          permissoes?.[
-                            modulo
-                          ] ||
-                          false
-                        }
-                        onChange={(
-                          e
-                        ) =>
-                          setPermissoes(
-                            {
-                              ...permissoes,
-                              [modulo]:
-                                e
-                                  .target
-                                  .checked,
-                            }
-                          )
-                        }
-                        style={{
-                          width: 18,
-                          height: 18,
-                          accentColor:
-                            "#22c55e",
-                          cursor:
-                            "pointer",
-                        }}
-                      />
-
-                      <span
-                        style={{
-                          color:
-                            "#fff",
-                        }}
-                      >
-                        {modulo}
-                      </span>
-                    </label>
-                  )
-                )}
-              </div>
-
-              <button
-                onClick={
-                  salvarPermissoes
+          {editandoId === c.id && (
+            <div style={{ marginTop: 15 }}>
+              <input
+                placeholder="Nome"
+                value={form.name}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    name: e.target.value,
+                  })
                 }
-                style={{
-                  marginTop: 15,
-                  background:
-                    "#06b6d4",
-                  color: "#fff",
-                  border: "none",
-                  padding:
-                    "10px 15px",
-                  borderRadius: 8,
-                  cursor:
-                    "pointer",
-                }}
-              >
-                💾 Salvar Permissões
+              />
+
+              <input
+                placeholder="Valor"
+                value={form.valor}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    valor: e.target.value,
+                  })
+                }
+              />
+
+              <input
+                placeholder="WhatsApp"
+                value={form.whatsapp}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    whatsapp:
+                      e.target.value,
+                  })
+                }
+              />
+
+              <button onClick={salvarEdicao}>
+                💾 Salvar
               </button>
             </div>
           )}
