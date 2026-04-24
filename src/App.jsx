@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-
 import "./index.css";
 
 import Login from "./Login";
@@ -32,7 +31,19 @@ export default function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => carregarSessao());
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setSession(null);
+        setPermissoes({});
+        setEmpresaId(null);
+        setNomeUsuario("");
+        setPagina("dashboard");
+        setLoadingSession(false);
+        return;
+      }
+
+      carregarSessao();
+    });
 
     return () => subscription?.unsubscribe();
   }, []);
@@ -44,8 +55,7 @@ export default function App() {
 
     window.addEventListener("resize", resize);
 
-    return () =>
-      window.removeEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
   }, []);
 
   async function carregarSessao() {
@@ -64,7 +74,7 @@ export default function App() {
 
       const { data } = await supabase
         .from("usuarios")
-        .select("empresa_id,permissoes,nome")
+        .select("empresa_id, permissoes, nome")
         .eq("email", user.email)
         .maybeSingle();
 
@@ -90,8 +100,20 @@ export default function App() {
   }
 
   async function sair() {
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    try {
+      await supabase.auth.signOut();
+
+      setSession(null);
+      setPermissoes({});
+      setEmpresaId(null);
+      setNomeUsuario("");
+      setPagina("dashboard");
+
+      window.location.href = "/";
+    } catch (error) {
+      console.log(error);
+      alert("Erro ao sair.");
+    }
   }
 
   if (loadingSession) {
@@ -220,6 +242,7 @@ export default function App() {
           style={{
             ...botaoMenu,
             background: "#ef4444",
+            marginTop: 10,
           }}
         >
           🚪 Sair
