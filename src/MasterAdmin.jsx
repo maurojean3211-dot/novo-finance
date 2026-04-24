@@ -274,12 +274,22 @@ export default function MasterAdmin() {
   }
 
   async function alternarIsencao(c) {
-    await supabase
+    const atual =
+      c.isento === true ||
+      c.isento === "true" ||
+      c.isento === 1;
+
+    const { error } = await supabase
       .from("empresas")
       .update({
-        isento: !c.isento,
+        isento: !atual,
       })
       .eq("id", c.id);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     carregarClientes();
   }
@@ -372,7 +382,11 @@ PIX: ${pixSistema}`;
             marginBottom: 10,
           }}
         >
-          <strong>{c.name}</strong> | R$ {c.valor} | {c.status}
+          <strong>{c.name}</strong> |{" "}
+          {c.isento
+            ? "ISENTO"
+            : "R$ " + c.valor}{" "}
+          | {c.status}
 
           <div
             style={{
@@ -402,7 +416,6 @@ PIX: ${pixSistema}`;
               onClick={() =>
                 abrirPermissoes(c)
               }
-              type="button"
             >
               🔐 Permissões
             </button>
