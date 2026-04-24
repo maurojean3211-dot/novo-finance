@@ -6,8 +6,13 @@ export default function MasterAdmin() {
   const [usuario, setUsuario] = useState(null);
   const [busca, setBusca] = useState("");
   const [pixSistema, setPixSistema] = useState("");
-  const [editandoPermissoesId, setEditandoPermissoesId] = useState(null);
-  const [editandoId, setEditandoId] = useState(null);
+
+  const [editandoPermissoesId, setEditandoPermissoesId] =
+    useState(null);
+
+  const [editandoId, setEditandoId] =
+    useState(null);
+
   const [form, setForm] = useState({
     name: "",
     valor: "",
@@ -81,7 +86,9 @@ export default function MasterAdmin() {
       .eq("chave", "pix_sistema")
       .maybeSingle();
 
-    if (data) setPixSistema(data.valor || "");
+    if (data) {
+      setPixSistema(data.valor || "");
+    }
   }
 
   async function salvarPix() {
@@ -99,6 +106,7 @@ export default function MasterAdmin() {
 
   function abrirEditar(c) {
     setEditandoId(c.id);
+
     setForm({
       name: c.name || "",
       valor: c.valor || "",
@@ -145,14 +153,33 @@ export default function MasterAdmin() {
   }
 
   async function abrirPermissoes(c) {
-    const { data } = await supabase
+    const emailBusca =
+      c.email || "";
+
+    if (!emailBusca) {
+      alert(
+        "Cliente sem email cadastrado"
+      );
+      return;
+    }
+
+    const { data, error } = await supabase
       .from("usuarios")
-      .select("email, permissoes")
-      .eq("email", c.email)
+      .select(
+        "email, permissoes"
+      )
+      .eq("email", emailBusca)
       .maybeSingle();
 
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
     if (!data) {
-      alert("Cliente sem login");
+      alert(
+        "Cliente sem login na tabela usuarios"
+      );
       return;
     }
 
@@ -161,13 +188,17 @@ export default function MasterAdmin() {
     try {
       banco =
         typeof data.permissoes === "string"
-          ? JSON.parse(data.permissoes)
+          ? JSON.parse(
+              data.permissoes
+            )
           : data.permissoes || {};
     } catch {
       banco = {};
     }
 
-    setEditandoPermissoesId(c.email);
+    setEditandoPermissoesId(
+      emailBusca
+    );
 
     setPermissoes({
       ...permissoesPadrao,
@@ -178,12 +209,12 @@ export default function MasterAdmin() {
   async function salvarPermissoes() {
     const payload = {};
 
-    Object.keys(permissoesPadrao).forEach(
-      (item) => {
-        payload[item] =
-          !!permissoes[item];
-      }
-    );
+    Object.keys(
+      permissoesPadrao
+    ).forEach((item) => {
+      payload[item] =
+        !!permissoes[item];
+    });
 
     const { error } = await supabase
       .from("usuarios")
@@ -195,7 +226,10 @@ export default function MasterAdmin() {
         editandoPermissoesId
       );
 
-    if (error) return alert(error.message);
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     alert("Permissões salvas!");
     setEditandoPermissoesId(null);
@@ -204,7 +238,9 @@ export default function MasterAdmin() {
   async function marcarPago(c) {
     await supabase
       .from("empresas")
-      .update({ pagou: true })
+      .update({
+        pagou: true,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -213,7 +249,9 @@ export default function MasterAdmin() {
   async function marcarPendente(c) {
     await supabase
       .from("empresas")
-      .update({ pagou: false })
+      .update({
+        pagou: false,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -227,7 +265,9 @@ export default function MasterAdmin() {
 
     await supabase
       .from("empresas")
-      .update({ status: novo })
+      .update({
+        status: novo,
+      })
       .eq("id", c.id);
 
     carregarClientes();
@@ -269,8 +309,13 @@ PIX: ${pixSistema}`;
     );
   }
 
-  if (!usuario)
-    return <div style={{ color: "#fff" }}>Carregando...</div>;
+  if (!usuario) {
+    return (
+      <div style={{ color: "#fff" }}>
+        Carregando...
+      </div>
+    );
+  }
 
   const clientesFiltrados =
     clientes.filter((c) =>
@@ -282,7 +327,12 @@ PIX: ${pixSistema}`;
     );
 
   return (
-    <div style={{ padding: 20, color: "#fff" }}>
+    <div
+      style={{
+        padding: 20,
+        color: "#fff",
+      }}
+    >
       <h2>👑 MASTER ADMIN</h2>
 
       <input
@@ -332,48 +382,86 @@ PIX: ${pixSistema}`;
               marginTop: 10,
             }}
           >
-            <button onClick={() => abrirEditar(c)}>
+            <button
+              onClick={() =>
+                abrirEditar(c)
+              }
+            >
               ✏️ Editar
             </button>
 
-            <button onClick={() => excluirCliente(c)}>
+            <button
+              onClick={() =>
+                excluirCliente(c)
+              }
+            >
               🗑 Excluir
             </button>
 
-            <button onClick={() => abrirPermissoes(c)}>
-              Permissões
+            <button
+              onClick={() =>
+                abrirPermissoes(c)
+              }
+              type="button"
+            >
+              🔐 Permissões
             </button>
 
-            <button onClick={() => enviarPix(c)}>
+            <button
+              onClick={() =>
+                enviarPix(c)
+              }
+            >
               PIX
             </button>
 
-            <button onClick={() => marcarPago(c)}>
+            <button
+              onClick={() =>
+                marcarPago(c)
+              }
+            >
               Pago
             </button>
 
-            <button onClick={() => marcarPendente(c)}>
+            <button
+              onClick={() =>
+                marcarPendente(c)
+              }
+            >
               Pend.
             </button>
 
-            <button onClick={() => alterarStatus(c)}>
+            <button
+              onClick={() =>
+                alterarStatus(c)
+              }
+            >
               Status
             </button>
 
-            <button onClick={() => alternarIsencao(c)}>
+            <button
+              onClick={() =>
+                alternarIsencao(c)
+              }
+            >
               Isentar
             </button>
           </div>
 
           {editandoId === c.id && (
-            <div style={{ marginTop: 15 }}>
+            <div
+              style={{
+                marginTop: 15,
+              }}
+            >
               <input
                 placeholder="Nome"
                 value={form.name}
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    name: e.target.value,
+                    name:
+                      e.target.value,
                   })
                 }
               />
@@ -384,14 +472,17 @@ PIX: ${pixSistema}`;
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    valor: e.target.value,
+                    valor:
+                      e.target.value,
                   })
                 }
               />
 
               <input
                 placeholder="WhatsApp"
-                value={form.whatsapp}
+                value={
+                  form.whatsapp
+                }
                 onChange={(e) =>
                   setForm({
                     ...form,
@@ -401,8 +492,84 @@ PIX: ${pixSistema}`;
                 }
               />
 
-              <button onClick={salvarEdicao}>
+              <button
+                onClick={
+                  salvarEdicao
+                }
+              >
                 💾 Salvar
+              </button>
+            </div>
+          )}
+
+          {editandoPermissoesId ===
+            c.email && (
+            <div
+              style={{
+                marginTop: 15,
+                background:
+                  "#111827",
+                padding: 15,
+                borderRadius: 10,
+              }}
+            >
+              <h4>
+                🔐 Permissões
+              </h4>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(auto-fit,minmax(180px,1fr))",
+                  gap: 10,
+                }}
+              >
+                {Object.keys(
+                  permissoesPadrao
+                ).map(
+                  (modulo) => (
+                    <label
+                      key={
+                        modulo
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={
+                          !!permissoes[
+                            modulo
+                          ]
+                        }
+                        onChange={(
+                          e
+                        ) =>
+                          setPermissoes(
+                            {
+                              ...permissoes,
+                              [modulo]:
+                                e
+                                  .target
+                                  .checked,
+                            }
+                          )
+                        }
+                      />{" "}
+                      {modulo}
+                    </label>
+                  )
+                )}
+              </div>
+
+              <button
+                onClick={
+                  salvarPermissoes
+                }
+                style={{
+                  marginTop: 15,
+                }}
+              >
+                💾 Salvar Permissões
               </button>
             </div>
           )}
