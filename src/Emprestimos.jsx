@@ -3,38 +3,24 @@ import { supabase } from "./supabase";
 
 export default function EmprestimosLista() {
   const [dados, setDados] = useState([]);
-  const [carregandoId, setCarregandoId] =
-    useState(null);
-
-  const [empresaRealId, setEmpresaRealId] =
-    useState(null);
+  const [empresaRealId, setEmpresaRealId] = useState(null);
+  const [carregandoId, setCarregandoId] = useState(null);
 
   const [cliente, setCliente] = useState("");
-  const [telefone, setTelefone] =
-    useState("");
+  const [telefone, setTelefone] = useState("");
   const [valor, setValor] = useState("");
   const [juros, setJuros] = useState("");
-  const [prazo, setPrazo] = useState("");
-  const [dataVencimento, setDataVencimento] =
-    useState("");
-
+  const [prazo, setPrazo] = useState("30");
+  const [dataVencimento, setDataVencimento] = useState("");
   const [busca, setBusca] = useState("");
 
-  const [pixChave, setPixChave] =
-    useState(
-      () =>
-        localStorage.getItem(
-          "chave_pix"
-        ) || "11963068079"
-    );
+  const [pixChave, setPixChave] = useState(
+    () => localStorage.getItem("chave_pix") || "11963068079"
+  );
 
-  const [pixEdit, setPixEdit] =
-    useState(
-      () =>
-        localStorage.getItem(
-          "chave_pix"
-        ) || "11963068079"
-    );
+  const [pixEdit, setPixEdit] = useState(
+    () => localStorage.getItem("chave_pix") || "11963068079"
+  );
 
   useEffect(() => {
     carregarEmpresa();
@@ -64,57 +50,107 @@ export default function EmprestimosLista() {
       .from("emprestimos")
       .select("*")
       .eq("empresa_id", id)
-      .order("data_vencimento", {
-        ascending: true,
-      });
+      .order("data_vencimento", { ascending: true });
 
     setDados(data || []);
   }
 
   function salvarPix() {
     setPixChave(pixEdit);
-
-    localStorage.setItem(
-      "chave_pix",
-      pixEdit
-    );
-
+    localStorage.setItem("chave_pix", pixEdit);
     alert("PIX salvo!");
   }
 
   async function salvar() {
+    if (!cliente || !valor || !dataVencimento) {
+      alert("Preencha os campos");
+      return;
+    }
+
     const valorBase = Number(valor);
     const jurosPct = Number(juros || 0);
 
     const total =
-      valorBase +
-      (valorBase * jurosPct) / 100;
+      valorBase + (valorBase * jurosPct) / 100;
 
-    await supabase
-      .from("emprestimos")
-      .insert([
-        {
-          empresa_id: empresaRealId,
-          cliente,
-          telefone,
-          valor: valorBase,
-          juros: jurosPct,
-          prazo,
-          total,
-          data_vencimento:
-            dataVencimento,
-          status: "pendente",
-        },
-      ]);
+    await supabase.from("emprestimos").insert([
+      {
+        empresa_id: empresaRealId,
+        cliente,
+        telefone,
+        valor: valorBase,
+        juros: jurosPct,
+        prazo,
+        total,
+        data_vencimento: dataVencimento,
+        status: "pendente",
+        historico: "",
+      },
+    ]);
 
     setCliente("");
     setTelefone("");
     setValor("");
     setJuros("");
-    setPrazo("");
+    setPrazo("30");
     setDataVencimento("");
 
     carregarDados(empresaRealId);
+  }
+
+  async function pagarJuros(p) {
+    setCarregandoId(p.id);
+
+    const valorJuros =
+      (Number(p.valor) * Number(p.juros)) / 100;
+
+    const hoje = new Date();
+
+    const novaData = new Date(
+      p.data_vencimento
+    );
+
+    novaData.setMonth(
+      novaData.getMonth() + 1
+    );
+
+    const vencimento = novaData
+      .toISOString()
+      .slice(0, 10);
+
+    const historicoAtual =
+      p.historico || "";
+
+    const novoHistorico =
+      historicoAtual +
+      `Juros pago R$ ${valorJuros.toFixed(
+        2
+      )} em ${hoje.toLocaleDateString(
+        "pt-BR"
+      )}\n`;
+
+    await supabase
+      .from("emprestimos")
+      .update({
+        data_vencimento: vencimento,
+        historico: novoHistorico,
+        ultimo_pagamento: hoje
+          .toISOString()
+          .slice(0, 10),
+      })
+      .eq("id", p.id);
+
+    await carregarDados(empresaRealId);
+
+    setCarregandoId(null);
+
+    alert(
+      `✅ Juros recebido R$ ${valorJuros.toFixed(
+        2
+      )}\nNovo vencimento: ${novaData.toLocaleDateString(
+        "pt-BR"
+      )}`
+    );
   }
 
   async function marcarPago(id) {
@@ -127,72 +163,20 @@ export default function EmprestimosLista() {
       })
       .eq("id", id);
 
-    await carregarDados(
-      empresaRealId
-    );
-
-    setCarregandoId(null);
-  }
-
-  async function pagarJuros(p) {
-    setCarregandoId(p.id);
-
-    const valorJuros =
-      (Number(p.valor) *
-        Number(p.juros)) /
-      100;
-
-    const hoje = new Date();
-
-    const novaData =
-      new Date();
-
-    novaData.setDate(
-      hoje.getDate() +
-        Number(
-          p.prazo || 30
-        )
-    );
-
-    const vencimento =
-      novaData
-        .toISOString()
-        .slice(0, 10);
-
-    await supabase
-      .from("emprestimos")
-      .update({
-        data_vencimento:
-          vencimento,
-        ultimo_pagamento:
-          hoje
-            .toISOString()
-            .slice(0, 10),
-        juros_recebido:
-          valorJuros,
-      })
-      .eq("id", p.id);
-
-    await carregarDados(
-      empresaRealId
-    );
+    await carregarDados(empresaRealId);
 
     setCarregandoId(null);
   }
 
   async function excluir(id) {
-    setCarregandoId(id);
+    if (!window.confirm("Excluir?")) return;
 
     await supabase
       .from("emprestimos")
       .delete()
       .eq("id", id);
 
-    await carregarDados(
-      empresaRealId
-    );
-
-    setCarregandoId(null);
+    carregarDados(empresaRealId);
   }
 
   function cobrar(p) {
@@ -202,20 +186,17 @@ export default function EmprestimosLista() {
 
     if (!numero) return;
 
-    if (
-      !numero.startsWith(
-        "55"
-      )
-    ) {
-      numero =
-        "55" + numero;
+    if (!numero.startsWith("55")) {
+      numero = "55" + numero;
     }
 
-    const msg = `Olá ${p.cliente}, seu empréstimo venceu. Valor R$ ${Number(
+    const msg = `Olá ${
+      p.cliente
+    }, seu pagamento venceu.\nValor total: R$ ${Number(
       p.total
     ).toFixed(
       2
-    )}. PIX ${pixChave}`;
+    )}\nPIX: ${pixChave}`;
 
     window.open(
       `https://wa.me/${numero}?text=${encodeURIComponent(
@@ -236,35 +217,42 @@ export default function EmprestimosLista() {
 
   const dadosFiltrados =
     dados.filter((p) =>
-      String(
-        p.cliente || ""
-      )
+      String(p.cliente || "")
         .toLowerCase()
-        .includes(
-          busca.toLowerCase()
-        )
+        .includes(busca.toLowerCase())
+    );
+
+  const totalEmprestado = dados
+    .filter((x) => x.status !== "pago")
+    .reduce(
+      (acc, item) =>
+        acc + Number(item.valor || 0),
+      0
     );
 
   return (
     <div
       style={{
         padding: 20,
-        maxWidth: 700,
+        maxWidth: 750,
         margin: "auto",
         color: "#fff",
       }}
     >
       <h2>
-        💰 Empréstimos
+        💰 Empréstimos Profissional
       </h2>
+
+      <h3>
+        Carteira Ativa: R${" "}
+        {totalEmprestado.toFixed(2)}
+      </h3>
 
       <input
         placeholder="Buscar cliente"
         value={busca}
         onChange={(e) =>
-          setBusca(
-            e.target.value
-          )
+          setBusca(e.target.value)
         }
         style={inputStyle}
       />
@@ -275,33 +263,27 @@ export default function EmprestimosLista() {
         <input
           value={pixEdit}
           onChange={(e) =>
-            setPixEdit(
-              e.target.value
-            )
+            setPixEdit(e.target.value)
           }
           style={inputStyle}
         />
 
         <button
           onClick={salvarPix}
-          style={buttonGreen}
+          style={greenBtn}
         >
           Salvar PIX
         </button>
       </div>
 
       <div style={box}>
-        <h3>
-          Novo Empréstimo
-        </h3>
+        <h3>Novo Empréstimo</h3>
 
         <input
           placeholder="Cliente"
           value={cliente}
           onChange={(e) =>
-            setCliente(
-              e.target.value
-            )
+            setCliente(e.target.value)
           }
           style={inputStyle}
         />
@@ -310,9 +292,7 @@ export default function EmprestimosLista() {
           placeholder="Telefone"
           value={telefone}
           onChange={(e) =>
-            setTelefone(
-              e.target.value
-            )
+            setTelefone(e.target.value)
           }
           style={inputStyle}
         />
@@ -322,9 +302,7 @@ export default function EmprestimosLista() {
           type="number"
           value={valor}
           onChange={(e) =>
-            setValor(
-              e.target.value
-            )
+            setValor(e.target.value)
           }
           style={inputStyle}
         />
@@ -334,23 +312,17 @@ export default function EmprestimosLista() {
           type="number"
           value={juros}
           onChange={(e) =>
-            setJuros(
-              e.target.value
-            )
+            setJuros(e.target.value)
           }
           style={inputStyle}
         />
 
         <input
-          placeholder="Prazo"
+          placeholder="Prazo dias"
           type="number"
-          min="1"
-          max="30"
           value={prazo}
           onChange={(e) =>
-            setPrazo(
-              e.target.value
-            )
+            setPrazo(e.target.value)
           }
           style={inputStyle}
         />
@@ -368,131 +340,104 @@ export default function EmprestimosLista() {
 
         <button
           onClick={salvar}
-          style={buttonGreen}
+          style={greenBtn}
         >
           Salvar
         </button>
       </div>
 
-      {dadosFiltrados.map(
-        (p) => (
+      {dadosFiltrados.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            ...box,
+            background:
+              p.status === "pago"
+                ? "#14532d"
+                : "#374151",
+          }}
+        >
+          <strong>{p.cliente}</strong>
+          <br />
+          💵 Valor: R${" "}
+          {Number(p.valor).toFixed(2)}
+          <br />
+          💸 Total: R${" "}
+          {Number(p.total).toFixed(2)}
+          <br />
+          📅 Vence:{" "}
+          {formatarData(
+            p.data_vencimento
+          )}
+          <br />
+          📌 Status: {p.status}
+
+          {p.historico && (
+            <>
+              <br />
+              <small>
+                📝 Último:
+                <br />
+                {p.historico
+                  .split("\n")
+                  .slice(-2)
+                  .join("\n")}
+              </small>
+            </>
+          )}
+
           <div
-            key={p.id}
-            style={boxItem}
+            style={{
+              marginTop: 10,
+              display: "flex",
+              gap: 5,
+              flexWrap: "wrap",
+            }}
           >
-            <strong>
-              {p.cliente}
-            </strong>
-            <br />
-            💰 R$ {Number(
-              p.total
-            ).toFixed(2)}
-            <br />
-            📅 {formatarData(
-              p.data_vencimento
-            )}
-
-            {p.juros_recebido >
-              0 && (
+            {p.status !== "pago" && (
               <>
-                <br />
-                💵 Juros Pago:
-                R$ {Number(
-                  p.juros_recebido
-                ).toFixed(2)}
+                <button
+                  onClick={() =>
+                    cobrar(p)
+                  }
+                  style={blueBtn}
+                >
+                  📲 Cobrar
+                </button>
+
+                <button
+                  onClick={() =>
+                    pagarJuros(p)
+                  }
+                  style={orangeBtn}
+                >
+                  🔁 Juros
+                </button>
+
+                <button
+                  onClick={() =>
+                    marcarPago(
+                      p.id
+                    )
+                  }
+                  style={greenBtnMini}
+                >
+                  💰 Quitou
+                </button>
               </>
             )}
 
-            {p.ultimo_pagamento && (
-              <>
-                <br />
-                📌 Último
-                Pagamento:{" "}
-                {formatarData(
-                  p.ultimo_pagamento
-                )}
-              </>
-            )}
-
-            <div
-              style={{
-                marginTop: 10,
-                display:
-                  "flex",
-                gap: 5,
-                flexWrap:
-                  "wrap",
-              }}
+            <button
+              onClick={() =>
+                excluir(p.id)
+              }
+              style={redBtn}
             >
-              <button
-                onClick={() =>
-                  cobrar(p)
-                }
-                style={miniBtn}
-              >
-                📲 Cobrar
-              </button>
-
-              <button
-                disabled={
-                  carregandoId ===
-                  p.id
-                }
-                onClick={() =>
-                  pagarJuros(
-                    p
-                  )
-                }
-                style={
-                  miniBtnOrange
-                }
-              >
-                {carregandoId ===
-                p.id
-                  ? "⏳"
-                  : "🔁 Juros"}
-              </button>
-
-              <button
-                disabled={
-                  carregandoId ===
-                  p.id
-                }
-                onClick={() =>
-                  marcarPago(
-                    p.id
-                  )
-                }
-                style={
-                  miniBtnGreen
-                }
-              >
-                {carregandoId ===
-                p.id
-                  ? "⏳"
-                  : "💰 Pago"}
-              </button>
-
-              <button
-                disabled={
-                  carregandoId ===
-                  p.id
-                }
-                onClick={() =>
-                  excluir(
-                    p.id
-                  )
-                }
-                style={
-                  miniBtnRed
-                }
-              >
-                ❌
-              </button>
-            </div>
+              ❌
+            </button>
           </div>
-        )
-      )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -504,20 +449,20 @@ const box = {
   marginBottom: 15,
 };
 
-const boxItem = {
-  background: "#374151",
-  padding: 15,
-  borderRadius: 8,
-  marginBottom: 10,
-};
-
 const inputStyle = {
   width: "100%",
   padding: 10,
   marginBottom: 10,
 };
 
-const buttonGreen = {
+const blueBtn = {
+  padding: "8px 10px",
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+};
+
+const greenBtn = {
   width: "100%",
   padding: 12,
   background: "#059669",
@@ -525,29 +470,22 @@ const buttonGreen = {
   border: "none",
 };
 
-const miniBtn = {
-  padding: "6px 10px",
-  background: "#2563eb",
+const greenBtnMini = {
+  padding: "8px 10px",
+  background: "#16a34a",
   color: "#fff",
   border: "none",
 };
 
-const miniBtnGreen = {
-  padding: "6px 10px",
-  background: "#059669",
-  color: "#fff",
-  border: "none",
-};
-
-const miniBtnOrange = {
-  padding: "6px 10px",
+const orangeBtn = {
+  padding: "8px 10px",
   background: "#d97706",
   color: "#fff",
   border: "none",
 };
 
-const miniBtnRed = {
-  padding: "6px 10px",
+const redBtn = {
+  padding: "8px 10px",
   background: "#991b1b",
   color: "#fff",
   border: "none",
