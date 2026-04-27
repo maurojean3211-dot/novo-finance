@@ -9,9 +9,11 @@ function dinheiro(valor) {
 }
 
 export default function RelatorioUsuario({ empresaId }) {
-  const [totalRecebido, setTotalRecebido] = useState(0);
+  const [totalVendas, setTotalVendas] = useState(0);
   const [totalCompras, setTotalCompras] = useState(0);
-  const [totalPagar, setTotalPagar] = useState(0);
+
+  const [qtdVendas, setQtdVendas] = useState(0);
+  const [qtdCompras, setQtdCompras] = useState(0);
 
   useEffect(() => {
     if (empresaId) carregarDados();
@@ -19,15 +21,14 @@ export default function RelatorioUsuario({ empresaId }) {
 
   async function carregarDados() {
     await Promise.all([
-      carregarRecebimentos(),
+      carregarVendas(),
       carregarCompras(),
-      carregarContasPagar(),
     ]);
   }
 
-  async function carregarRecebimentos() {
+  async function carregarVendas() {
     const { data } = await supabase
-      .from("recebimentos")
+      .from("vendas")
       .select("valor")
       .eq("empresa_id", empresaId);
 
@@ -36,7 +37,8 @@ export default function RelatorioUsuario({ empresaId }) {
       0
     );
 
-    setTotalRecebido(total);
+    setTotalVendas(total);
+    setQtdVendas((data || []).length);
   }
 
   async function carregarCompras() {
@@ -51,26 +53,10 @@ export default function RelatorioUsuario({ empresaId }) {
     );
 
     setTotalCompras(total);
+    setQtdCompras((data || []).length);
   }
 
-  async function carregarContasPagar() {
-    const { data } = await supabase
-      .from("contas_pagar")
-      .select("valor,status")
-      .eq("empresa_id", empresaId);
-
-    const total = (data || [])
-      .filter((item) => item.status !== "Pago")
-      .reduce(
-        (soma, item) => soma + Number(item.valor || 0),
-        0
-      );
-
-    setTotalPagar(total);
-  }
-
-  const saldo =
-    totalRecebido - totalCompras - totalPagar;
+  const saldo = totalVendas - totalCompras;
 
   return (
     <div
@@ -90,6 +76,22 @@ export default function RelatorioUsuario({ empresaId }) {
           marginTop: 20,
         }}
       >
+        <div style={card}>
+          📦 <strong>Total de Vendas:</strong>
+          <br />
+          R$ {dinheiro(totalVendas)}
+          <br />
+          {qtdVendas} venda(s)
+        </div>
+
+        <div style={card}>
+          🧱 <strong>Total de Compras:</strong>
+          <br />
+          R$ {dinheiro(totalCompras)}
+          <br />
+          {qtdCompras} compra(s)
+        </div>
+
         <div
           style={{
             ...card,
@@ -99,7 +101,7 @@ export default function RelatorioUsuario({ empresaId }) {
                 : "#7f1d1d",
           }}
         >
-          💰 <strong>Saldo Atual:</strong>
+          💰 <strong>Resultado:</strong>
           <br />
           R$ {dinheiro(saldo)}
         </div>
