@@ -6,7 +6,6 @@ import Login from "./Login";
 import Admin from "./Admin";
 import Dashboard from "./Dashboard";
 import MasterAdmin from "./MasterAdmin";
-import Financeiro from "./Financeiro.jsx";
 import DespesasPessoais from "./DespesasPessoais.jsx";
 import Relatorio from "./Relatorio.jsx";
 import Clientes from "./Clientes.jsx";
@@ -55,8 +54,7 @@ export default function App() {
 
     window.addEventListener("resize", resize);
 
-    return () =>
-      window.removeEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
   }, []);
 
   async function carregarSessao() {
@@ -128,9 +126,7 @@ export default function App() {
   if (!session) return <Login />;
 
   const emailLogado = session?.user?.email || "";
-
-  const loginMaster =
-    emailLogado === "maurojean3211@gmail.com";
+  const loginMaster = emailLogado === "maurojean3211@gmail.com";
 
   return (
     <div
@@ -167,51 +163,102 @@ export default function App() {
         </div>
 
         {permissoes.dashboard && (
-          <button onClick={() => setPagina("dashboard")} style={pagina === "dashboard" ? botaoAtivo : botaoMenu}>📊 Dashboard</button>
-        )}
-
-        {permissoes.financeiro && (
-          <button onClick={() => setPagina("financeiro")} style={pagina === "financeiro" ? botaoAtivo : botaoMenu}>💰 Financeiro</button>
+          <button
+            onClick={() => setPagina("dashboard")}
+            style={pagina === "dashboard" ? botaoAtivo : botaoMenu}
+          >
+            📊 Dashboard
+          </button>
         )}
 
         {permissoes.recebimentos && (
-          <button onClick={() => setPagina("recebimentos")} style={pagina === "recebimentos" ? botaoAtivo : botaoMenu}>💵 Recebimentos</button>
+          <button
+            onClick={() => setPagina("recebimentos")}
+            style={pagina === "recebimentos" ? botaoAtivo : botaoMenu}
+          >
+            💵 Recebimentos
+          </button>
         )}
 
         {permissoes.clientes && (
-          <button onClick={() => setPagina("clientes")} style={pagina === "clientes" ? botaoAtivo : botaoMenu}>👥 Clientes</button>
+          <button
+            onClick={() => setPagina("clientes")}
+            style={pagina === "clientes" ? botaoAtivo : botaoMenu}
+          >
+            👥 Clientes
+          </button>
         )}
 
         {permissoes.contas_pagar && (
-          <button onClick={() => setPagina("contas_pagar")} style={pagina === "contas_pagar" ? botaoAtivo : botaoMenu}>💸 Contas a Pagar</button>
+          <button
+            onClick={() => setPagina("contas_pagar")}
+            style={pagina === "contas_pagar" ? botaoAtivo : botaoMenu}
+          >
+            💸 Contas a Pagar
+          </button>
         )}
 
         {permissoes.contas_fixas && (
-          <button onClick={() => setPagina("contas_fixas")} style={pagina === "contas_fixas" ? botaoAtivo : botaoMenu}>🔁 Contas Fixas</button>
+          <button
+            onClick={() => setPagina("contas_fixas")}
+            style={pagina === "contas_fixas" ? botaoAtivo : botaoMenu}
+          >
+            🔁 Contas Fixas
+          </button>
         )}
 
         {permissoes.emprestimos && (
-          <button onClick={() => setPagina("emprestimos")} style={pagina === "emprestimos" ? botaoAtivo : botaoMenu}>💸 Empréstimos</button>
+          <button
+            onClick={() => setPagina("emprestimos")}
+            style={pagina === "emprestimos" ? botaoAtivo : botaoMenu}
+          >
+            💸 Empréstimos
+          </button>
         )}
 
         {permissoes.vendas && (
-          <button onClick={() => setPagina("vendas")} style={pagina === "vendas" ? botaoAtivo : botaoMenu}>📦 Vendas</button>
+          <button
+            onClick={() => setPagina("vendas")}
+            style={pagina === "vendas" ? botaoAtivo : botaoMenu}
+          >
+            📦 Vendas
+          </button>
         )}
 
         {permissoes.compras && (
-          <button onClick={() => setPagina("compras")} style={pagina === "compras" ? botaoAtivo : botaoMenu}>🧱 Compras</button>
+          <button
+            onClick={() => setPagina("compras")}
+            style={pagina === "compras" ? botaoAtivo : botaoMenu}
+          >
+            🧱 Compras
+          </button>
         )}
 
         {permissoes.relatorio && (
-          <button onClick={() => setPagina("relatorio")} style={pagina === "relatorio" ? botaoAtivo : botaoMenu}>📄 Relatório</button>
+          <button
+            onClick={() => setPagina("relatorio")}
+            style={pagina === "relatorio" ? botaoAtivo : botaoMenu}
+          >
+            📄 Relatório
+          </button>
         )}
 
         {permissoes.pessoal && (
-          <button onClick={() => setPagina("despesas")} style={pagina === "despesas" ? botaoAtivo : botaoMenu}>💳 Pessoal</button>
+          <button
+            onClick={() => setPagina("despesas")}
+            style={pagina === "despesas" ? botaoAtivo : botaoMenu}
+          >
+            💳 Pessoal
+          </button>
         )}
 
         {loginMaster && (
-          <button onClick={() => setPagina("master")} style={pagina === "master" ? botaoAtivo : botaoMenu}>👑 Master Admin</button>
+          <button
+            onClick={() => setPagina("master")}
+            style={pagina === "master" ? botaoAtivo : botaoMenu}
+          >
+            👑 Master Admin
+          </button>
         )}
 
         <button
@@ -229,18 +276,27 @@ export default function App() {
       {/* CONTEÚDO */}
       <div style={{ flex: 1, padding: 20 }}>
         {pagina === "dashboard" && permissoes.dashboard && <Dashboard />}
-        {pagina === "financeiro" && permissoes.financeiro && <Financeiro empresaId={empresaId} />}
-        {pagina === "recebimentos" && permissoes.recebimentos && <Recebimentos empresaId={empresaId} />}
+        {pagina === "recebimentos" && permissoes.recebimentos && (
+          <Recebimentos empresaId={empresaId} />
+        )}
         {pagina === "clientes" && permissoes.clientes && <Clientes />}
-        {pagina === "contas_pagar" && permissoes.contas_pagar && <ContasPagar empresaId={empresaId} />}
-        {pagina === "contas_fixas" && permissoes.contas_fixas && <ContasFixas empresaId={empresaId} />}
-        {pagina === "emprestimos" && permissoes.emprestimos && <EmprestimosLista empresaId={empresaId} />}
+        {pagina === "contas_pagar" && permissoes.contas_pagar && (
+          <ContasPagar empresaId={empresaId} />
+        )}
+        {pagina === "contas_fixas" && permissoes.contas_fixas && (
+          <ContasFixas empresaId={empresaId} />
+        )}
+        {pagina === "emprestimos" && permissoes.emprestimos && (
+          <EmprestimosLista empresaId={empresaId} />
+        )}
         {pagina === "vendas" && permissoes.vendas && <Vendas />}
         {pagina === "compras" && permissoes.compras && <Compras />}
         {pagina === "relatorio" && permissoes.relatorio && (
           <Relatorio empresaId={empresaId} />
         )}
-        {pagina === "despesas" && permissoes.pessoal && <DespesasPessoais />}
+        {pagina === "despesas" && permissoes.pessoal && (
+          <DespesasPessoais />
+        )}
         {pagina === "master" && loginMaster && <MasterAdmin />}
         {pagina === "admin" && <Admin />}
       </div>
