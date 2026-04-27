@@ -7,7 +7,10 @@ import Admin from "./Admin";
 import Dashboard from "./Dashboard";
 import MasterAdmin from "./MasterAdmin";
 import DespesasPessoais from "./DespesasPessoais.jsx";
+
 import Relatorio from "./Relatorio.jsx";
+import RelatorioUsuario from "./RelatorioUsuario.jsx";
+
 import Clientes from "./Clientes.jsx";
 import Recebimentos from "./Recebimentos.jsx";
 
@@ -145,7 +148,6 @@ export default function App() {
         background: "#020617",
       }}
     >
-      {/* MENU */}
       <div
         style={{
           width: isMobile ? "100%" : 230,
@@ -337,7 +339,6 @@ export default function App() {
         </button>
       </div>
 
-      {/* CONTEÚDO */}
       <div style={{ flex: 1, padding: 20 }}>
         {pagina === "dashboard" &&
           permissoes.dashboard && <Dashboard />}
@@ -390,11 +391,16 @@ export default function App() {
           ))}
 
         {pagina === "relatorio" &&
-          permissoes.relatorio && (
+          permissoes.relatorio &&
+          (loginMaster ? (
             <Relatorio
               empresaId={empresaId}
             />
-          )}
+          ) : (
+            <RelatorioUsuario
+              empresaId={empresaId}
+            />
+          ))}
 
         {pagina === "despesas" &&
           permissoes.pessoal && (
