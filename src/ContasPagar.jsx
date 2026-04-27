@@ -44,6 +44,20 @@ export default function ContasPagar({ empresaId }) {
     );
   }
 
+  function formatarDataBanco(data) {
+    if (!data) return null;
+    return data; // yyyy-mm-dd
+  }
+
+  function formatarDataTela(data) {
+    if (!data) return "";
+
+    const partes = data.split("-");
+    if (partes.length !== 3) return data;
+
+    return `${partes[2]}/${partes[1]}/${partes[0]}`;
+  }
+
   async function salvar() {
     if (!empresaId) return alert("Empresa não identificada.");
     if (!fornecedor) return alert("Fornecedor obrigatório");
@@ -57,16 +71,18 @@ export default function ContasPagar({ empresaId }) {
 
     let error = null;
 
+    const payload = {
+      fornecedor,
+      descricao,
+      valor: valorNumero,
+      vencimento: formatarDataBanco(vencimento),
+      status,
+    };
+
     if (editandoId) {
       const retorno = await supabase
         .from("contas_pagar")
-        .update({
-          fornecedor,
-          descricao,
-          valor: valorNumero,
-          vencimento,
-          status,
-        })
+        .update(payload)
         .eq("id", editandoId)
         .eq("empresa_id", empresaId);
 
@@ -79,11 +95,7 @@ export default function ContasPagar({ empresaId }) {
         .insert([
           {
             empresa_id: empresaId,
-            fornecedor,
-            descricao,
-            valor: valorNumero,
-            vencimento,
-            status,
+            ...payload,
           },
         ]);
 
@@ -186,7 +198,8 @@ export default function ContasPagar({ empresaId }) {
   }
 
   const filtrados = dados.filter((item) => {
-    const texto = `${item.fornecedor || ""} ${item.descricao || ""}`.toLowerCase();
+    const texto =
+      `${item.fornecedor || ""} ${item.descricao || ""}`.toLowerCase();
 
     const passouBusca = texto.includes(busca.toLowerCase());
 
@@ -257,17 +270,9 @@ export default function ContasPagar({ empresaId }) {
           <option value="Pago">Pago</option>
         </select>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={salvar}>
-            {editandoId ? "Salvar Alteração" : "Salvar Conta"}
-          </button>
-
-          {editandoId && (
-            <button onClick={limpar}>
-              Cancelar
-            </button>
-          )}
-        </div>
+        <button onClick={salvar}>
+          {editandoId ? "Salvar Alteração" : "Salvar Conta"}
+        </button>
       </div>
 
       <hr />
@@ -291,7 +296,7 @@ export default function ContasPagar({ empresaId }) {
           <strong>{item.fornecedor}</strong>
           <div>{item.descricao}</div>
           <div>💰 R$ {dinheiro(item.valor)}</div>
-          <div>📅 {item.vencimento}</div>
+          <div>📅 {formatarDataTela(item.vencimento)}</div>
           <div>📌 {item.status}</div>
 
           <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
