@@ -7,19 +7,14 @@ import Admin from "./Admin";
 import Dashboard from "./Dashboard";
 import MasterAdmin from "./MasterAdmin";
 import DespesasPessoais from "./DespesasPessoais.jsx";
-
 import Relatorio from "./Relatorio.jsx";
 import RelatorioUsuario from "./RelatorioUsuario.jsx";
-
 import Clientes from "./Clientes.jsx";
 import Recebimentos from "./Recebimentos.jsx";
-
 import Vendas from "./Vendas.jsx";
 import VendasUsuario from "./VendasUsuario.jsx";
-
 import Compras from "./Compras.jsx";
 import ComprasUsuario from "./ComprasUsuario.jsx";
-
 import EmprestimosLista from "./Emprestimos.jsx";
 import ContasPagar from "./ContasPagar.jsx";
 import ContasFixas from "./ContasFixas.jsx";
@@ -32,6 +27,7 @@ export default function App() {
   const [permissoes, setPermissoes] = useState({});
   const [nomeUsuario, setNomeUsuario] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [menuMais, setMenuMais] = useState(false);
 
   useEffect(() => {
     carregarSessao();
@@ -138,7 +134,7 @@ export default function App() {
             color: "#fff",
           }}
         >
-          <h2 style={{ marginBottom: 5 }}>💰 Cunha Finance</h2>
+          <h2>💰 Cunha Finance</h2>
 
           <div
             style={{
@@ -215,13 +211,56 @@ export default function App() {
 
       {/* MENU MOBILE */}
       {isMobile && (
-        <div style={mobileBar}>
-          <button onClick={() => setPagina("dashboard")} style={mobileBtn}>📊</button>
-          <button onClick={() => setPagina("recebimentos")} style={mobileBtn}>💵</button>
-          <button onClick={() => setPagina("clientes")} style={mobileBtn}>👥</button>
-          <button onClick={() => setPagina("vendas")} style={mobileBtn}>📦</button>
-          <button onClick={() => setPagina("relatorio")} style={mobileBtn}>📄</button>
-        </div>
+        <>
+          {menuMais && (
+            <div
+              style={{
+                position: "fixed",
+                bottom: 75,
+                left: 10,
+                right: 10,
+                background: "#111827",
+                borderRadius: 12,
+                padding: 10,
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                zIndex: 999,
+              }}
+            >
+              <button onClick={() => {setPagina("compras"); setMenuMais(false);}} style={botaoMenu}>🧱 Compras</button>
+              <button onClick={() => {setPagina("contas_pagar"); setMenuMais(false);}} style={botaoMenu}>💸 Contas a Pagar</button>
+              <button onClick={() => {setPagina("contas_fixas"); setMenuMais(false);}} style={botaoMenu}>🔁 Contas Fixas</button>
+              <button onClick={() => {setPagina("emprestimos"); setMenuMais(false);}} style={botaoMenu}>🏦 Empréstimos</button>
+              <button onClick={() => {setPagina("relatorio"); setMenuMais(false);}} style={botaoMenu}>📄 Relatório</button>
+              <button onClick={() => {setPagina("pessoal"); setMenuMais(false);}} style={botaoMenu}>💳 Pessoal</button>
+
+              {loginMaster && (
+                <button onClick={() => {setPagina("master"); setMenuMais(false);}} style={botaoMenu}>
+                  👑 Master Admin
+                </button>
+              )}
+
+              <button
+                onClick={sair}
+                style={{
+                  ...botaoMenu,
+                  background: "#ef4444",
+                }}
+              >
+                🚪 Sair
+              </button>
+            </div>
+          )}
+
+          <div style={mobileBar}>
+            <button onClick={() => setPagina("dashboard")} style={mobileBtn}>📊</button>
+            <button onClick={() => setPagina("recebimentos")} style={mobileBtn}>💵</button>
+            <button onClick={() => setPagina("clientes")} style={mobileBtn}>👥</button>
+            <button onClick={() => setPagina("vendas")} style={mobileBtn}>📦</button>
+            <button onClick={() => setMenuMais(!menuMais)} style={mobileBtn}>☰</button>
+          </div>
+        </>
       )}
     </div>
   );
