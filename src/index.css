@@ -1,4 +1,4 @@
-/* RESET */
+/* RESET GLOBAL */
 * {
   margin: 0;
   padding: 0;
@@ -7,21 +7,24 @@
   touch-action: manipulation;
 }
 
-/* HTML / BODY */
+/* HTML / BODY / ROOT */
 html,
 body,
 #root {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
   min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: Arial, Helvetica, sans-serif;
   background: #020617;
-  color: #fff;
-  min-height: 100dvh;
+  color: #ffffff;
 }
 
 /* TEXTOS */
@@ -29,31 +32,46 @@ h1,
 h2,
 h3,
 h4,
-label {
-  color: #fff;
+label,
+p,
+span {
+  color: #ffffff;
+}
+
+/* TITULOS */
+h1 {
+  font-size: 28px;
+}
+
+h2 {
+  font-size: 24px;
+}
+
+h3 {
+  font-size: 20px;
 }
 
 /* INPUTS */
 input:not([type="checkbox"]),
 select,
 textarea {
+  width: 320px;
+  max-width: 100%;
   background: #1e293b;
-  color: #fff;
+  color: #ffffff;
   border: 1px solid #334155;
   padding: 10px;
   border-radius: 8px;
   outline: none;
   font-size: 16px;
-  width: 320px;
-  max-width: 100%;
 }
 
 /* CHECKBOX */
 input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: #22c55e;
   cursor: pointer;
+  accent-color: #22c55e;
 }
 
 /* PLACEHOLDER */
@@ -65,14 +83,14 @@ textarea::placeholder {
 /* BOTÕES */
 button {
   background: #2563eb;
-  color: #fff;
+  color: #ffffff;
   border: none;
   padding: 10px 14px;
   border-radius: 8px;
   cursor: pointer;
+  font-size: 16px;
   font-weight: bold;
   transition: 0.2s;
-  font-size: 16px;
 }
 
 button:hover {
@@ -86,10 +104,10 @@ button.excluir {
 /* CARD */
 .card {
   background: #1e293b;
-  padding: 14px;
-  border-radius: 10px;
-  margin-bottom: 12px;
   border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 12px;
 }
 
 /* SIDEBAR */
@@ -103,12 +121,25 @@ button.excluir {
   background: #1f2937;
 }
 
+/* TABELAS */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+td,
+th {
+  padding: 8px;
+  text-align: left;
+}
+
 /* MOBILE GERAL */
 @media (max-width: 768px) {
   html,
   body,
   #root {
     width: 100%;
+    max-width: 100%;
     overflow-x: hidden;
   }
 
@@ -139,12 +170,17 @@ button.excluir {
 
   .card {
     padding: 12px;
-    border-radius: 10px;
   }
 
-  /* espaço pro menu rodapé */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* espaço para menu inferior */
   #root {
-    padding-bottom: 75px;
+    padding-bottom: 78px;
   }
 }
 
@@ -164,5 +200,9 @@ button.excluir {
 
   h3 {
     font-size: 16px;
+  }
+
+  .card {
+    padding: 10px;
   }
 }
