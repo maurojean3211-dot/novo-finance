@@ -1,6 +1,24 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
+// 🔥 FORMATA DATA
+function formatarData(data) {
+  if (!data) return "-";
+
+  const limpa = String(data).slice(0, 10);
+  const [ano, mes, dia] = limpa.split("-");
+
+  return `${dia}/${mes}/${ano}`;
+}
+
+// 🔥 FORMATA DINHEIRO
+function dinheiro(valor) {
+  return Number(valor || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 export default function Vendas() {
   const [vendas, setVendas] = useState([]);
 
@@ -148,7 +166,7 @@ export default function Vendas() {
       <br /><br />
 
       <p>
-        <strong>💸 Comissão:</strong> R$ {calcularComissao().toFixed(2)}
+        <strong>💸 Comissão:</strong> R$ {dinheiro(calcularComissao())}
       </p>
 
       <button
@@ -178,11 +196,11 @@ export default function Vendas() {
             color: "#000",
           }}
         >
-          📅 {v.data_venda || "-"} <br />
+          📅 {formatarData(v.data_venda)} <br />
           👤 {v.cliente_nome || "-"} <br />
           📦 {v.produto || "-"} <br />
           ⚖️ {Number(v.kilos || 0).toLocaleString("pt-BR")} kg <br />
-          💸 R$ {Number(v.comissao || 0).toFixed(2)}
+          💸 R$ {dinheiro(v.comissao)}
 
           <br /><br />
 
