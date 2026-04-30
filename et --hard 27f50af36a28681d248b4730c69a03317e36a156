@@ -1,0 +1,509 @@
+[33mcommit e7d96c20ad6999a4b991ec88e41dec48ceed8c69[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 29 21:50:37 2026 -0300
+
+    Correção relatório + padronização compras e vendas
+
+[33mcommit 27f50af36a28681d248b4730c69a03317e36a156[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 29 12:04:05 2026 -0300
+
+    Corrige responsividade mobile e layout geral
+
+[33mcommit 441b5e30ac650d3c0cd0f9b52b2f4fac42018aa6[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 29 11:54:37 2026 -0300
+
+    Ajusta layout mobile e responsividade
+
+[33mcommit 90d762c4aca6be26989b5f20e48ad1d5c7c565c6[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 29 11:08:51 2026 -0300
+
+    Menu mobile com botão mais e menu completo
+
+[33mcommit 74cfcf178e474aae7e0e5a68db830b8b399b34b3[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 29 11:00:59 2026 -0300
+
+    Atualiza App completo com menu mobile rodapé
+
+[33mcommit f5ea2460f06cec4aa5827e2e9a8d3022b95b011e[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 29 10:54:21 2026 -0300
+
+    corrige App mobile
+
+[33mcommit 81fd389a729f9ad689bc9519e3612e6a7ff0563f[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 29 10:33:44 2026 -0300
+
+    Menu mobile no rodapé horizontal no Cunha Finance
+
+[33mcommit f154991533536455c9b0cf523fe439da078cbbf6[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 18:01:37 2026 -0300
+
+    Corrigido vendasusuario e comprasusuario sem tipo_medida
+
+[33mcommit cea756734132bfe5021963d1657f08f1ddc242a6[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 17:53:28 2026 -0300
+
+    Relatorio usuario somente vendas e compras
+
+[33mcommit fd61c00a2a1b32dbbdbcffe18c07bfdf4ada8901[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 17:50:00 2026 -0300
+
+    Simplificado relatorio usuario
+
+[33mcommit 8968d8aedaf9241a9623d2672f301546c8074cce[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 17:44:27 2026 -0300
+
+    Separado relatorio por login
+
+[33mcommit b91d318ee22fdd34ea569632a223ab446deb6f57[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 17:35:10 2026 -0300
+
+    Separado vendas e compras por login
+
+[33mcommit 21dc970293876e80347ff4b6d1bc9d7cfd196abf[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 16:59:03 2026 -0300
+
+    Corrigido formato da data em Compras
+
+[33mcommit 2bb9210bcda215d6c8dc2a990c9efde1fddb74e3[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 16:37:53 2026 -0300
+
+    Removido Financeiro do menu lateral
+
+[33mcommit 41e5375f173388cb1f927e9c0848461deeea85a0[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 27 16:32:53 2026 -0300
+
+    Corrigido data contas a pagar
+
+[33mcommit 1a7eec584eb12799b477796ff074a2667e52f263[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 22:48:06 2026 -0300
+
+    Corrigido master admin geral e botao isentar
+
+[33mcommit 86559a0bc1a82962604eb91fff9b8a6e5f5ee146[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 22:39:34 2026 -0300
+
+    Corrigido botao permissoes master
+
+[33mcommit b989d78cffd4d385943bc9117f6469393129f757[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 22:20:34 2026 -0300
+
+    Corrigido relatorio com empresaId e ajustes gerais
+
+[33mcommit 6367c6c59688a611d8144f3af7b371d325435424[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 22:13:46 2026 -0300
+
+    Adicionado editar e excluir no master admin
+
+[33mcommit 3823e4d662f665be5f21116f7a850d628a61b5be[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 22:03:55 2026 -0300
+
+    Corrigido login logout master admin
+
+[33mcommit a20552fcbb44393e4630ef704e8bd4c50fee7e93[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 21:55:48 2026 -0300
+
+    Corrigido logout instantaneo e app atualizado
+
+[33mcommit 5879be2aaf45a7327c1f75d6536a668ef3176f8b[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 21:49:08 2026 -0300
+
+    corrige css global sistema
+
+[33mcommit 61ca9c048859e2c3105fafb12cba290647cf62aa[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 21:42:44 2026 -0300
+
+    Corrigido Master Admin permissoes
+
+[33mcommit 9556791f61ded91273ddb178ea8f6f3d2d28716a[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 17:24:06 2026 -0300
+
+    Exibicao juros pago e ultimo pagamento emprestimos
+
+[33mcommit 634e9230894c9316e6fe1a4c13d7732555437245[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 17:18:06 2026 -0300
+
+    Melhoria velocidade botoes emprestimos com loading
+
+[33mcommit 8322f4b64d1df310350baed096496095737eb778[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 17:10:45 2026 -0300
+
+    Adicionado botoes cobrar pagar juros e pago total
+
+[33mcommit 9770501ca7da63427ec92f9592ce338ee33ef8e1[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 17:03:41 2026 -0300
+
+    Adicionado prazo livre de 1 a 30 dias nos emprestimos
+
+[33mcommit ed749652a016536c36f2da1eb1ae9adec31a98a2[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 16:56:34 2026 -0300
+
+    Corrigido WhatsApp cobranca emprestimos
+
+[33mcommit a9aa6ebad2b3cba038cc83a0edd2dc3951511b08[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 16:36:21 2026 -0300
+
+    Removido css global que deixava tudo branco
+
+[33mcommit 3eb2dfa56b2d382d8f4718abffe36320bf4c4973[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 16:30:27 2026 -0300
+
+    Corrigido App removendo cor global branca
+
+[33mcommit 9871ccc26a6c9ec3200c40c971bf7b59344182cf[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 16:14:57 2026 -0300
+
+    Corrigido layout Vendas texto invisivel
+
+[33mcommit 2fc3df506601d44ec23c3535b893ed3715cd973a[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 15:19:37 2026 -0300
+
+    Corrigido App build Vercel
+
+[33mcommit 173d3d5204a7e6290faf6cec147105e51290a32b[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 15:03:00 2026 -0300
+
+    Restaurado App funcional
+
+[33mcommit 2ecca9abd004d220f9d65f5c05791da986634be7[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 13:59:05 2026 -0300
+
+    Ajuste App para recarregar módulo Vendas
+
+[33mcommit 70c0337d14c2475d095eec9d421ec217d8df0e4b[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 11:47:31 2026 -0300
+
+    Correção definitiva datas vendas
+
+[33mcommit 45c2917975cdf07b9b7ee02ca013ab60d50e6a54[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 11:41:15 2026 -0300
+
+    Corrigido Vendas com datas BR e ordem recente
+
+[33mcommit 07bc2e68a8b2798130a5fb46cc59f5fe7c1037d4[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 23 11:21:59 2026 -0300
+
+    Corrigido módulo Vendas: ordenação por data recente e formato dd/mm/aaaa
+
+[33mcommit 31f9294dee82cebfce1ad0bdf9bd69d58c180f64[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 22 09:59:12 2026 -0300
+
+    Corrigido módulo Vendas: data exibida direto no JSX sem formatador externo
+
+[33mcommit d97b4edae287ed00508abbf00e1ab874a9202788[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 22 09:51:00 2026 -0300
+
+    Corrigido módulo Vendas: formatação definitiva da data na listagem
+
+[33mcommit 6357b33c223ec473866eee43b751e57e2173ec1c[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 22 09:32:19 2026 -0300
+
+    Corrigido módulo Vendas: data invertida no lançamento e edição
+
+[33mcommit 01b05dbb3ee646cf64b110e1952e3bb6305d473f[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 22 09:25:38 2026 -0300
+
+    Corrigido módulo Vendas: data formatada BR, layout melhorado e ordenação por data
+
+[33mcommit 9faf12850cfa056569c8ed8275b106f238b0a0cc[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 16 11:09:48 2026 -0300
+
+    Ajustado módulo Vendas para tratar datas corretamente
+
+[33mcommit 9719a432517aad1a0f846b632414598fe81121fd[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 16 09:27:29 2026 -0300
+
+    Vendas ajustado para usar formatarData do utils
+
+[33mcommit 8049f64aafee313280e711b891f3048b62d76d8f[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 16 09:15:31 2026 -0300
+
+    Corrigido formato de data BR no módulo Vendas
+
+[33mcommit 8f27399895fcc5776d5febe3bd429751e8bc0012[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 16 07:31:12 2026 -0300
+
+    Atualização módulo contas a pagar completo
+
+[33mcommit bb9397fd8e77a6796d25839ac15a02af53136cf4[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Thu Apr 16 07:22:13 2026 -0300
+
+    Correção contas a pagar marcar pago e voltar pendente
+
+[33mcommit c574cfaf3b95975d6bf62e9f78a046df2589b261[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 15 12:25:20 2026 -0300
+
+    Atualizada tela Vendas com nova data e layout
+
+[33mcommit 8668ef35632d1084d60286c526b0ca09693acf9b[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Wed Apr 15 12:14:19 2026 -0300
+
+    Corrigido layout da tela Vendas e formatação da data
+
+[33mcommit a0fe223edbd5570e086472b3e6aee031f2827338[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 15:19:42 2026 -0300
+
+    Correção: persistência da chave PIX e melhorias no layout
+
+[33mcommit 09d45531609452c2fe73d47a026b99faa6137c12[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 15:14:33 2026 -0300
+
+    PIX fixo no EmprestimosLista removendo erro RLS
+
+[33mcommit 53215a984b4fa5d5242d66d3e1a14da818532c14[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 14:33:50 2026 -0300
+
+    Correção leitura de permissões no App e menu dinâmico
+
+[33mcommit f8e61f37ffd4057ca412bdf6d2425cda9b1c458d[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 14:19:20 2026 -0300
+
+    Botão sair sem F5 adicionado no Master Admin
+
+[33mcommit 3485f2be1366fd5f90ac49b5938b8631df2a5020[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 14:14:19 2026 -0300
+
+    Correção definitiva permissões Master Admin
+
+[33mcommit d9b87c36a75604ff45efbbfa3d50561601c3d276[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 13:58:26 2026 -0300
+
+    Correção empréstimos empresa por email e PIX
+
+[33mcommit a3988b8759b71babb36ac73d5d18d2b7937baf78[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 10:37:30 2026 -0300
+
+    Correção Master Admin permissões e PIX
+
+[33mcommit d580f864fbbc2f81ed417c3ed5a4c7173aed9bf6[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Tue Apr 14 08:59:32 2026 -0300
+
+    Correção módulo empréstimos e PIX
+
+[33mcommit 96646f1cd191eff65ea13e21259148ee1ced4333[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 21:39:45 2026 -0300
+
+    Blindado modulo emprestimos maybeSingle pix corrigido
+
+[33mcommit e5c1e220f474a1bb8fe197d0e8c1f1609d9611f0[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 21:30:23 2026 -0300
+
+    Corrigido modulo emprestimos pix whatsapp atraso busca
+
+[33mcommit da1ed30f0c17b69191997711368a4094c35b56a7[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 21:20:51 2026 -0300
+
+    Corrigido salvamento pix emprestimos sem rls
+
+[33mcommit 67dcf8d24ed7943311c37653a10dd09ceaadee22[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 21:15:26 2026 -0300
+
+    Corrigido modulo emprestimos whatsapp atraso busca
+
+[33mcommit 99a1532e64a3d4b08e9a290c5ca1035a9b28f2cb[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 20:20:44 2026 -0300
+
+    Modulo emprestimos completo separado por empresa
+
+[33mcommit 799148279115d0019beb0d167016eadf6ed9360d[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 19:07:31 2026 -0300
+
+    Corrigido exibicao isento mantendo layout antigo
+
+[33mcommit 8ad7d2f0fce5c5ad5763d3873b3586532424033f[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 18:44:42 2026 -0300
+
+    Master admin completo com isencao
+
+[33mcommit 77fc0fe11e9d01bdae638b0ca67556bb05dfafec[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 18:01:10 2026 -0300
+
+    Corrigido exibicao isento no master admin
+
+[33mcommit 22437210e898850b56ece3cc11d12137e6d10dc9[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 17:42:10 2026 -0300
+
+    Dashboard aluguel refletindo recebimentos
+
+[33mcommit b13d6df393be87e56c867b7ab9ac40edb28d3012[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 15:23:54 2026 -0300
+
+    Correcao final exclusao vendas vinculadas
+
+[33mcommit e3677eb7e70205456a36039729fa93444bc4dcad[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 14:38:05 2026 -0300
+
+    Blindagem exclusao vendas com vinculos
+
+[33mcommit 7303ab903dbcffe0b1b379861e03ebb3a9579442[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 14:23:43 2026 -0300
+
+    Correção exclusão vendas blindada
+
+[33mcommit 138d031fecd25eea28792f0cfb8265d7976a792b[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 12:04:36 2026 -0300
+
+    Dashboard separado master e alugado
+
+[33mcommit 32e598bd3062249acf9ed794b1c3727c2d018c59[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Mon Apr 13 11:49:49 2026 -0300
+
+    Filtro por vencimento recebimentos
+
+[33mcommit 792483acfd4422c701d42fcc4712dd7bda83c5b1[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 22:01:29 2026 -0300
+
+    Correção definitiva checkbox permissões Master Admin
+
+[33mcommit b51e4f546154643858a0b9c004a0ea274a36a4cb[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 21:51:21 2026 -0300
+
+    Corrigido checkbox permissões master
+
+[33mcommit 224f7e6fdadf5aba0e67c5c785da3984ed5d7117[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 21:44:23 2026 -0300
+
+    Correção Master Admin permissões e ajustes
+
+[33mcommit 4283a44bcda5b6bb71925ec62b82fe7d471f01d5[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 21:25:33 2026 -0300
+
+    Ajuste visual e funcionamento das permissões no Master Admin
+
+[33mcommit e6941fedfe53037c016de27bcdc1cb7aa4763728[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 21:01:08 2026 -0300
+
+    Corrigido vencimento parcelado em clientes e recebimentos
+
+[33mcommit b19868320bd47fa8873b7a5e845a62862b58fe1a[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 20:52:52 2026 -0300
+
+    Corrigido cálculo de vencimento em recebimentos
+
+[33mcommit 55655d24653d882230dfc2633cdb27096590a374[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 20:08:30 2026 -0300
+
+    Corrigido relatório financeiro exibindo clientes e fornecedores
+
+[33mcommit 4b833239aee083c513dd4a02a6184bd170c32a92[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 20:00:42 2026 -0300
+
+    Corrigido relatorio nomes clientes e fornecedores
+
+[33mcommit cdc0cf790a5f91609bd5296078c5f898baef76a1[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 19:50:18 2026 -0300
+
+    Atualizado relatorio diario mensal com comissoes
+
+[33mcommit 9eaa8a4d4f0c9f6655442237e9d1fddb8244bd37[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 19:39:33 2026 -0300
+
+    Removido modulo lucro do menu lateral
+
+[33mcommit 95180c5a9176c098f8ac80c1d10f6431f72f035c[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 18:49:20 2026 -0300
+
+    Ajustado menu lateral por usuario e nome no painel
+
+[33mcommit 30bfce9cc83fc0a28931e3a0283b224b5e6eddac[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 18:10:47 2026 -0300
+
+    Corrigido valor monetario em Contas Fixas
+
+[33mcommit d799ef9c24bb644d3f6ab927c575f62082bfdebc[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 17:28:51 2026 -0300
+
+    Modulo Contas Fixas completo com busca editar excluir relatorio
+
+[33mcommit f251ba0b30b9935a180327a94766e69094f23cbd[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 17:23:50 2026 -0300
+
+    Novo módulo Contas Fixas no menu lateral
+
+[33mcommit 6cb8264d2bcb95e36d2748f1124699880e12e15b[m
+Author: Mauro Cunha <maurojean3211@gmail.com>
+Date:   Sun Apr 12 17:01:29 2026 -0300
+
+    Contas vencidas em vermelho e alerta automático
