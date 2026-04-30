@@ -57,12 +57,14 @@ export default function Vendas() {
     carregarVendas(data.empresa_id);
   }
 
+  // 🔥 ORDEM CORRETA POR DATA
   async function carregarVendas(empId) {
     const { data } = await supabase
       .from("vendas")
       .select("*")
       .eq("empresa_id", empId)
-      .order("id", { ascending: false });
+      .order("data_venda", { ascending: true }) // 👈 antigo → recente
+      .order("id", { ascending: true });
 
     setVendas(data || []);
   }
