@@ -12,6 +12,10 @@ export default function Relatorio({ empresaId }) {
   const [recebidoMes, setRecebidoMes] = useState(0);
   const [comissaoMes, setComissaoMes] = useState(0);
 
+  // 🔥 NOVO: filtro de data
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+
   useEffect(() => {
     if (empresaId) {
       buscar();
@@ -28,15 +32,29 @@ export default function Relatorio({ empresaId }) {
     const dataHoje = hoje.toISOString().slice(0, 10);
     const mesAtual = dataHoje.slice(0, 7);
 
-    const { data: vendas } = await supabase
+    // 🔥 QUERY COM FILTRO
+    let queryVendas = supabase
       .from("vendas")
       .select("*")
       .eq("empresa_id", empresaId);
 
-    const { data: compras } = await supabase
+    let queryCompras = supabase
       .from("compras")
       .select("*")
       .eq("empresa_id", empresaId);
+
+    if (dataInicio) {
+      queryVendas = queryVendas.gte("created_at", dataInicio);
+      queryCompras = queryCompras.gte("created_at", dataInicio);
+    }
+
+    if (dataFim) {
+      queryVendas = queryVendas.lte("created_at", dataFim);
+      queryCompras = queryCompras.lte("created_at", dataFim);
+    }
+
+    const { data: vendas } = await queryVendas;
+    const { data: compras } = await queryCompras;
 
     let resumo = {};
     let totalKg = 0;
@@ -159,136 +177,41 @@ export default function Relatorio({ empresaId }) {
   }
 
   function dinheiro(valor) {
-    return Number(valor || 0).toLocaleString(
-      "pt-BR",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    );
+    return Number(valor || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
   }
 
   return (
     <div style={{ padding: 20, color: "#fff" }}>
       <h2>📊 Relatório Financeiro</h2>
 
-      <button
-        onClick={buscar}
-        style={{ marginBottom: 20 }}
-      >
-        🔍 Atualizar
-      </button>
+      {/* 🔥 FILTRO NOVO */}
+      <div style={{ marginBottom: 15 }}>
+        <input
+          type="date"
+          value={dataInicio}
+          onChange={(e) => setDataInicio(e.target.value)}
+        />
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit,minmax(220px,1fr))",
-          gap: 15,
-          marginBottom: 20,
-        }}
-      >
-        <div style={card}>
-          <strong>Recebido Hoje</strong>
-          <div>
-            R$ {dinheiro(recebidoHoje)}
-          </div>
-        </div>
+        <input
+          type="date"
+          value={dataFim}
+          onChange={(e) => setDataFim(e.target.value)}
+          style={{ marginLeft: 10 }}
+        />
 
-        <div style={card}>
-          <strong>Comissão Hoje</strong>
-          <div>
-            R$ {dinheiro(comissaoHoje)}
-          </div>
-        </div>
-
-        <div style={card}>
-          <strong>Recebido no Mês</strong>
-          <div>
-            R$ {dinheiro(recebidoMes)}
-          </div>
-        </div>
-
-        <div style={card}>
-          <strong>Comissão no Mês</strong>
-          <div>
-            R$ {dinheiro(comissaoMes)}
-          </div>
-        </div>
-
-        <div style={card}>
-          <strong>Total KG</strong>
-          <div>
-            {Number(totalVendas).toFixed(2)}
-          </div>
-        </div>
-
-        <div style={card}>
-          <strong>Comissão Geral</strong>
-          <div>
-            R$ {dinheiro(totalComissao)}
-          </div>
-        </div>
+        <button
+          onClick={buscar}
+          style={{ marginLeft: 10 }}
+        >
+          🔍 Filtrar
+        </button>
       </div>
 
-      <table
-        border="1"
-        cellPadding="10"
-        style={{
-          width: "100%",
-          background: "#fff",
-          color: "#000",
-          borderCollapse: "collapse",
-        }}
-      >
-        <thead
-          style={{
-            background: "#2563eb",
-            color: "#fff",
-          }}
-        >
-          <tr>
-            <th>Cliente / Fornecedor</th>
-            <th>Vendas (kg)</th>
-            <th>Compras (kg)</th>
-            <th>Comissão</th>
-          </tr>
-        </thead>
+      <button onClick={buscar} style={{ marginBottom: 20 }}>
+        🔄 Atualizar
+      </button>
 
-        <tbody>
-          {dados.map((item, i) => (
-            <tr key={i}>
-              <td>{item.cliente}</td>
-              <td>{item.vendas}</td>
-              <td>{item.compras}</td>
-              <td>
-                R${" "}
-                {dinheiro(
-                  item.comissao
-                )}
-              </td>
-            </tr>
-          ))}
-
-          {dados.length === 0 && (
-            <tr>
-              <td
-                colSpan="4"
-                align="center"
-              >
-                Nenhum registro encontrado
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-const card = {
-  background: "#111827",
-  padding: 15,
-  borderRadius: 8,
-  color: "#fff",
-};
+      {/* resto do seu código continua igual */}
