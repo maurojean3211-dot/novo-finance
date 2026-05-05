@@ -12,27 +12,20 @@ export default function Relatorio({ empresaId }) {
   const [recebidoMes, setRecebidoMes] = useState(0);
   const [comissaoMes, setComissaoMes] = useState(0);
 
-  // 🔥 NOVO: filtro de data
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
   useEffect(() => {
-    if (empresaId) {
-      buscar();
-    }
+    if (empresaId) buscar();
   }, [empresaId]);
 
   async function buscar() {
-    if (!empresaId) {
-      alert("Empresa não carregada");
-      return;
-    }
+    if (!empresaId) return;
 
     const hoje = new Date();
     const dataHoje = hoje.toISOString().slice(0, 10);
     const mesAtual = dataHoje.slice(0, 7);
 
-    // 🔥 QUERY COM FILTRO
     let queryVendas = supabase
       .from("vendas")
       .select("*")
@@ -50,7 +43,7 @@ export default function Relatorio({ empresaId }) {
 
     if (dataFim) {
       queryVendas = queryVendas.lte("created_at", dataFim);
-      queryCompras = queryCompras.lte("created_at", dataFim);
+      queryCompras = queryCompras.lte("created_at", dataFim + "T23:59:59");
     }
 
     const { data: vendas } = await queryVendas;
@@ -66,7 +59,6 @@ export default function Relatorio({ empresaId }) {
     let mesRecebido = 0;
     let mesCom = 0;
 
-    // ================= VENDAS =================
     (vendas || []).forEach((item) => {
       const cliente =
         item.cliente_nome ||
@@ -75,23 +67,12 @@ export default function Relatorio({ empresaId }) {
         "Sem nome";
 
       if (!resumo[cliente]) {
-        resumo[cliente] = {
-          cliente,
-          vendas: 0,
-          compras: 0,
-          comissao: 0,
-        };
+        resumo[cliente] = { cliente, vendas: 0, compras: 0, comissao: 0 };
       }
 
       const kg = Number(item.kilos) || 0;
-      const valor =
-        Number(item.valor_total) ||
-        Number(item.valor) ||
-        0;
-
-      const com =
-        Number(item.comissao) ||
-        kg * 0.05;
+      const valor = Number(item.valor_total || item.valor || 0);
+      const com = Number(item.comissao) || kg * 0.05;
 
       resumo[cliente].vendas += kg;
       resumo[cliente].comissao += com;
@@ -99,9 +80,7 @@ export default function Relatorio({ empresaId }) {
       totalKg += kg;
       totalCom += com;
 
-      const dataVenda = String(
-        item.created_at || item.data || ""
-      ).slice(0, 10);
+      const dataVenda = String(item.created_at || "").slice(0, 10);
 
       if (dataVenda === dataHoje) {
         hojeRecebido += valor;
@@ -114,12 +93,8 @@ export default function Relatorio({ empresaId }) {
       }
     });
 
-    // ================= COMPRAS =================
     (compras || []).forEach((item) => {
-      const fornecedor =
-        item.fornecedor ||
-        item.nome_fornecedor ||
-        "Sem nome";
+      const fornecedor = item.fornecedor || "Sem nome";
 
       if (!resumo[fornecedor]) {
         resumo[fornecedor] = {
@@ -131,38 +106,22 @@ export default function Relatorio({ empresaId }) {
       }
 
       const kg = Number(item.kilos) || 0;
-
       resumo[fornecedor].compras += kg;
 
-      const nomeProduto = String(
-        item.produto || ""
-      ).toUpperCase();
+      const nomeProduto = String(item.produto || "").toUpperCase();
 
-      let com = 0;
-
-      if (
-        nomeProduto.includes("LIMALHA") ||
-        nomeProduto.includes("CAVACO")
-      ) {
-        com = kg * 0.07;
-      } else {
-        com = kg * 0.05;
-      }
+      let com =
+        nomeProduto.includes("LIMALHA") || nomeProduto.includes("CAVACO")
+          ? kg * 0.07
+          : kg * 0.05;
 
       resumo[fornecedor].comissao += com;
       totalCom += com;
 
-      const dataCompra = String(
-        item.created_at || item.data || ""
-      ).slice(0, 10);
+      const dataCompra = String(item.created_at || "").slice(0, 10);
 
-      if (dataCompra === dataHoje) {
-        hojeCom += com;
-      }
-
-      if (dataCompra.slice(0, 7) === mesAtual) {
-        mesCom += com;
-      }
+      if (dataCompra === dataHoje) hojeCom += com;
+      if (dataCompra.slice(0, 7) === mesAtual) mesCom += com;
     });
 
     setDados(Object.values(resumo));
@@ -187,31 +146,41 @@ export default function Relatorio({ empresaId }) {
     <div style={{ padding: 20, color: "#fff" }}>
       <h2>📊 Relatório Financeiro</h2>
 
-      {/* 🔥 FILTRO NOVO */}
       <div style={{ marginBottom: 15 }}>
-        <input
-          type="date"
-          value={dataInicio}
-          onChange={(e) => setDataInicio(e.target.value)}
-        />
-
-        <input
-          type="date"
-          value={dataFim}
-          onChange={(e) => setDataFim(e.target.value)}
-          style={{ marginLeft: 10 }}
-        />
-
-        <button
-          onClick={buscar}
-          style={{ marginLeft: 10 }}
-        >
-          🔍 Filtrar
-        </button>
+        <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} />
+        <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+        <button onClick={buscar}>🔍 Filtrar</button>
       </div>
 
-      <button onClick={buscar} style={{ marginBottom: 20 }}>
-        🔄 Atualizar
-      </button>
+      <button onClick={buscar}>🔄 Atualizar</button>
 
-      {/* resto do seu código continua igual */}
+      <div style={{ marginTop: 20 }}>
+        <p>💰 Hoje: R$ {dinheiro(recebidoHoje)}</p>
+        <p>📊 Comissão Hoje: R$ {dinheiro(comissaoHoje)}</p>
+        <p>📅 Mês: R$ {dinheiro(recebidoMes)}</p>
+        <p>📈 Comissão Mês: R$ {dinheiro(comissaoMes)}</p>
+      </div>
+
+      <table border="1" style={{ marginTop: 20, width: "100%", background: "#fff", color: "#000" }}>
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Vendas</th>
+            <th>Compras</th>
+            <th>Comissão</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dados.map((item, i) => (
+            <tr key={i}>
+              <td>{item.cliente}</td>
+              <td>{item.vendas}</td>
+              <td>{item.compras}</td>
+              <td>R$ {dinheiro(item.comissao)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
