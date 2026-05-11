@@ -34,6 +34,21 @@ export default function Vendas() {
   const [userId, setUserId] = useState(null);
   const [editandoId, setEditandoId] = useState(null);
 
+  // 🔥 PRODUTOS INDUSTRIAIS PERMITIDOS
+  const produtosPermitidos = [
+    "TARUGO",
+    "PERFIL",
+    "SUCATA",
+    "CAVACO",
+    "LINGOTE",
+    "LIMALHA",
+    "BORRA",
+    "ALUMINIO",
+    "ALUMÍNIO",
+    "METAIS",
+    "METAL",
+  ];
+
   useEffect(() => {
     carregarEmpresa();
   }, []);
@@ -53,20 +68,39 @@ export default function Vendas() {
       .eq("email", user.email)
       .single();
 
+    if (!data?.empresa_id) {
+      return alert("Empresa não encontrada");
+    }
+
     setEmpresaId(data.empresa_id);
+
     carregarVendas(data.empresa_id);
   }
 
-  // 🔥 ORDEM CORRETA POR DATA
+  // 🔥 CARREGA SOMENTE VENDAS INDUSTRIAIS
   async function carregarVendas(empId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("vendas")
       .select("*")
       .eq("empresa_id", empId)
-      .order("data_venda", { ascending: true }) // 👈 antigo → recente
+      .order("data_venda", { ascending: true })
       .order("id", { ascending: true });
 
-    setVendas(data || []);
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    // 🔥 REMOVE PRODUTOS INVÁLIDOS
+    const filtradas = (data || []).filter((v) => {
+      const nomeProduto = String(v.produto || "").toUpperCase();
+
+      return produtosPermitidos.some((p) =>
+        nomeProduto.includes(p)
+      );
+    });
+
+    setVendas(filtradas);
   }
 
   function calcularComissao() {
@@ -74,36 +108,77 @@ export default function Vendas() {
   }
 
   async function salvarVenda() {
-    if (!empresaId) return alert("Empresa não carregada");
+    if (!empresaId) {
+      return alert("Empresa não carregada");
+    }
+
+    // 🔥 VALIDA PRODUTO
+    const nomeProduto = String(produto || "")
+      .trim()
+      .toUpperCase();
+
+    const produtoPermitido = produtosPermitidos.some((p) =>
+      nomeProduto.includes(p)
+    );
+
+    if (!produtoPermitido) {
+      return alert(
+        "Produto não permitido em vendas industriais."
+      );
+    }
+
+    // 🔥 VALIDA KILOS
+    if (Number(kilos) <= 0) {
+      return alert("Informe os kilos corretamente.");
+    }
+
+    // 🔥 VALIDA CLIENTE
+    if (!cliente.trim()) {
+      return alert("Informe o cliente.");
+    }
 
     const payload = {
       cliente_nome: cliente.trim().toUpperCase(),
-      produto,
+      produto: nomeProduto,
       kilos: Number(kilos),
       comissao: calcularComissao(),
       data_venda: dataVenda,
     };
 
     if (editandoId) {
-      await supabase
+      const { error } = await supabase
         .from("vendas")
         .update(payload)
         .eq("id", editandoId);
 
-      alert("Atualizado!");
+      if (error) {
+        console.error(error);
+        return alert("Erro ao atualizar venda");
+      }
+
+      alert("Venda atualizada!");
+
       setEditandoId(null);
     } else {
-      await supabase.from("vendas").insert([
-        {
-          ...payload,
-          empresa_id: empresaId,
-          user_id: userId,
-        },
-      ]);
+      const { error } = await supabase
+        .from("vendas")
+        .insert([
+          {
+            ...payload,
+            empresa_id: empresaId,
+            user_id: userId,
+          },
+        ]);
+
+      if (error) {
+        console.error(error);
+        return alert("Erro ao salvar venda");
+      }
 
       alert("Venda salva!");
     }
 
+    // 🔥 LIMPA CAMPOS
     setCliente("");
     setProduto("");
     setKilos("");
@@ -113,18 +188,31 @@ export default function Vendas() {
 
   function editarVenda(v) {
     setEditandoId(v.id);
+
     setCliente(v.cliente_nome || "");
     setProduto(v.produto || "");
     setKilos(v.kilos || "");
     setDataVenda(v.data_venda || "");
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   }
 
   async function excluirVenda(id) {
-    if (!confirm("Excluir?")) return;
+    if (!confirm("Excluir venda?")) return;
 
-    await supabase.from("vendas").delete().eq("id", id);
+    const { error } = await supabase
+      .from("vendas")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      return alert("Erro ao excluir");
+    }
+
     carregarVendas(empresaId);
   }
 
@@ -137,51 +225,68 @@ export default function Vendas() {
       <input
         type="date"
         value={dataVenda}
-        onChange={(e) => setDataVenda(e.target.value)}
+        onChange={(e) =>
+          setDataVenda(e.target.value)
+        }
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <input
         placeholder="Cliente"
         value={cliente}
-        onChange={(e) => setCliente(e.target.value)}
+        onChange={(e) =>
+          setCliente(e.target.value)
+        }
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <input
         placeholder="Produto"
         value={produto}
-        onChange={(e) => setProduto(e.target.value)}
+        onChange={(e) =>
+          setProduto(e.target.value)
+        }
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <input
         type="number"
         placeholder="Kilos"
         value={kilos}
-        onChange={(e) => setKilos(e.target.value)}
+        onChange={(e) =>
+          setKilos(e.target.value)
+        }
       />
 
-      <br /><br />
+      <br />
+      <br />
 
       <p>
-        <strong>💸 Comissão:</strong> R$ {dinheiro(calcularComissao())}
+        <strong>💸 Comissão:</strong> R${" "}
+        {dinheiro(calcularComissao())}
       </p>
 
       <button
         onClick={salvarVenda}
         style={{
           padding: 10,
-          background: editandoId ? "orange" : "green",
+          background: editandoId
+            ? "orange"
+            : "green",
           color: "#fff",
           border: "none",
           borderRadius: 5,
         }}
       >
-        {editandoId ? "Atualizar" : "Salvar"}
+        {editandoId
+          ? "Atualizar"
+          : "Salvar"}
       </button>
 
       <hr />
@@ -198,15 +303,26 @@ export default function Vendas() {
             color: "#000",
           }}
         >
-          📅 {formatarData(v.data_venda)} <br />
-          👤 {v.cliente_nome || "-"} <br />
-          📦 {v.produto || "-"} <br />
-          ⚖️ {Number(v.kilos || 0).toLocaleString("pt-BR")} kg <br />
+          📅 {formatarData(v.data_venda)}
+          <br />
+          👤 {v.cliente_nome || "-"}
+          <br />
+          📦 {v.produto || "-"}
+          <br />
+          ⚖️{" "}
+          {Number(v.kilos || 0).toLocaleString(
+            "pt-BR"
+          )}{" "}
+          kg
+          <br />
           💸 R$ {dinheiro(v.comissao)}
 
-          <br /><br />
+          <br />
+          <br />
 
-          <button onClick={() => editarVenda(v)}>
+          <button
+            onClick={() => editarVenda(v)}
+          >
             ✏️ Editar
           </button>
 
