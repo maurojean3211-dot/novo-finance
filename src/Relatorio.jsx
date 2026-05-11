@@ -43,8 +43,15 @@ export default function Relatorio({ empresaId }) {
       .eq("empresa_id", empresaId);
 
     if (dataInicio) {
-      queryVendas = queryVendas.gte("created_at", dataInicio);
-      queryCompras = queryCompras.gte("created_at", dataInicio);
+      queryVendas = queryVendas.gte(
+        "created_at",
+        dataInicio
+      );
+
+      queryCompras = queryCompras.gte(
+        "created_at",
+        dataInicio
+      );
     }
 
     if (dataFim) {
@@ -59,8 +66,15 @@ export default function Relatorio({ empresaId }) {
       );
     }
 
-    const { data: vendas, error: erroVendas } = await queryVendas;
-    const { data: compras, error: erroCompras } = await queryCompras;
+    const {
+      data: vendas,
+      error: erroVendas,
+    } = await queryVendas;
+
+    const {
+      data: compras,
+      error: erroCompras,
+    } = await queryCompras;
 
     if (erroVendas) {
       console.error("Erro vendas:", erroVendas);
@@ -82,23 +96,33 @@ export default function Relatorio({ empresaId }) {
     let mesCom = 0;
 
     // ==================================
-    // PROCESSA SOMENTE VENDAS
+    // PROCESSA VENDAS
     // ==================================
     (vendas || []).forEach((item) => {
-      // IGNORA REGISTROS INVÁLIDOS
-      if (
-        !item.produto &&
-        !item.cliente_nome &&
-        !item.kilos
-      ) {
-        return;
-      }
-
       const cliente =
         item.cliente_nome ||
         item.cliente ||
-        item.nome_cliente ||
-        "Sem nome";
+        item.nome_cliente;
+
+      const kg = Number(item.kilos) || 0;
+
+      const nomeProduto = String(
+        item.produto || ""
+      ).toUpperCase();
+
+      // 🔥 IGNORA REGISTROS INVÁLIDOS
+      if (!cliente || kg <= 0) {
+        return;
+      }
+
+      // 🔥 BLOQUEIA PRODUTOS ERRADOS
+      if (
+        nomeProduto.includes("IPHONE") ||
+        nomeProduto.includes("CELULAR") ||
+        nomeProduto.includes("NOTEBOOK")
+      ) {
+        return;
+      }
 
       if (!resumo[cliente]) {
         resumo[cliente] = {
@@ -108,8 +132,6 @@ export default function Relatorio({ empresaId }) {
           comissao: 0,
         };
       }
-
-      const kg = Number(item.kilos) || 0;
 
       const valor = Number(
         item.valor_total || item.valor || 0
@@ -140,15 +162,25 @@ export default function Relatorio({ empresaId }) {
     });
 
     // ==================================
-    // PROCESSA SOMENTE COMPRAS
+    // PROCESSA COMPRAS
     // ==================================
     (compras || []).forEach((item) => {
-      // IGNORA PRODUTOS NÃO INDUSTRIAIS
+      const fornecedor =
+        item.fornecedor ||
+        item.cliente;
+
+      const kg = Number(item.kilos) || 0;
+
       const nomeProduto = String(
         item.produto || ""
       ).toUpperCase();
 
-      // BLOQUEIA ITENS INDEVIDOS
+      // 🔥 IGNORA REGISTROS INVÁLIDOS
+      if (!fornecedor || kg <= 0) {
+        return;
+      }
+
+      // 🔥 BLOQUEIA PRODUTOS ERRADOS
       if (
         nomeProduto.includes("IPHONE") ||
         nomeProduto.includes("CELULAR") ||
@@ -156,11 +188,6 @@ export default function Relatorio({ empresaId }) {
       ) {
         return;
       }
-
-      const fornecedor =
-        item.fornecedor ||
-        item.cliente ||
-        "Sem nome";
 
       if (!resumo[fornecedor]) {
         resumo[fornecedor] = {
@@ -170,8 +197,6 @@ export default function Relatorio({ empresaId }) {
           comissao: 0,
         };
       }
-
-      const kg = Number(item.kilos) || 0;
 
       resumo[fornecedor].compras += kg;
 
@@ -198,7 +223,18 @@ export default function Relatorio({ empresaId }) {
       }
     });
 
-    setDados(Object.values(resumo));
+    // 🔥 REMOVE LINHAS VAZIAS
+    const filtrados = Object.values(resumo).filter(
+      (item) =>
+        item.cliente &&
+        (
+          Number(item.vendas) > 0 ||
+          Number(item.compras) > 0 ||
+          Number(item.comissao) > 0
+        )
+    );
+
+    setDados(filtrados);
 
     setTotalVendas(totalKg);
 
@@ -271,7 +307,11 @@ export default function Relatorio({ empresaId }) {
         </p>
 
         <p>
-          ⚖️ Total KG Vendido: {totalVendas} kg
+          ⚖️ Total KG Vendido:{" "}
+          {Number(totalVendas).toLocaleString(
+            "pt-BR"
+          )}{" "}
+          kg
         </p>
 
         <p>
@@ -303,9 +343,17 @@ export default function Relatorio({ empresaId }) {
             <tr key={i}>
               <td>{item.cliente}</td>
 
-              <td>{item.vendas}</td>
+              <td>
+                {Number(item.vendas).toLocaleString(
+                  "pt-BR"
+                )}
+              </td>
 
-              <td>{item.compras}</td>
+              <td>
+                {Number(item.compras).toLocaleString(
+                  "pt-BR"
+                )}
+              </td>
 
               <td>
                 R$ {dinheiro(item.comissao)}
