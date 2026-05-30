@@ -26,6 +26,7 @@ export default function Clientes() {
   }, []);
 
   async function iniciar() {
+  try {
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -35,19 +36,28 @@ export default function Clientes() {
       return;
     }
 
-    const { data } = await supabase
-      .from("usuarios")
-      .select("empresa_id")
-      .eq("id", user.id)
-      .maybeSingle();
+    const { data: empresa, error } = await supabase
+  .from("empresas")
+  .select("id, name, user_id")
+  .eq("user_id", user.id)
+  .maybeSingle();
 
-    if (data?.empresa_id) {
-      setEmpresaId(data.empresa_id);
-      await carregarTudo(data.empresa_id);
+    if (error || !empresa) {
+      console.error("Erro ao buscar empresa:", error);
+      alert("Empresa não encontrada para este usuário.");
+      setCarregando(false);
+      return;
     }
 
+    setEmpresaId(empresa.id);
+    await carregarTudo(empresa.id);
+
+  } catch (err) {
+    console.error("Erro ao iniciar:", err);
+  } finally {
     setCarregando(false);
   }
+}
 
   async function carregarTudo(empId) {
     const { data: clientesData } =
@@ -70,10 +80,13 @@ export default function Clientes() {
   }
 
   async function salvarCliente() {
-    if (!empresaId)
-      return alert(
-        "Empresa não carregada"
-      );
+    if (!empresaId) {
+  console.log("empresaId:", empresaId);
+
+  return alert(
+    "Empresa não carregada. Faça logout e login novamente."
+  );
+}
 
     if (!nome)
       return alert(
