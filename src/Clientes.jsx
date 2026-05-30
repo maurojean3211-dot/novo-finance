@@ -116,11 +116,15 @@ export default function Clientes() {
       .single();
 
     if (erroCliente) {
-      alert(
-        "Erro ao salvar cliente"
-      );
-      return;
-    }
+  console.error(erroCliente);
+
+  alert(
+    "Erro ao salvar cliente:\n\n" +
+      erroCliente.message
+  );
+
+  return;
+}
 
     if (valorUnitario > 0) {
       const valorTotal =
@@ -166,11 +170,15 @@ export default function Clientes() {
         .single();
 
       if (erroVenda) {
-        alert(
-          "Erro ao salvar venda"
-        );
-        return;
-      }
+  console.error(erroVenda);
+
+  alert(
+    "Erro ao salvar venda:\n\n" +
+      erroVenda.message
+  );
+
+  return;
+}
 
       let intervaloSeguro =
         Number(intervalo) || 30;
@@ -223,21 +231,32 @@ export default function Clientes() {
         );
       }
 
-      const {
-        error: erroReceb,
-      } = await supabase
-        .from(
-          "recebimentos"
-        )
-        .insert(
-          listaRecebimentos
-        );
+     const {
+  data: recebimentosCriados,
+  error: erroReceb,
+} = await supabase
+  .from("recebimentos")
+  .insert(listaRecebimentos)
+  .select();
 
-      if (erroReceb) {
-        console.log(
-          erroReceb
-        );
-      }
+if (erroReceb) {
+  console.error(
+    "ERRO AO CRIAR RECEBIMENTOS:",
+    erroReceb
+  );
+
+  alert(
+    "Erro ao criar recebimentos:\n\n" +
+      erroReceb.message
+  );
+
+  return;
+}
+
+console.log(
+  "Recebimentos criados:",
+  recebimentosCriados
+);
     }
 
     setNome("");
