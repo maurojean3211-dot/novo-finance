@@ -1,6 +1,3 @@
-Claro. Segue o componente completo para você copiar:
-
-```jsx
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
@@ -17,6 +14,13 @@ export default function MasterAdmin() {
     name: "",
     valor: "",
     whatsapp: "",
+  });
+
+  const [novoUsuario, setNovoUsuario] = useState({
+    name: "",
+    email: "",
+    whatsapp: "",
+    valor: "",
   });
 
   const permissoesPadrao = {
@@ -102,6 +106,83 @@ export default function MasterAdmin() {
     }
 
     alert("PIX salvo!");
+  }
+
+  async function criarUsuario() {
+    if (!novoUsuario.name || !novoUsuario.email) {
+      alert("Preencha nome e email");
+      return;
+    }
+
+    const { data: usuarioExistente, error: erroBuscaUsuario } = await supabase
+      .from("usuarios")
+      .select("id")
+      .eq("email", novoUsuario.email)
+      .maybeSingle();
+
+    if (erroBuscaUsuario) {
+      alert(erroBuscaUsuario.message);
+      return;
+    }
+
+    if (usuarioExistente) {
+      alert("Já existe um usuário com este email");
+      return;
+    }
+
+    const { data: empresaExistente, error: erroBuscaEmpresa } = await supabase
+      .from("empresas")
+      .select("id")
+      .eq("email", novoUsuario.email)
+      .maybeSingle();
+
+    if (erroBuscaEmpresa) {
+      alert(erroBuscaEmpresa.message);
+      return;
+    }
+
+    if (empresaExistente) {
+      alert("Já existe uma empresa/cliente com este email");
+      return;
+    }
+
+    const { error: erroEmpresa } = await supabase.from("empresas").insert({
+      name: novoUsuario.name,
+      email: novoUsuario.email,
+      whatsapp: novoUsuario.whatsapp,
+      valor: novoUsuario.valor,
+      status: "Ativo",
+      pagou: false,
+      isento: false,
+    });
+
+    if (erroEmpresa) {
+      alert(erroEmpresa.message);
+      return;
+    }
+
+    const { error: erroUsuario } = await supabase.from("usuarios").insert({
+      name: novoUsuario.name,
+      email: novoUsuario.email,
+      role: "cliente",
+      permissoes: permissoesPadrao,
+    });
+
+    if (erroUsuario) {
+      alert(erroUsuario.message);
+      return;
+    }
+
+    alert("Usuário criado!");
+
+    setNovoUsuario({
+      name: "",
+      email: "",
+      whatsapp: "",
+      valor: "",
+    });
+
+    carregarClientes();
   }
 
   function abrirEditar(c) {
@@ -316,6 +397,66 @@ PIX: ${pixSistema}`;
         onChange={(e) => setBusca(e.target.value)}
       />
 
+      <br />
+      <br />
+
+      <div
+        style={{
+          background: "#111827",
+          padding: 15,
+          borderRadius: 10,
+          marginBottom: 20,
+        }}
+      >
+        <h3>Criar novo usuário</h3>
+
+        <input
+          placeholder="Nome"
+          value={novoUsuario.name}
+          onChange={(e) =>
+            setNovoUsuario({
+              ...novoUsuario,
+              name: e.target.value,
+            })
+          }
+        />
+
+        <input
+          placeholder="Email"
+          value={novoUsuario.email}
+          onChange={(e) =>
+            setNovoUsuario({
+              ...novoUsuario,
+              email: e.target.value,
+            })
+          }
+        />
+
+        <input
+          placeholder="WhatsApp"
+          value={novoUsuario.whatsapp}
+          onChange={(e) =>
+            setNovoUsuario({
+              ...novoUsuario,
+              whatsapp: e.target.value,
+            })
+          }
+        />
+
+        <input
+          placeholder="Valor"
+          value={novoUsuario.valor}
+          onChange={(e) =>
+            setNovoUsuario({
+              ...novoUsuario,
+              valor: e.target.value,
+            })
+          }
+        />
+
+        <button onClick={criarUsuario}>Criar usuário</button>
+      </div>
+
       <hr />
 
       {clientesFiltrados.map((c) => (
@@ -448,4 +589,3 @@ PIX: ${pixSistema}`;
     </div>
   );
 }
-```
