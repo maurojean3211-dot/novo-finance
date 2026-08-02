@@ -1,5 +1,6 @@
 import "./index.css";
 import "./App.css";
+import { useState } from "react";
 
 import Admin from "./Admin";
 import Compras from "./Compras.jsx";
@@ -20,6 +21,7 @@ import { findMenuItem } from "./app/navigation/menuConfig";
 import useAuth from "./app/providers/useAuth";
 import Layout from "./components/layout/Layout";
 import ModulePlanning from "./components/ModulePlanning";
+import BrandTransition from "./components/BrandTransition";
 import CatalogoInteligente from "./modules/catalogo-inteligente";
 import CrmComercial from "./modules/crm-comercial";
 import OrcamentoInteligente from "./modules/orcamento-inteligente";
@@ -28,12 +30,29 @@ import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, GastosPessoaisPage
 export default function App() {
   const { session, loadingSession, empresaId, permissoes, nomeUsuario, sair } = useAuth();
   const { pagina, navigate } = useAppNavigation();
+  const [enteredUserId, setEnteredUserId] = useState(null);
+  const [isExiting, setIsExiting] = useState(false);
+
+  function completeEntry() {
+    setEnteredUserId(session?.user?.id || null);
+    navigate("dashboard");
+  }
+
+  function startLogout() {
+    if (!isExiting) setIsExiting(true);
+  }
+
+  if (isExiting) return <BrandTransition mode="exiting" onComplete={sair} />;
 
   if (loadingSession) {
-    return <div style={{ color: "#fff", padding: 20 }}>Carregando...</div>;
+    return <BrandTransition mode="entering" />;
   }
 
   if (!session) return <Login />;
+
+  if (enteredUserId !== session.user.id) {
+    return <BrandTransition mode="entering" onComplete={completeEntry} />;
+  }
 
   const emailLogado = session?.user?.email || "";
   const nomeEmpresa = session?.user?.user_metadata?.empresa_nome || "Cunha Finance";
@@ -47,7 +66,7 @@ export default function App() {
       permissoes={permissoes}
       loginMaster={loginMaster}
       onNavigate={navigate}
-      onLogout={sair}
+      onLogout={startLogout}
     >
       {["dashboard", "painel_executivo"].includes(pagina) && <Dashboard nomeUsuario={nomeUsuario} />}
       {pagina === "recebimentos" && <ContasReceber empresaId={empresaId} />}
