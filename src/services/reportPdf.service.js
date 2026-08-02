@@ -282,10 +282,10 @@ export function generatePurchasesReport({ records, companyName, issuedBy, period
       { label: "Material principal", value: topMaterial },
     ],
     columns: [
-      { key: "date", label: "Data", width: 48 }, { key: "supplier", label: "Fornecedor", width: 73 }, { key: "material", label: "Material", width: 62 },
-      { key: "alloy", label: "Liga", width: 46 }, { key: "quantity", label: "Qtd.", width: 48 }, { key: "unit", label: "Un.", width: 27 },
-      { key: "kg", label: "Kg", width: 49 }, { key: "price", label: "R$/kg", width: 59 }, { key: "total", label: "Total", width: 65 },
-      { key: "freight", label: "Frete", width: 70 }, { key: "finalCost", label: "Custo final/kg", width: 74 }, { key: "status", label: "Status", width: 79 },
+      { key: "date", label: "Data", width: 48 }, { key: "supplier", label: "Fornecedor", width: 90 }, { key: "material", label: "Material", width: 70 },
+      { key: "alloy", label: "Liga", width: 65 }, { key: "quantity", label: "Qtd.", width: 55 }, { key: "unit", label: "Un.", width: 30 },
+      { key: "kg", label: "Kg", width: 55 }, { key: "price", label: "R$/kg", width: 60 }, { key: "total", label: "Total", width: 70 },
+      { key: "freight", label: "Frete", width: 80 }, { key: "finalCost", label: "Custo final/kg", width: 80 }, { key: "status", label: "Status", width: 80 },
     ], rows,
     totals: `${records.length} compras | ${formatNumber(weight)} kg | ${formatMoney(value)} | ${suppliers.size} fornecedores`,
   });
