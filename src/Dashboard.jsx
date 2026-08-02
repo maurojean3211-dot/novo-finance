@@ -20,6 +20,7 @@ import {
   rankingVendedores,
 } from "./dashboardData";
 import MarketIndicators from "./MarketIndicators";
+import Header from "./components/layout/Header";
 import "./Dashboard.css";
 
 const moeda = new Intl.NumberFormat("pt-BR", {
@@ -93,29 +94,12 @@ export default function Dashboard({ nomeUsuario = "Mauro" }) {
     <main className="dashboard-shell">
       <div className="demo-notice"><span /> Ambiente visual com dados demonstrativos</div>
 
-      <header className="dashboard-header">
-        <div>
-          <p className="dashboard-date">{dataAtual}</p>
-          <h1>{saudacao}, {primeiroNome}</h1>
-          <p className="dashboard-company">Cunha Empreendimentos em Alumínio</p>
-        </div>
-        <div className="header-actions">
-          <label className="company-selector">
-            <span>Empresa ativa</span>
-            <select aria-label="Empresa ativa" defaultValue="cunha">
-              <option value="cunha">Cunha Empreendimentos</option>
-            </select>
-          </label>
-          <button className="notification-button" aria-label="Notificações">
-            <span className="notification-dot">3</span>⌁
-          </button>
-          <button className="profile-button" aria-label="Abrir perfil">
-            <span className="profile-avatar">{primeiroNome.slice(0, 2).toUpperCase()}</span>
-            <span><strong>{primeiroNome}</strong><small>Administrador</small></span>
-          </button>
-          <button className="new-operation" onClick={() => setModalAberto(true)}>＋ Nova operação</button>
-        </div>
-      </header>
+      <Header
+        dataAtual={dataAtual}
+        saudacao={saudacao}
+        primeiroNome={primeiroNome}
+        onNewOperation={() => setModalAberto(true)}
+      />
 
       {mensagem && <div className="dashboard-feedback" role="status">{mensagem}<button onClick={() => setMensagem("")} aria-label="Fechar mensagem">×</button></div>}
 
@@ -164,7 +148,7 @@ export default function Dashboard({ nomeUsuario = "Mauro" }) {
           <div className="professional-table-wrap">
             <table className="professional-table">
               <thead><tr><th>Número</th><th>Cliente</th><th>Vendedor</th><th>Valor</th><th>Data</th><th>Validade</th><th>Status</th></tr></thead>
-              <tbody>{orcamentosRecentes.map((orcamento) => <tr key={orcamento.numero}><td><strong>{orcamento.numero}</strong></td><td>{orcamento.cliente}</td><td>{orcamento.vendedor}</td><td>{moeda.format(orcamento.valor)}</td><td>{orcamento.data}</td><td>{orcamento.validade}</td><td><span className={`status-pill status-pill--${orcamento.statusId}`}>{orcamento.status}</span></td></tr>)}</tbody>
+              <tbody>{orcamentosRecentes.slice(0, 3).map((orcamento) => <tr key={orcamento.numero}><td><strong>{orcamento.numero}</strong></td><td>{orcamento.cliente}</td><td>{orcamento.vendedor}</td><td>{moeda.format(orcamento.valor)}</td><td>{orcamento.data}</td><td>{orcamento.validade}</td><td><span className={`status-pill status-pill--${orcamento.statusId}`}>{orcamento.status}</span></td></tr>)}</tbody>
             </table>
           </div>
         </article>

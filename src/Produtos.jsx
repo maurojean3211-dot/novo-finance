@@ -9,13 +9,8 @@ const [comissao,setComissao]=useState("0.05");
 
 const [empresaId,setEmpresaId] = useState(null);
 
-useEffect(()=>{
-iniciar();
-},[]);
-
 async function iniciar(){
 
-```
 const { data:{ user } } = await supabase.auth.getUser();
 if(!user) return;
 
@@ -29,14 +24,11 @@ if(data){
   setEmpresaId(data.empresa_id);
   carregarProdutos(data.empresa_id);
 }
-```
-
 }
 
 // ================= CARREGAR PRODUTOS
 async function carregarProdutos(empresa_id){
 
-```
 const {data,error} = await supabase
   .from("produtos")
   .select("*")
@@ -49,14 +41,12 @@ if(error){
 }
 
 setProdutos(data || []);
-```
 
 }
 
 // ================= AUTO DEFINIR COMISSÃO
 function alterarNome(valor){
 
-```
 setNome(valor);
 
 const texto = valor.toLowerCase();
@@ -66,14 +56,11 @@ if(texto.includes("cavaco")){
 } else if(texto.includes("sucata")){
   setComissao("0.05");
 }
-```
-
 }
 
 // ================= SALVAR PRODUTO
 async function salvarProduto(){
 
-```
 if(!nome.trim()){
   alert("Informe o nome do produto");
   return;
@@ -102,14 +89,12 @@ setNome("");
 setComissao("0.05");
 
 carregarProdutos(empresaId);
-```
 
 }
 
 // ================= EXCLUIR
 async function excluirProduto(id){
 
-```
 if(!window.confirm("Excluir produto?")) return;
 
 const {error} = await supabase
@@ -125,9 +110,14 @@ if(error){
 }
 
 carregarProdutos(empresaId);
-```
 
 }
+
+useEffect(()=>{
+void Promise.resolve().then(iniciar);
+// A inicialização preserva a consulta única executada na montagem.
+// eslint-disable-next-line react-hooks/exhaustive-deps
+},[]);
 
 // ================= FORMATAR DATA
 function formatarData(data){
@@ -138,7 +128,6 @@ return new Date(data).toLocaleDateString("pt-BR");
 // ================= TELA
 return( <div style={{padding:20}}>
 
-```
   <h1>📦 Produtos</h1>
 
   <input
@@ -208,7 +197,6 @@ return( <div style={{padding:20}}>
   ))}
 
 </div>
-```
 
 );
 }

@@ -44,6 +44,46 @@ color:#fff;
 .app-logout{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;padding:8px;border:1px solid #382630;background:rgba(100,34,45,.18);color:#c78389;font-size:9px}.app-logout span{font-size:13px}
 .app-content{flex:1;min-width:0;padding:18px clamp(14px,2vw,30px);}
 
+/* ===== NAVEGAÇÃO MODULAR ===== */
+
+.app-nav-groups{display:flex;flex-direction:column;gap:3px;margin:-2px 0 12px;}
+.app-nav-group{border-bottom:1px solid rgba(39,55,77,.5);padding-bottom:3px;}
+.app-nav-group__toggle{display:grid;grid-template-columns:20px 1fr auto;align-items:center;gap:7px;width:100%;padding:7px 8px;border:0;background:transparent;color:#64758e;text-align:left;}
+.app-nav-group__toggle>span{display:grid;place-items:center;width:20px;color:#6680a6;font-size:10px;}
+.app-nav-group__toggle>strong{overflow:hidden;font-size:8px;letter-spacing:.09em;text-overflow:ellipsis;text-transform:uppercase;white-space:nowrap;}
+.app-nav-group__toggle>b{color:#52647e;font-size:11px;transition:transform .18s ease;}
+.app-nav-group--open .app-nav-group__toggle{color:#a8b8ce;}
+.app-nav-group--open .app-nav-group__toggle>b{transform:rotate(180deg);}
+.app-nav-group__items{display:grid;gap:1px;padding:0 0 3px 13px;}
+.app-nav-group__items .app-nav-button{position:relative;padding:7px 8px;font-size:9px;}
+.app-nav-button small{margin-left:auto;color:#52647b;font-size:6px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
+.app-nav-button--active small{color:#779be0;}
+
+.mobile-nav-menu{position:fixed;z-index:998;right:10px;bottom:75px;left:10px;max-height:calc(100dvh - 95px);padding:12px;overflow-y:auto;border:1px solid #263750;border-radius:14px;background:linear-gradient(160deg,#111d2d,#09131f);box-shadow:0 20px 55px rgba(0,0,0,.48);}
+.mobile-nav-menu__header{display:flex;align-items:center;justify-content:space-between;padding:0 2px 8px;border-bottom:1px solid #27364b;}
+.mobile-nav-menu__header strong{font-size:13px;}.mobile-nav-menu__header button{width:30px;height:30px;padding:0;background:#1b293b;font-size:18px;}
+.mobile-nav-group{border-bottom:1px solid rgba(42,57,78,.55);}
+.mobile-nav-group__toggle{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;width:100%;padding:10px 6px;background:transparent;color:#8293aa;text-align:left;}
+.mobile-nav-group__toggle strong{font-size:10px;letter-spacing:.07em;text-transform:uppercase;}.mobile-nav-group__toggle b{transition:transform .18s ease;}
+.mobile-nav-group__toggle[aria-expanded="true"] b{transform:rotate(180deg);}
+.mobile-nav-group__items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;padding:0 0 10px;}
+.mobile-nav-group__items button{display:flex;align-items:center;gap:7px;min-width:0;padding:9px;border:1px solid #24354b;background:#101c2b;color:#a8b6c9;text-align:left;font-size:10px;}
+.mobile-nav-group__items button>span{flex:0 0 18px;text-align:center;}.mobile-nav-group__items button small{margin-left:auto;color:#5c6d83;font-size:6px;text-transform:uppercase;}
+.mobile-nav-group__items button.is-active{border-color:#3f6fb7;background:#172a45;color:#eef4ff;box-shadow:inset 3px 0 #4c86ee;}
+.mobile-nav-logout{width:100%;margin-top:10px;border:1px solid #57313a;background:rgba(139,43,57,.26);color:#e29ba2;}
+
+/* ===== MÓDULOS EM PLANEJAMENTO ===== */
+
+.planning-page{display:grid;place-items:center;min-height:calc(100vh - 72px);padding:24px;}
+.planning-card{width:min(620px,100%);padding:42px;border:1px solid #263952;border-radius:20px;background:radial-gradient(circle at 90% 0,rgba(69,112,201,.18),transparent 38%),linear-gradient(145deg,#121e2e,#0d1724);box-shadow:0 20px 55px rgba(0,0,0,.24);text-align:center;}
+.planning-card__icon{display:grid;place-items:center;width:52px;height:52px;margin:0 auto 16px;border-radius:15px;background:linear-gradient(135deg,#397be9,#6652c5);font-size:22px;}
+.planning-card__eyebrow{color:#719cf1!important;font-size:9px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;}
+.planning-card h1{margin:8px 0 10px;font-size:28px;}.planning-card>p:not(.planning-card__eyebrow){max-width:470px;margin:0 auto;color:#8291a7;font-size:13px;line-height:1.6;}
+.planning-card__status{display:inline-flex;align-items:center;gap:8px;margin-top:22px;padding:8px 12px;border:1px solid #4c452f;border-radius:30px;background:rgba(157,118,40,.09);color:#cfac64;font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+.planning-card__status span{width:7px;height:7px;border-radius:50%;background:#efb94f;box-shadow:0 0 0 4px rgba(239,185,79,.1);}
+
+@media(max-width:767px){.planning-page{min-height:calc(100dvh - 110px);padding:10px}.planning-card{padding:28px 20px}.planning-card h1{font-size:23px}}
+
 /* ===== LAYOUT ===== */
 
 .app-container{

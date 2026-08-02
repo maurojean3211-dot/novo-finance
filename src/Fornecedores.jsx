@@ -9,10 +9,6 @@ const [nome,setNome]=useState("");
 const [telefone,setTelefone]=useState("");
 const [email,setEmail]=useState("");
 
-useEffect(()=>{
-carregarFornecedores();
-},[]);
-
 // =============================
 // LISTAR
 // =============================
@@ -96,6 +92,10 @@ setEmail("");
 carregarFornecedores();
 
 }
+
+useEffect(()=>{
+void Promise.resolve().then(carregarFornecedores);
+},[]);
 
 // =============================
 // EXCLUIR
@@ -199,4 +199,34 @@ style={{
 border:"1px solid #ccc",
 padding:"10px",
 borderRadius:"6px",
-marginBotto
+marginBottom:"10px",
+background:"#020617"
+}}
+>
+
+<div style={{fontSize:"12px",color:"#94a3b8"}}>
+{formatarData(f.data_cadastro)}
+</div>
+
+<strong>{f.nome}</strong>
+
+{f.telefone && <div>📞 {f.telefone}</div>}
+{f.email && <div>✉ {f.email}</div>}
+
+<button
+type="button"
+onClick={()=>excluirFornecedor(f.id)}
+style={{marginTop:"8px",background:"#dc2626"}}
+>
+Excluir
+</button>
+
+</div>
+
+))}
+
+</div>
+
+);
+
+}
