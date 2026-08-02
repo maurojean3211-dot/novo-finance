@@ -1,312 +1,184 @@
 import { useState } from "react";
 import { supabase } from "./supabase";
+import "./Login.css";
+
+const destaques = [
+  ["01", "Catálogo Inteligente", "Produtos técnicos organizados para vender melhor."],
+  ["02", "Orçamento Inteligente", "Propostas consistentes, rápidas e rastreáveis."],
+  ["03", "Painel Executivo", "Indicadores comerciais em uma visão objetiva."],
+  ["04", "IA Comercial", "Pendências e oportunidades em evidência."],
+  ["05", "Dólar e LME", "Indicadores de mercado para decisões responsáveis."],
+];
 
 export default function Login({ onLogin }) {
-  const [modo, setModo] = useState("login"); // login | cadastro
+  const [modo, setModo] = useState("login");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [cpf, setCpf] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lembrar, setLembrar] = useState(false);
+  const [mensagem, setMensagem] = useState(null);
 
-  // ================= LOGIN =================
-  async function entrar() {
+  function exibirMensagem(tipo, texto) {
+    setMensagem({ tipo, texto });
+  }
+
+  async function entrar(event) {
+    event?.preventDefault();
+    setMensagem(null);
+
     if (!email || !senha) {
-      alert("Preencha email e senha");
+      exibirMensagem("erro", "Preencha o e-mail e a senha para continuar.");
       return;
     }
 
     setLoading(true);
-
-    const { error } =
-      await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password: senha,
-      });
-
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password: senha,
+    });
     setLoading(false);
 
     if (error) {
-      if (
+      exibirMensagem(
+        "erro",
         error.message.includes("Invalid login credentials")
-      ) {
-        alert("Email ou senha incorretos.");
-      } else {
-        alert(error.message);
-      }
+          ? "E-mail ou senha incorretos. Confira os dados informados."
+          : error.message,
+      );
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (typeof onLogin === "function") {
-      onLogin(user);
-    } else {
-      window.location.reload();
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (typeof onLogin === "function") onLogin(user);
+    else window.location.reload();
   }
 
-  // ================= CADASTRO =================
-  async function cadastrar() {
+  async function cadastrar(event) {
+    event?.preventDefault();
+    setMensagem(null);
+
     if (!email || !senha || !cpf || !whatsapp) {
-      alert("Preencha todos os campos");
+      exibirMensagem("erro", "Preencha todos os campos para criar a conta.");
       return;
     }
 
     setLoading(true);
-
     const emailLimpo = email.trim().toLowerCase();
-
-    const { data, error } =
-      await supabase.auth.signUp({
-        email: emailLimpo,
-        password: senha,
-      });
+    const { data, error } = await supabase.auth.signUp({ email: emailLimpo, password: senha });
 
     if (error) {
       setLoading(false);
-
-      if (
-        error.message.includes(
-          "User already registered"
-        )
-      ) {
-        alert(
-          "Este email já está cadastrado. Faça login."
-        );
+      if (error.message.includes("User already registered")) {
+        exibirMensagem("erro", "Este e-mail já está cadastrado. Faça login para continuar.");
         setModo("login");
         return;
       }
-
-      alert(error.message);
+      exibirMensagem("erro", error.message);
       return;
     }
 
     if (data?.user) {
       const userId = data.user.id;
+      const { data: empresa } = await supabase.from("empresas").insert([{
+        user_id: userId,
+        name: emailLimpo,
+        email: emailLimpo,
+        cpf,
+        whatsapp,
+        plano: "Básico",
+        status: "Ativo",
+      }]).select().single();
 
-      const { data: empresa } =
-        await supabase
-          .from("empresas")
-          .insert([
-            {
-              user_id: userId,
-              name: emailLimpo,
-              email: emailLimpo,
-              cpf,
-              whatsapp,
-              plano: "Básico",
-              status: "Ativo",
-            },
-          ])
-          .select()
-          .single();
-
-      await supabase.from("usuarios").insert([
-        {
-          id: userId,
-          email: emailLimpo,
-          nome: emailLimpo,
-          role: "cliente",
-          empresa_id: empresa?.id,
-        },
-      ]);
+      await supabase.from("usuarios").insert([{
+        id: userId,
+        email: emailLimpo,
+        nome: emailLimpo,
+        role: "cliente",
+        empresa_id: empresa?.id,
+      }]);
     }
 
     setLoading(false);
-
-    alert("Conta criada! Agora faça login.");
+    exibirMensagem("sucesso", "Conta criada. Agora você já pode fazer login.");
     setModo("login");
   }
 
-  // ================= RECUPERAR SENHA =================
   async function recuperarSenha() {
+    setMensagem(null);
     if (!email) {
-      alert("Digite seu email");
+      exibirMensagem("erro", "Digite seu e-mail para recuperar o acesso.");
       return;
     }
 
-    const { error } =
-      await supabase.auth.resetPasswordForEmail(
-        email.trim().toLowerCase(),
-        {
-          redirectTo:
-            window.location.origin + "/reset",
-        }
-      );
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(),
+      { redirectTo: window.location.origin + "/reset" },
+    );
+    setLoading(false);
 
-    if (error) {
-      alert("Erro ao enviar email");
-    } else {
-      alert("Email enviado!");
-    }
+    exibirMensagem(
+      error ? "erro" : "sucesso",
+      error ? "Não foi possível enviar o e-mail de recuperação." : "E-mail de recuperação enviado.",
+    );
   }
 
   return (
-    <div style={container}>
-      <div style={box}>
-        <img
-          src={window.location.origin + "/logo.png"}
-          width={80}
-          style={{ marginBottom: 10 }}
-        />
+    <main className="login-page">
+      <section className="login-showcase">
+        <div className="login-showcase__glow" />
+        <div className="login-brand"><span>CF</span><div><strong>Cunha Finance</strong><small>Gestão inteligente</small></div></div>
 
-        <h2>Cunha Finance</h2>
+        <div className="login-presentation">
+          <p className="login-eyebrow">Plataforma inteligente de gestão comercial</p>
+          <h1>Decisões mais inteligentes para o mercado do alumínio.</h1>
+          <p className="login-description">Gerencie vendas, estoque, catálogo inteligente, orçamentos, CRM, financeiro e indicadores de mercado em uma única plataforma.</p>
 
-        <input
-          style={input}
-          placeholder="Email"
-          value={email}
-          onChange={(e) =>
-            setEmail(e.target.value)
-          }
-        />
+          <div className="industry-visual" aria-hidden="true">
+            <div className="industry-visual__grid" />
+            <div className="aluminum-profile aluminum-profile--one" />
+            <div className="aluminum-profile aluminum-profile--two" />
+            <div className="industry-visual__metric"><span>Visão integrada</span><strong>Comercial + Operação</strong><small>Dados seguros para decisões melhores</small></div>
+          </div>
 
-        <input
-          style={input}
-          type="password"
-          placeholder="Senha"
-          value={senha}
-          onChange={(e) =>
-            setSenha(e.target.value)
-          }
-        />
+          <div className="login-features">
+            {destaques.map(([numero, titulo, descricao]) => (
+              <div key={titulo}><span>{numero}</span><p><strong>{titulo}</strong><small>{descricao}</small></p></div>
+            ))}
+          </div>
+        </div>
 
-        {modo === "cadastro" && (
-          <>
-            <input
-              style={input}
-              placeholder="CPF"
-              value={cpf}
-              onChange={(e) =>
-                setCpf(e.target.value)
-              }
-            />
+        <footer><span>Feito para empresas que transformam alumínio em resultado.</span><b>Seguro · Modular · Multiempresa</b></footer>
+      </section>
 
-            <input
-              style={input}
-              placeholder="WhatsApp"
-              value={whatsapp}
-              onChange={(e) =>
-                setWhatsapp(
-                  e.target.value
-                )
-              }
-            />
-          </>
-        )}
+      <section className="login-access">
+        <div className="login-card">
+          <div className="login-card__logo"><img src={`${window.location.origin}/logo.png`} alt="Cunha Finance" /><span>CF</span></div>
+          <div className="login-card__heading"><span>Acesso seguro</span><h2>{modo === "login" ? "Bem-vindo de volta" : "Criar sua conta"}</h2><p>{modo === "login" ? "Entre com seus dados para acessar a plataforma." : "Preencha os dados para iniciar seu acesso."}</p></div>
 
-        {modo === "login" ? (
-          <>
-            <button
-              style={botao}
-              onClick={entrar}
-              disabled={loading}
-            >
-              {loading
-                ? "Aguarde..."
-                : "Entrar"}
-            </button>
+          {mensagem && <div className={`login-message login-message--${mensagem.tipo}`} role="status">{mensagem.texto}</div>}
 
-            <button
-              style={botaoSecundario}
-              onClick={() =>
-                setModo("cadastro")
-              }
-            >
-              Criar Conta
-            </button>
+          <form onSubmit={modo === "login" ? entrar : cadastrar}>
+            <label className="login-field"><span>E-mail</span><div><b>@</b><input type="email" autoComplete="email" placeholder="seuemail@empresa.com.br" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} /></div></label>
+            <label className="login-field"><span>Senha</span><div><b>●</b><input type="password" autoComplete={modo === "login" ? "current-password" : "new-password"} placeholder="Digite sua senha" value={senha} onChange={(e) => setSenha(e.target.value)} disabled={loading} /></div></label>
 
-            <p
-              style={esqueci}
-              onClick={recuperarSenha}
-            >
-              🔑 Esqueci minha senha
-            </p>
-          </>
-        ) : (
-          <>
-            <button
-              style={botao}
-              onClick={cadastrar}
-              disabled={loading}
-            >
-              {loading
-                ? "Aguarde..."
-                : "Cadastrar"}
-            </button>
+            {modo === "cadastro" && <div className="register-fields">
+              <label className="login-field"><span>CPF</span><div><b>▣</b><input inputMode="numeric" autoComplete="off" placeholder="Informe seu CPF" value={cpf} onChange={(e) => setCpf(e.target.value)} disabled={loading} /></div></label>
+              <label className="login-field"><span>WhatsApp</span><div><b>◉</b><input inputMode="tel" autoComplete="tel" placeholder="Informe seu WhatsApp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} disabled={loading} /></div></label>
+            </div>}
 
-            <button
-              style={botaoSecundario}
-              onClick={() =>
-                setModo("login")
-              }
-            >
-              Voltar para login
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+            {modo === "login" && <div className="login-options"><label><input type="checkbox" checked={lembrar} onChange={(e) => setLembrar(e.target.checked)} /> <span>Lembrar acesso</span></label><button type="button" onClick={recuperarSenha} disabled={loading}>Esqueci minha senha</button></div>}
+
+            <button className="login-submit" type="submit" disabled={loading}>{loading ? <><span className="login-spinner" /> Aguarde...</> : modo === "login" ? "Entrar na plataforma →" : "Criar conta →"}</button>
+            <button className="login-secondary" type="button" onClick={() => { setModo(modo === "login" ? "cadastro" : "login"); setMensagem(null); }} disabled={loading}>{modo === "login" ? "Criar uma nova conta" : "Voltar para o login"}</button>
+          </form>
+
+          <div className="login-security"><span>◆</span><p><strong>Ambiente protegido</strong><small>Seus dados de acesso são processados com segurança.</small></p></div>
+        </div>
+        <footer className="login-footer"><span>© 2026 Cunha Finance</span><span>Versão 1.0 · Sprint visual</span></footer>
+      </section>
+    </main>
   );
 }
-
-// ===== ESTILO =====
-
-const container = {
-  background: "#020617",
-  minHeight: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  color: "white",
-};
-
-const box = {
-  width: "100%",
-  maxWidth: 350,
-  textAlign: "center",
-  background: "#111827",
-  padding: 25,
-  borderRadius: 12,
-};
-
-const botao = {
-  marginTop: 12,
-  padding: 12,
-  width: "100%",
-  borderRadius: 8,
-  border: "none",
-  background: "#2563eb",
-  color: "white",
-  fontWeight: "bold",
-  cursor: "pointer",
-};
-
-const botaoSecundario = {
-  marginTop: 10,
-  padding: 10,
-  width: "100%",
-  borderRadius: 8,
-  border: "none",
-  background: "#374151",
-  color: "white",
-  cursor: "pointer",
-};
-
-const input = {
-  width: "100%",
-  padding: 10,
-  marginTop: 10,
-  borderRadius: 6,
-  border: "none",
-};
-
-const esqueci = {
-  marginTop: 15,
-  cursor: "pointer",
-  color: "#60a5fa",
-  fontWeight: "bold",
-};

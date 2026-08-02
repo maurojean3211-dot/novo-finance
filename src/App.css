@@ -1,12 +1,48 @@
-/* ===== GERAL ===== */
+/* ===== BASE VISUAL DO APLICATIVO ===== */
 
 body{
 margin:0;
-background:#020617;
+background:#07101d;
 color:white;
-font-family:Arial, Helvetica, sans-serif;
+font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 overflow-y:auto;
 }
+
+.app-shell{
+display:flex;
+min-height:100vh;
+background:radial-gradient(circle at 80% 0,rgba(43,79,137,.12),transparent 27%),#07101d;
+}
+
+.app-shell--mobile{flex-direction:column;}
+
+.app-sidebar{
+position:sticky;
+top:0;
+display:flex;
+flex:0 0 226px;
+flex-direction:column;
+height:100vh;
+padding:19px 14px 15px;
+overflow-y:auto;
+border-right:1px solid #1b2a3d;
+background:linear-gradient(180deg,#0b1523 0%,#08111e 100%);
+color:#fff;
+}
+
+.app-brand{display:flex;align-items:center;gap:10px;padding:0 5px 19px;border-bottom:1px solid #1c2a3e;}
+.app-brand__mark{display:grid;place-items:center;width:38px;height:38px;border:1px solid #4a7dd1;border-radius:11px;background:linear-gradient(135deg,#2b67ce,#173d7e);box-shadow:0 8px 24px rgba(37,96,196,.24);font-size:12px;font-weight:900;letter-spacing:.04em;}
+.app-brand strong,.app-brand small{display:block}.app-brand strong{font-size:14px;letter-spacing:-.01em}.app-brand small{margin-top:3px;color:#65758c;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
+.app-company-card{margin:14px 0 15px;padding:11px;border:1px solid #213149;border-radius:11px;background:#101c2b;}
+.app-company-card span,.app-company-card strong,.app-company-card small{display:block}.app-company-card span{color:#65758d;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}.app-company-card strong{margin:5px 0 3px;overflow:hidden;font-size:10px;white-space:nowrap;text-overflow:ellipsis}.app-company-card small{color:#4aca91;font-size:8px}
+.app-nav-label{margin:0 9px 8px;color:#53637a!important;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.13em}
+.app-nav-button{display:flex;align-items:center;gap:10px;width:100%;margin:1px 0;padding:9px 11px;border:1px solid transparent;border-radius:8px;background:transparent;color:#8d9cb1;text-align:left;font-size:10px;font-weight:650;transition:.18s ease;}
+.app-nav-button span{display:grid;place-items:center;width:18px;color:#7487a3;font-size:12px;filter:grayscale(.65)}
+.app-nav-button:hover{background:#111f30;color:#dbe5f3;opacity:1}.app-nav-button--active{border-color:#254b82;background:linear-gradient(90deg,rgba(47,105,205,.28),rgba(31,70,130,.1));color:#f2f6fc;box-shadow:inset 3px 0 #4c86ee}.app-nav-button--active span{color:#79a8ff;filter:none}
+.app-ai-usage{margin-top:auto;padding:12px;border:1px solid #253a58;border-radius:12px;background:radial-gradient(circle at 90% 0,rgba(73,111,205,.22),transparent 43%),#101d2d;}
+.app-ai-usage>div:first-child{display:flex;justify-content:space-between;gap:5px}.app-ai-usage span,.app-ai-usage b{color:#6f83a0;font-size:7px;text-transform:uppercase;letter-spacing:.07em}.app-ai-usage b{color:#719cf0}.app-ai-usage>strong{display:block;margin:6px 0 9px;font-size:19px;letter-spacing:-.04em}.app-ai-usage dl{display:grid;gap:5px;margin:0}.app-ai-usage dl div{display:flex;justify-content:space-between}.app-ai-usage dt,.app-ai-usage dd{margin:0;color:#8190a5;font-size:8px}.app-ai-usage dd{color:#d6e0ee;font-weight:800}.app-ai-usage>small{display:block;margin-top:9px;color:#53647c;font-size:7px}
+.app-logout{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;padding:8px;border:1px solid #382630;background:rgba(100,34,45,.18);color:#c78389;font-size:9px}.app-logout span{font-size:13px}
+.app-content{flex:1;min-width:0;padding:18px clamp(14px,2vw,30px);}
 
 /* ===== LAYOUT ===== */
 

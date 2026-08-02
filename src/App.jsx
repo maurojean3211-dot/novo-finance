@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import "./index.css";
+import "./App.css";
 
 import Login from "./Login";
 import Admin from "./Admin";
@@ -105,47 +106,30 @@ export default function App() {
     return (
       <button
         onClick={() => setPagina(page)}
-        style={ativo ? botaoAtivo : botaoMenu}
+        className={`app-nav-button${ativo ? " app-nav-button--active" : ""}`}
       >
-        {icon} {label}
+        <span>{icon}</span>{label}
       </button>
     );
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: isMobile ? "column" : "row",
-        minHeight: "100vh",
-        background: "#020617",
-      }}
-    >
+    <div className={`app-shell${isMobile ? " app-shell--mobile" : ""}`}>
       {/* MENU DESKTOP */}
       {!isMobile && (
-        <div
-          style={{
-            width: 240,
-            background: "#020617",
-            padding: 15,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            color: "#fff",
-          }}
-        >
-          <h2>💰 Cunha Finance</h2>
-
-          <div
-            style={{
-              background: "#111827",
-              padding: 10,
-              borderRadius: 8,
-              fontSize: 14,
-            }}
-          >
-            👤 {nomeUsuario}
+        <aside className="app-sidebar">
+          <div className="app-brand">
+            <div className="app-brand__mark">CF</div>
+            <div><strong>Cunha Finance</strong><small>Gestão inteligente</small></div>
           </div>
+
+          <div className="app-company-card">
+            <span>Empresa ativa</span>
+            <strong>Cunha Empreendimentos</strong>
+            <small>Plano completo</small>
+          </div>
+
+          <p className="app-nav-label">Navegação</p>
 
           <MenuButton page="dashboard" icon="📊" label="Dashboard" />
           <MenuButton page="recebimentos" icon="💵" label="Recebimentos" />
@@ -161,34 +145,35 @@ export default function App() {
           {loginMaster && (
             <button
               onClick={() => setPagina("master")}
-              style={pagina === "master" ? botaoAtivo : botaoMenu}
+              className={`app-nav-button${pagina === "master" ? " app-nav-button--active" : ""}`}
             >
-              👑 Master Admin
+              <span>◆</span>Master Admin
             </button>
           )}
 
+          <div className="app-ai-usage">
+            <div><span>Uso da IA hoje</span><b>Tempo economizado</b></div>
+            <strong>2h 48min</strong>
+            <dl>
+              <div><dt>Processamentos</dt><dd>18</dd></div>
+              <div><dt>PDFs analisados</dt><dd>7</dd></div>
+              <div><dt>Orçamentos</dt><dd>5</dd></div>
+            </dl>
+            <small>Dados demonstrativos</small>
+          </div>
+
           <button
             onClick={sair}
-            style={{
-              ...botaoMenu,
-              background: "#ef4444",
-              marginTop: 10,
-            }}
+            className="app-logout"
           >
-            🚪 Sair
+            <span>↪</span>Sair
           </button>
-        </div>
+        </aside>
       )}
 
       {/* CONTEÚDO */}
-      <div
-        style={{
-          flex: 1,
-          padding: 20,
-          paddingBottom: isMobile ? 90 : 20,
-        }}
-      >
-        {pagina === "dashboard" && <Dashboard />}
+      <div className="app-content" style={{ paddingBottom: isMobile ? 90 : 20 }}>
+        {pagina === "dashboard" && <Dashboard nomeUsuario={nomeUsuario} />}
         {pagina === "recebimentos" && <Recebimentos empresaId={empresaId} />}
         {pagina === "clientes" && <Clientes />}
         {pagina === "contas_pagar" && <ContasPagar empresaId={empresaId} />}
@@ -274,11 +259,6 @@ const botaoMenu = {
   border: "none",
   borderRadius: 8,
   cursor: "pointer",
-};
-
-const botaoAtivo = {
-  ...botaoMenu,
-  background: "#2563eb",
 };
 
 const mobileBar = {
