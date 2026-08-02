@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 
 function formatarData(data) {
   if (!data) return "";
@@ -50,6 +51,9 @@ export default function ComprasUsuario() {
 
   const [busca, setBusca] =
     useState("");
+
+  const [modalAberto, setModalAberto] =
+    useState(false);
 
   useEffect(() => {
     carregarEmpresa();
@@ -166,6 +170,7 @@ export default function ComprasUsuario() {
     );
 
     limpar();
+    setModalAberto(false);
 
     carregarCompras(empresaId);
   }
@@ -190,6 +195,7 @@ export default function ComprasUsuario() {
     setDataCompra(
       String(c.data_compra).slice(0, 10)
     );
+    setModalAberto(true);
 
     window.scrollTo({
       top: 0,
@@ -223,16 +229,51 @@ export default function ComprasUsuario() {
         )
     );
 
+  const totalQuantidade = compras.reduce(
+    (total, compra) => total + Number(compra.kilos || 0),
+    0
+  );
+
+  const totalValor = compras.reduce(
+    (total, compra) => total + Number(compra.valor || 0),
+    0
+  );
+
   return (
     <div
       style={{
         padding: 20,
-        maxWidth: 600,
+        maxWidth: 1680,
         margin: "0 auto",
         color: "#fff",
       }}
     >
-      <h1>🧱 COMPRAS</h1>
+      <ModuleHeader
+        eyebrow="Materiais e operações"
+        title="Compras"
+        description="Controle operacional de aquisições, volumes e valores."
+        actionLabel="Nova Compra"
+        onAction={() => {
+          limpar();
+          setModalAberto(true);
+        }}
+      />
+
+      <MetricGrid items={[
+        { label: "Compras do mês", value: compras.length, detail: "registros carregados", icon: "▥" },
+        { label: "Peso comprado", value: totalQuantidade.toLocaleString("pt-BR"), detail: "quantidade total", icon: "⚖", tone: "green" },
+        { label: "Valor total", value: `R$ ${totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, detail: "valor acumulado", icon: "R$", tone: "amber" },
+        { label: "Custo médio", value: "—", detail: "sem cálculo no fluxo atual", icon: "÷" },
+        { label: "Quantidade", value: compras.length, detail: "compras registradas", icon: "#" },
+      ]} />
+
+      {modalAberto && <OperationModal
+        title={editandoId ? "Editar compra" : "Nova compra"}
+        editing={Boolean(editandoId)}
+        onClose={() => setModalAberto(false)}
+        onSubmit={salvarCompra}
+        submitLabel={editandoId ? "Atualizar Compra" : "Salvar Compra"}
+      >
 
       <input
         type="date"
@@ -355,6 +396,7 @@ export default function ComprasUsuario() {
       <button
         onClick={salvarCompra}
         style={{
+          display: "none",
           width: "100%",
           padding: 12,
           background:
@@ -371,41 +413,27 @@ export default function ComprasUsuario() {
           : "Salvar Compra"}
       </button>
 
-      <hr />
-
-      <h3>
-        🔍 Buscar Fornecedor
-      </h3>
-
-      <input
-        placeholder="Digite o nome"
-        value={busca}
-        onChange={(e) =>
-          setBusca(
-            e.target.value
-          )
-        }
-        style={{
-          width: "100%",
-          padding: 8,
-        }}
-      />
+      </OperationModal>}
 
       <hr />
 
-      {comprasFiltradas.map(
+      <FilterBar><input placeholder="Buscar por fornecedor" value={busca} onChange={(e) => setBusca(e.target.value)} /></FilterBar>
+
+      <hr />
+
+      {comprasFiltradas.length === 0 ? <EmptyState /> : comprasFiltradas.map(
         (c) => (
           <div
             key={c.id}
             style={{
               border:
-                "1px solid #ddd",
+                "1px solid #223147",
               padding: 15,
               marginBottom: 12,
               borderRadius: 10,
               background:
-                "#fff",
-              color: "#111",
+                "#101b2a",
+              color: "#dce5f2",
             }}
           >
             📅{" "}
@@ -428,30 +456,7 @@ export default function ComprasUsuario() {
             <br />
             <br />
 
-            <button
-              onClick={() =>
-                editarCompra(c)
-              }
-            >
-              ✏️ Editar
-            </button>
-
-            <button
-              onClick={() =>
-                excluirCompra(
-                  c.id
-                )
-              }
-              style={{
-                marginLeft: 10,
-                background:
-                  "red",
-                color:
-                  "#fff",
-              }}
-            >
-              🗑️ Excluir
-            </button>
+            <ActionButtons onEdit={() => editarCompra(c)} onDelete={() => excluirCompra(c.id)} />
           </div>
         )
       )}

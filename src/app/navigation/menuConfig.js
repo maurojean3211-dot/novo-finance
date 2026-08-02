@@ -27,7 +27,7 @@ export const menuGroups = [
     label: "Materiais e Operações",
     icon: "▧",
     items: [
-      { page: "catalogo_materiais", label: "Catálogo de Materiais", icon: "▦", planned: true },
+      { page: "catalogo_inteligente", label: "Catálogo Inteligente", icon: "▦", permissionKey: "compras" },
       { page: "produtos", label: "Produtos", icon: "◈", permissionKey: "compras" },
       { page: "estoque", label: "Estoque", icon: "▥", planned: true },
       { page: "compras", label: "Compras", icon: "🧱", permissionKey: "compras" },

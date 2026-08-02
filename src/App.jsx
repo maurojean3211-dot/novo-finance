@@ -25,6 +25,7 @@ import { findMenuItem } from "./app/navigation/menuConfig";
 import useAuth from "./app/providers/useAuth";
 import Layout from "./components/layout/Layout";
 import ModulePlanning from "./components/ModulePlanning";
+import CatalogoInteligente from "./modules/catalogo-inteligente";
 
 export default function App() {
   const { session, loadingSession, empresaId, permissoes, nomeUsuario, sair } = useAuth();
@@ -52,6 +53,7 @@ export default function App() {
       {["dashboard", "painel_executivo"].includes(pagina) && <Dashboard nomeUsuario={nomeUsuario} />}
       {pagina === "recebimentos" && <Recebimentos empresaId={empresaId} />}
       {pagina === "clientes" && <Clientes />}
+      {pagina === "catalogo_inteligente" && <CatalogoInteligente />}
       {pagina === "produtos" && <Produtos />}
       {pagina === "fornecedores" && <Fornecedores />}
       {pagina === "financeiro" && <Financeiro empresaId={empresaId} />}

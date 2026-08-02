@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 
 // 🔥 FORMATA DATA
 function formatarData(data) {
@@ -33,6 +34,9 @@ export default function Vendas() {
   const [empresaId, setEmpresaId] = useState(null);
   const [userId, setUserId] = useState(null);
   const [editandoId, setEditandoId] = useState(null);
+  const [modalAberto, setModalAberto] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [filtroProduto, setFiltroProduto] = useState("");
 
   // 🔥 PRODUTOS INDUSTRIAIS PERMITIDOS
   const produtosPermitidos = [
@@ -182,6 +186,7 @@ export default function Vendas() {
     setCliente("");
     setProduto("");
     setKilos("");
+    setModalAberto(false);
 
     carregarVendas(empresaId);
   }
@@ -193,6 +198,7 @@ export default function Vendas() {
     setProduto(v.produto || "");
     setKilos(v.kilos || "");
     setDataVenda(v.data_venda || "");
+    setModalAberto(true);
 
     window.scrollTo({
       top: 0,
@@ -216,128 +222,32 @@ export default function Vendas() {
     carregarVendas(empresaId);
   }
 
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>
-        🔥 {editandoId ? "Editar Venda" : "Vendas"}
-      </h1>
-
-      <input
-        type="date"
-        value={dataVenda}
-        onChange={(e) =>
-          setDataVenda(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <input
-        placeholder="Cliente"
-        value={cliente}
-        onChange={(e) =>
-          setCliente(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <input
-        placeholder="Produto"
-        value={produto}
-        onChange={(e) =>
-          setProduto(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <input
-        type="number"
-        placeholder="Kilos"
-        value={kilos}
-        onChange={(e) =>
-          setKilos(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <p>
-        <strong>💸 Comissão:</strong> R${" "}
-        {dinheiro(calcularComissao())}
-      </p>
-
-      <button
-        onClick={salvarVenda}
-        style={{
-          padding: 10,
-          background: editandoId
-            ? "orange"
-            : "green",
-          color: "#fff",
-          border: "none",
-          borderRadius: 5,
-        }}
-      >
-        {editandoId
-          ? "Atualizar"
-          : "Salvar"}
-      </button>
-
-      <hr />
-
-      {vendas.map((v) => (
-        <div
-          key={v.id}
-          style={{
-            border: "1px solid #ccc",
-            padding: 12,
-            marginBottom: 10,
-            borderRadius: 8,
-            background: "#fff",
-            color: "#000",
-          }}
-        >
-          📅 {formatarData(v.data_venda)}
-          <br />
-          👤 {v.cliente_nome || "-"}
-          <br />
-          📦 {v.produto || "-"}
-          <br />
-          ⚖️{" "}
-          {Number(v.kilos || 0).toLocaleString(
-            "pt-BR"
-          )}{" "}
-          kg
-          <br />
-          💸 R$ {dinheiro(v.comissao)}
-
-          <br />
-          <br />
-
-          <button
-            onClick={() => editarVenda(v)}
-          >
-            ✏️ Editar
-          </button>
-
-          <button
-            onClick={() => excluirVenda(v.id)}
-            style={{
-              marginLeft: 10,
-              background: "red",
-              color: "#fff",
-            }}
-          >
-            🗑️ Excluir
-          </button>
-        </div>
-      ))}
-    </div>
+  const vendasFiltradas = vendas.filter((v) =>
+    String(v.cliente_nome || "").toLowerCase().includes(busca.toLowerCase()) &&
+    String(v.produto || "").toLowerCase().includes(filtroProduto.toLowerCase())
   );
+  const pesoTotal = vendas.reduce((total, v) => total + Number(v.kilos || 0), 0);
+  const comissaoTotal = vendas.reduce((total, v) => total + Number(v.comissao || 0), 0);
+
+  return <div className="ops-page">
+    <ModuleHeader eyebrow="Operação comercial" title="Vendas" description="Gestão das vendas industriais e respectivas comissões." actionLabel="Nova Venda" onAction={() => { setEditandoId(null); setModalAberto(true); }} />
+    <MetricGrid items={[
+      { label: "Vendas do mês", value: vendas.length, detail: "registros carregados", icon: "▥" },
+      { label: "Peso vendido", value: `${pesoTotal.toLocaleString("pt-BR")} kg`, detail: "volume total", icon: "⚖", tone: "green" },
+      { label: "Valor total", value: "—", detail: "não informado neste fluxo", icon: "R$", tone: "amber" },
+      { label: "Comissão", value: `R$ ${dinheiro(comissaoTotal)}`, detail: "comissão acumulada", icon: "%", tone: "green" },
+      { label: "Quantidade", value: vendas.length, detail: "vendas registradas", icon: "#" },
+    ]} />
+    <FilterBar><input placeholder="Buscar por cliente" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /></FilterBar>
+    <section className="ops-panel"><div className="ops-panel__header"><h2>Registro de vendas</h2><span>{vendasFiltradas.length} resultado(s)</span></div>
+      {vendasFiltradas.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Comissão</th><th>Vendedor</th><th>Ações</th></tr></thead><tbody>{vendasFiltradas.map((v) => <tr key={v.id}><td>{formatarData(v.data_venda)}</td><td><strong>{v.cliente_nome || "-"}</strong></td><td>{v.produto || "-"}</td><td>{Number(v.kilos || 0).toLocaleString("pt-BR")} kg</td><td>—</td><td>R$ {dinheiro(v.comissao)}</td><td>—</td><td><ActionButtons onEdit={() => editarVenda(v)} onDelete={() => excluirVenda(v.id)} /></td></tr>)}</tbody></table></div>}
+    </section>
+    {modalAberto && <OperationModal title={editandoId ? "Editar venda" : "Nova venda"} editing={Boolean(editandoId)} onClose={() => setModalAberto(false)} onSubmit={salvarVenda} submitLabel={editandoId ? "Atualizar" : "Salvar"}>
+      <label className="ops-field"><span>Data</span><input type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} /></label>
+      <label className="ops-field"><span>Cliente</span><input placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
+      <label className="ops-field"><span>Produto</span><input placeholder="Produto" value={produto} onChange={(e) => setProduto(e.target.value)} /></label>
+      <label className="ops-field"><span>Kilos</span><input type="number" placeholder="Kilos" value={kilos} onChange={(e) => setKilos(e.target.value)} /></label>
+      <div className="ops-preview"><strong>Comissão:</strong> R$ {dinheiro(calcularComissao())}</div>
+    </OperationModal>}
+  </div>;
 }

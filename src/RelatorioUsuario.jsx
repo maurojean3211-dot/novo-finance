@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
 
 function dinheiro(valor) {
   return Number(valor || 0).toLocaleString("pt-BR", {
@@ -59,60 +60,11 @@ export default function RelatorioUsuario({ empresaId }) {
   const saldo = totalVendas - totalCompras;
 
   return (
-    <div
-      style={{
-        padding: 20,
-        color: "#fff",
-        maxWidth: 700,
-        margin: "0 auto",
-      }}
-    >
-      <h1>📄 Relatório Financeiro</h1>
-
-      <div
-        style={{
-          display: "grid",
-          gap: 15,
-          marginTop: 20,
-        }}
-      >
-        <div style={card}>
-          📦 <strong>Total de Vendas:</strong>
-          <br />
-          R$ {dinheiro(totalVendas)}
-          <br />
-          {qtdVendas} venda(s)
-        </div>
-
-        <div style={card}>
-          🧱 <strong>Total de Compras:</strong>
-          <br />
-          R$ {dinheiro(totalCompras)}
-          <br />
-          {qtdCompras} compra(s)
-        </div>
-
-        <div
-          style={{
-            ...card,
-            background:
-              saldo >= 0
-                ? "#14532d"
-                : "#7f1d1d",
-          }}
-        >
-          💰 <strong>Resultado:</strong>
-          <br />
-          R$ {dinheiro(saldo)}
-        </div>
-      </div>
+    <div className="ops-page">
+      <ModuleHeader eyebrow="Inteligência gerencial" title="Central de Relatórios" description="Resumo financeiro consolidado da empresa." />
+      <section className="report-hub"><article><span>◫</span><strong>Relatório Comercial</strong><small>Visão consolidada.</small></article><article><span>R$</span><strong>Relatório Financeiro</strong><small>Resultados atuais.</small></article><article><span>↗</span><strong>Relatório de Vendas</strong><small>Operações comerciais.</small></article><article><span>↙</span><strong>Relatório de Compras</strong><small>Aquisições registradas.</small></article><article><span>▦</span><strong>Relatório de Estoque</strong><small>Central preparada.</small></article><article><span>◎</span><strong>Relatório de Clientes</strong><small>Central preparada.</small></article><article><span>◇</span><strong>Relatório de Fornecedores</strong><small>Central preparada.</small></article><article className="planned"><span>✦</span><strong>Relatório de IA</strong><small>Módulo em planejamento.</small></article></section>
+      <MetricGrid items={[{ label: "Total de vendas", value: `R$ ${dinheiro(totalVendas)}`, detail: `${qtdVendas} venda(s)`, icon: "↗", tone: "green" }, { label: "Total de compras", value: `R$ ${dinheiro(totalCompras)}`, detail: `${qtdCompras} compra(s)`, icon: "↙", tone: "amber" }, { label: "Resultado", value: `R$ ${dinheiro(saldo)}`, detail: saldo >= 0 ? "saldo positivo" : "saldo negativo", icon: "R$", tone: saldo >= 0 ? "green" : "rose" }]} />
+      <div className="ops-status-panel">Os cálculos e consultas deste relatório permanecem inalterados. Novos filtros serão conectados quando houver suporte na lógica existente.</div>
     </div>
   );
 }
-
-const card = {
-  background: "#111827",
-  padding: 18,
-  borderRadius: 10,
-  fontSize: 18,
-};

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 
 export default function Compras() {
   const [compras, setCompras] = useState([]);
@@ -18,6 +19,8 @@ export default function Compras() {
 
   const [editandoId, setEditandoId] = useState(null);
   const [busca, setBusca] = useState("");
+  const [filtroProduto, setFiltroProduto] = useState("");
+  const [modalAberto, setModalAberto] = useState(false);
 
   useEffect(() => {
     carregarEmpresa();
@@ -183,6 +186,7 @@ export default function Compras() {
     );
 
     await carregarCompras(empresaId);
+    setModalAberto(false);
   }
 
   function editarCompra(c) {
@@ -191,6 +195,7 @@ export default function Compras() {
     setProduto(c.produto || "");
     setKilos(c.kilos || "");
     setDataCompra(c.data_compra || "");
+    setModalAberto(true);
 
     window.scrollTo({
       top: 0,
@@ -210,138 +215,29 @@ export default function Compras() {
   }
 
   const comissaoPreview = calcularComissao();
+  const comprasVisiveis = comprasFiltradas.filter((c) => String(c.produto || "").toLowerCase().includes(filtroProduto.toLowerCase()));
+  const pesoTotal = compras.reduce((total, c) => total + Number(c.kilos || 0), 0);
+  const comissaoTotal = compras.reduce((total, c) => total + Number(c.comissao || 0), 0);
 
-  return (
-    <div style={{ padding: 20 }}>
-      <h1>
-        📦 {editandoId ? "Editar Compra" : "Compras"}
-      </h1>
-
-      <input
-        type="date"
-        value={dataCompra}
-        onChange={(e) =>
-          setDataCompra(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <input
-        placeholder="Fornecedor"
-        value={fornecedor}
-        onChange={(e) =>
-          setFornecedor(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <input
-        placeholder="Produto (sucata, limalha ou cavaco)"
-        value={produto}
-        onChange={(e) =>
-          setProduto(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <input
-        type="number"
-        placeholder="Kilos"
-        value={kilos}
-        onChange={(e) =>
-          setKilos(e.target.value)
-        }
-      />
-
-      <br />
-      <br />
-
-      <p>
-        <strong>Comissão:</strong> R${" "}
-        {comissaoPreview.toFixed(2)}
-      </p>
-
-      <button
-        onClick={salvarCompra}
-        disabled={!empresaId}
-        style={{
-          padding: 10,
-          background: !empresaId
-            ? "#555"
-            : editandoId
-            ? "orange"
-            : "green",
-          color: "#fff",
-          border: "none",
-          borderRadius: 5,
-          cursor: !empresaId
-            ? "not-allowed"
-            : "pointer",
-        }}
-      >
-        {editandoId ? "Atualizar" : "Salvar"}
-      </button>
-
-      <hr />
-
-      <h3>🔍 Buscar fornecedor</h3>
-
-      <input
-        placeholder="Digite o nome"
-        value={busca}
-        onChange={(e) =>
-          setBusca(e.target.value)
-        }
-      />
-
-      <hr />
-
-      {comprasFiltradas.map((c) => (
-        <div
-          key={c.id}
-          style={{
-            border: "1px solid #ccc",
-            padding: 10,
-            marginBottom: 10,
-            borderRadius: 5,
-          }}
-        >
-          📅 {formatarData(c.data_compra)} <br />
-          👤 {c.fornecedor || "-"} <br />
-          📦 {c.produto} <br />
-          ⚖️ {c.kilos} kg <br />
-          💸 Comissão: R${" "}
-          {Number(c.comissao || 0).toFixed(2)}
-
-          <br />
-          <br />
-
-          <button
-            onClick={() => editarCompra(c)}
-          >
-            ✏️ Editar
-          </button>
-
-          <button
-            onClick={() => excluirCompra(c.id)}
-            style={{
-              marginLeft: 10,
-              background: "red",
-              color: "#fff",
-              border: "none",
-              padding: "5px 10px",
-            }}
-          >
-            🗑️ Excluir
-          </button>
-        </div>
-      ))}
-    </div>
-  );
+  return <div className="ops-page">
+    <ModuleHeader eyebrow="Materiais e operações" title="Compras" description="Controle operacional de aquisições e comissões." actionLabel="Nova Compra" onAction={() => { setEditandoId(null); setModalAberto(true); }} />
+    <MetricGrid items={[
+      { label: "Compras do mês", value: compras.length, detail: "registros carregados", icon: "▥" },
+      { label: "Peso comprado", value: `${pesoTotal.toLocaleString("pt-BR")} kg`, detail: "volume total", icon: "⚖", tone: "green" },
+      { label: "Valor total", value: "—", detail: "não informado neste fluxo", icon: "R$", tone: "amber" },
+      { label: "Custo médio", value: "—", detail: "sem custo unitário", icon: "÷" },
+      { label: "Quantidade", value: compras.length, detail: `R$ ${comissaoTotal.toFixed(2)} em comissões`, icon: "#" },
+    ]} />
+    <FilterBar><input placeholder="Buscar por fornecedor" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /></FilterBar>
+    <section className="ops-panel"><div className="ops-panel__header"><h2>Registro de compras</h2><span>{comprasVisiveis.length} resultado(s)</span></div>
+      {comprasVisiveis.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Custo unitário</th><th>Responsável</th><th>Ações</th></tr></thead><tbody>{comprasVisiveis.map((c) => <tr key={c.id}><td>{formatarData(c.data_compra)}</td><td><strong>{c.fornecedor || "-"}</strong></td><td>{c.produto || "-"}</td><td>{Number(c.kilos || 0).toLocaleString("pt-BR")} kg</td><td>—</td><td>—</td><td>—</td><td><ActionButtons onEdit={() => editarCompra(c)} onDelete={() => excluirCompra(c.id)} /></td></tr>)}</tbody></table></div>}
+    </section>
+    {modalAberto && <OperationModal title={editandoId ? "Editar compra" : "Nova compra"} editing={Boolean(editandoId)} onClose={() => setModalAberto(false)} onSubmit={salvarCompra} submitLabel={editandoId ? "Atualizar" : "Salvar"} disabled={!empresaId}>
+      <label className="ops-field"><span>Data</span><input type="date" value={dataCompra} onChange={(e) => setDataCompra(e.target.value)} /></label>
+      <label className="ops-field"><span>Fornecedor</span><input placeholder="Fornecedor" value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} /></label>
+      <label className="ops-field"><span>Produto</span><input placeholder="Produto (sucata, limalha ou cavaco)" value={produto} onChange={(e) => setProduto(e.target.value)} /></label>
+      <label className="ops-field"><span>Kilos</span><input type="number" placeholder="Kilos" value={kilos} onChange={(e) => setKilos(e.target.value)} /></label>
+      <div className="ops-preview"><strong>Comissão:</strong> R$ {comissaoPreview.toFixed(2)}</div>
+    </OperationModal>}
+  </div>;
 }

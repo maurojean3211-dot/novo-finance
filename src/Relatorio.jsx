@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
+import { FilterBar, MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
 
 export default function Relatorio({ empresaId }) {
   const [dados, setDados] = useState([]);
@@ -258,10 +259,20 @@ export default function Relatorio({ empresaId }) {
   }
 
   return (
-    <div style={{ padding: 20, color: "#fff" }}>
-      <h2>📊 Relatório Financeiro</h2>
+    <div className="ops-page">
+      <ModuleHeader eyebrow="Inteligência gerencial" title="Central de Relatórios" description="Consolide indicadores operacionais e financeiros sem alterar os cálculos atuais." />
+      <section className="report-hub">
+        <article><span>◫</span><strong>Relatório Comercial</strong><small>Visão consolidada das operações.</small></article>
+        <article><span>R$</span><strong>Relatório Financeiro</strong><small>Resultados e comissões atuais.</small></article>
+        <article><span>↗</span><strong>Relatório de Vendas</strong><small>Volumes e clientes atendidos.</small></article>
+        <article><span>↙</span><strong>Relatório de Compras</strong><small>Volumes e fornecedores.</small></article>
+        <article><span>▦</span><strong>Relatório de Estoque</strong><small>Central preparada para o módulo.</small></article>
+        <article><span>◎</span><strong>Relatório de Clientes</strong><small>Central preparada para o módulo.</small></article>
+        <article><span>◇</span><strong>Relatório de Fornecedores</strong><small>Central preparada para o módulo.</small></article>
+        <article className="planned"><span>✦</span><strong>Relatório de IA</strong><small>Módulo em planejamento.</small></article>
+      </section>
 
-      <div style={{ marginBottom: 15 }}>
+      <FilterBar>
         <input
           type="date"
           value={dataInicio}
@@ -279,56 +290,14 @@ export default function Relatorio({ empresaId }) {
         />
 
         <button onClick={buscar}>
-          🔍 Filtrar
+          Gerar relatório
         </button>
-      </div>
+        <button onClick={() => { setDataInicio(""); setDataFim(""); }}>Limpar filtros</button>
+      </FilterBar>
 
-      <button onClick={buscar}>
-        🔄 Atualizar
-      </button>
+      <MetricGrid items={[{ label: "Recebido hoje", value: `R$ ${dinheiro(recebidoHoje)}`, detail: "resultado diário", icon: "R$", tone: "green" }, { label: "Comissão hoje", value: `R$ ${dinheiro(comissaoHoje)}`, detail: "comissão diária", icon: "%" }, { label: "Recebido no mês", value: `R$ ${dinheiro(recebidoMes)}`, detail: "resultado mensal", icon: "↗", tone: "green" }, { label: "Comissão no mês", value: `R$ ${dinheiro(comissaoMes)}`, detail: "comissão mensal", icon: "%", tone: "amber" }, { label: "KG vendidos", value: Number(totalVendas).toLocaleString("pt-BR"), detail: `R$ ${dinheiro(totalComissao)} em comissões`, icon: "⚖" }]} />
 
-      <div style={{ marginTop: 20 }}>
-        <p>
-          💰 Hoje: R$ {dinheiro(recebidoHoje)}
-        </p>
-
-        <p>
-          📊 Comissão Hoje: R${" "}
-          {dinheiro(comissaoHoje)}
-        </p>
-
-        <p>
-          📅 Mês: R$ {dinheiro(recebidoMes)}
-        </p>
-
-        <p>
-          📈 Comissão Mês: R${" "}
-          {dinheiro(comissaoMes)}
-        </p>
-
-        <p>
-          ⚖️ Total KG Vendido:{" "}
-          {Number(totalVendas).toLocaleString(
-            "pt-BR"
-          )}{" "}
-          kg
-        </p>
-
-        <p>
-          💵 Total Comissão: R${" "}
-          {dinheiro(totalComissao)}
-        </p>
-      </div>
-
-      <table
-        border="1"
-        style={{
-          marginTop: 20,
-          width: "100%",
-          background: "#fff",
-          color: "#000",
-        }}
-      >
+      <section className="ops-panel"><div className="ops-panel__header"><h2>Resultado consolidado</h2><span>{dados.length} registro(s)</span></div><div className="ops-table-wrap"><table className="ops-table">
         <thead>
           <tr>
             <th>Cliente / Fornecedor</th>
@@ -361,7 +330,7 @@ export default function Relatorio({ empresaId }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div></section>
     </div>
   );
 }
