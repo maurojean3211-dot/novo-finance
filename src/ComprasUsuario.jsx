@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
-import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
+import { ActionButtons, EmptyState, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
+import PurchaseReportControls from "./components/operations/PurchaseReportControls";
 import { formatarData } from "./utils";
+import { describePeriod, EMPTY_PURCHASE_FILTERS, filterPurchaseRecords, generatePurchasesReport } from "./services/reportPdf.service";
 
-export default function ComprasUsuario({ empresaId, userId }) {
+export default function ComprasUsuario({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
   const hoje = new Date();
 
   const dataHoje = `${hoje.getFullYear()}-${String(
@@ -35,8 +37,9 @@ export default function ComprasUsuario({ empresaId, userId }) {
   const [editandoId, setEditandoId] =
     useState(null);
 
-  const [busca, setBusca] =
-    useState("");
+  const [filterDraft, setFilterDraft] = useState(EMPTY_PURCHASE_FILTERS);
+  const [activeFilters, setActiveFilters] = useState(EMPTY_PURCHASE_FILTERS);
+  const [reportMessage, setReportMessage] = useState("");
 
   const [modalAberto, setModalAberto] =
     useState(false);
@@ -184,24 +187,32 @@ export default function ComprasUsuario({ empresaId, userId }) {
     carregarCompras(empresaId);
   }
 
-  const comprasFiltradas =
-    compras.filter((c) =>
-      (c.fornecedor || "")
-        .toLowerCase()
-        .includes(
-          busca.toLowerCase()
-        )
-    );
+  const comprasFiltradas = filterPurchaseRecords(compras, activeFilters).filter((item) => String(item.empresa_id) === String(empresaId));
 
-  const totalQuantidade = compras.reduce(
+  const totalQuantidade = comprasFiltradas.reduce(
     (total, compra) => total + Number(compra.kilos || 0),
     0
   );
 
-  const totalValor = compras.reduce(
+  const totalValor = comprasFiltradas.reduce(
     (total, compra) => total + Number(compra.valor || 0),
     0
   );
+
+  function limparFiltros() {
+    setFilterDraft(EMPTY_PURCHASE_FILTERS);
+    setActiveFilters(EMPTY_PURCHASE_FILTERS);
+    setReportMessage("");
+  }
+
+  function gerarRelatorio() {
+    if (comprasFiltradas.length === 0) {
+      setReportMessage("Nenhuma compra encontrada no período selecionado");
+      return;
+    }
+    setReportMessage("");
+    generatePurchasesReport({ records: comprasFiltradas, companyName, issuedBy, period: describePeriod(activeFilters.startDate, activeFilters.endDate) });
+  }
 
   return (
     <div
@@ -223,12 +234,15 @@ export default function ComprasUsuario({ empresaId, userId }) {
         }}
       />
 
+      <PurchaseReportControls filters={filterDraft} onChange={setFilterDraft} onApply={() => { setActiveFilters(filterDraft); setReportMessage(""); }} onClear={limparFiltros} onGenerate={gerarRelatorio} />
+      {(reportMessage || comprasFiltradas.length === 0) && <div className="ops-feedback ops-feedback--error" role="alert"><span>Nenhuma compra encontrada no período selecionado</span></div>}
+
       <MetricGrid items={[
-        { label: "Compras do mês", value: compras.length, detail: "registros carregados", icon: "▥" },
+        { label: "Compras do mês", value: comprasFiltradas.length, detail: "registros filtrados", icon: "▥" },
         { label: "Peso comprado", value: totalQuantidade.toLocaleString("pt-BR"), detail: "quantidade total", icon: "⚖", tone: "green" },
         { label: "Valor total", value: `R$ ${totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, detail: "valor acumulado", icon: "R$", tone: "amber" },
         { label: "Custo médio", value: "—", detail: "sem cálculo no fluxo atual", icon: "÷" },
-        { label: "Quantidade", value: compras.length, detail: "compras registradas", icon: "#" },
+        { label: "Quantidade", value: comprasFiltradas.length, detail: "compras filtradas", icon: "#" },
       ]} />
 
       {modalAberto && <OperationModal
@@ -381,7 +395,6 @@ export default function ComprasUsuario({ empresaId, userId }) {
 
       <hr />
 
-      <FilterBar><input placeholder="Buscar por fornecedor" value={busca} onChange={(e) => setBusca(e.target.value)} /></FilterBar>
 
       <hr />
 

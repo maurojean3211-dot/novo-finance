@@ -3,8 +3,9 @@ import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 import { formatarData, formatarNumero } from "./utils";
 import { calculateCommission, COMMISSION_TYPES } from "./services/commissionEngine";
+import { describePeriod, filterSalesRecords, generateSalesReport } from "./services/reportPdf.service";
 
-export default function Vendas({ empresaId, userId }) {
+export default function Vendas({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
   const [vendas, setVendas] = useState([]);
 
   const [cliente, setCliente] = useState("");
@@ -22,6 +23,12 @@ export default function Vendas({ empresaId, userId }) {
   const [modalAberto, setModalAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtroProduto, setFiltroProduto] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [filtroVendedor, setFiltroVendedor] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroUnidade, setFiltroUnidade] = useState("");
+  const [filtroComissao, setFiltroComissao] = useState("");
 
   // 🔥 PRODUTOS INDUSTRIAIS PERMITIDOS
   const produtosPermitidos = [
@@ -220,10 +227,8 @@ export default function Vendas({ empresaId, userId }) {
     setModalAberto(true);
   }
 
-  const vendasFiltradas = vendas.filter((v) =>
-    String(v.cliente_nome || "").toLowerCase().includes(busca.toLowerCase()) &&
-    String(v.produto || "").toLowerCase().includes(filtroProduto.toLowerCase())
-  );
+  const filtrosRelatorio = { party: busca, product: filtroProduto, responsible: filtroVendedor, status: filtroStatus, unit: filtroUnidade, commissionType: filtroComissao, startDate: dataInicio, endDate: dataFim };
+  const vendasFiltradas = filterSalesRecords(vendas, filtrosRelatorio).filter((item) => String(item.empresa_id) === String(empresaId));
   const pesoTotal = vendas.reduce((total, v) => total + Number(v.kilos || 0), 0);
   const comissaoTotal = vendas.reduce((total, v) => total + Number(v.comissao || 0), 0);
   const valorTotal = vendas.reduce((total, v) => total + Number(v.valor || 0), 0);
@@ -237,7 +242,7 @@ export default function Vendas({ empresaId, userId }) {
       { label: "Comissão", value: `R$ ${formatarNumero(comissaoTotal)}`, detail: "comissão acumulada", icon: "%", tone: "green" },
       { label: "Quantidade", value: vendas.length, detail: "vendas registradas", icon: "#" },
     ]} />
-    <FilterBar><input placeholder="Buscar por cliente" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /></FilterBar>
+    <FilterBar><input placeholder="Buscar por cliente" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /><input type="date" aria-label="Data inicial" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} /><input type="date" aria-label="Data final" value={dataFim} onChange={(e) => setDataFim(e.target.value)} /><input placeholder="Vendedor" value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} /><input placeholder="Status" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} /><select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)}><option value="">Todas as unidades</option><option value="KG">kg</option><option value="TON">tonelada</option></select><select value={filtroComissao} onChange={(e) => setFiltroComissao(e.target.value)}><option value="">Todos os tipos</option><option value="PER_KG">Por kg</option><option value="PERCENT_SALE">Percentual</option></select><button type="button" onClick={() => generateSalesReport({ records: vendasFiltradas, companyName, issuedBy, period: describePeriod(dataInicio, dataFim) })}>Gerar Relatório PDF</button></FilterBar>
     <section className="ops-panel"><div className="ops-panel__header"><h2>Registro de vendas</h2><span>{vendasFiltradas.length} resultado(s)</span></div>
       {vendasFiltradas.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Comissão</th><th>Vendedor</th><th>Ações</th></tr></thead><tbody>{vendasFiltradas.map((v) => <tr key={v.id}><td>{formatarData(v.data_venda)}</td><td><strong>{v.cliente_nome || "-"}</strong></td><td>{v.produto || "-"}</td><td>{Number(v.kilos || 0).toLocaleString("pt-BR")} kg</td><td>R$ {formatarNumero(v.valor)}</td><td>R$ {formatarNumero(v.comissao)}</td><td>—</td><td><ActionButtons onEdit={() => editarVenda(v)} onDelete={() => excluirVenda(v.id)} /></td></tr>)}</tbody></table></div>}
     </section>

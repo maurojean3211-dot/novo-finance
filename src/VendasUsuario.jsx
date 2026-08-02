@@ -3,8 +3,9 @@ import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 import { formatarData } from "./utils";
 import { calculateCommission, COMMISSION_TYPES } from "./services/commissionEngine";
+import { describePeriod, filterSalesRecords, generateSalesReport } from "./services/reportPdf.service";
 
-export default function VendasUsuario({ empresaId, userId }) {
+export default function VendasUsuario({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
   const hoje = new Date();
 
   const dataHoje = `${hoje.getFullYear()}-${String(
@@ -29,6 +30,12 @@ export default function VendasUsuario({ empresaId, userId }) {
 
   const [busca, setBusca] = useState("");
   const [filtroProduto, setFiltroProduto] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [filtroVendedor, setFiltroVendedor] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroUnidade, setFiltroUnidade] = useState("");
+  const [filtroComissao, setFiltroComissao] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
 
   const calculoComissao = calculateCommission({
@@ -189,14 +196,8 @@ export default function VendasUsuario({ empresaId, userId }) {
     carregarVendas(empresaId);
   }
 
-  const vendasFiltradas =
-    vendas.filter((v) =>
-      (v.cliente_nome || "")
-        .toLowerCase()
-        .includes(
-          busca.toLowerCase()
-        )
-    ).filter((v) => (v.produto || "").toLowerCase().includes(filtroProduto.toLowerCase()));
+  const filtrosRelatorio = { party: busca, product: filtroProduto, responsible: filtroVendedor, status: filtroStatus, unit: filtroUnidade, commissionType: filtroComissao, startDate: dataInicio, endDate: dataFim };
+  const vendasFiltradas = filterSalesRecords(vendas, filtrosRelatorio).filter((item) => String(item.empresa_id) === String(empresaId));
 
   const totalValor = vendas.reduce((total, v) => total + Number(v.valor || 0), 0);
   const totalQuantidade = vendas.reduce((total, v) => total + Number(v.kilos || 0), 0);
@@ -205,7 +206,7 @@ export default function VendasUsuario({ empresaId, userId }) {
   return <div className="ops-page">
     <ModuleHeader eyebrow="Operação comercial" title="Vendas" description="Acompanhe registros, volumes e valores comerciais." actionLabel="Nova Venda" onAction={() => { limpar(); setModalAberto(true); }} />
     <MetricGrid items={[{ label: "Vendas do mês", value: vendas.length, detail: "registros carregados", icon: "▥" }, { label: "Peso vendido", value: `${totalQuantidade.toLocaleString("pt-BR")} kg`, detail: "quantidade total", icon: "⚖", tone: "green" }, { label: "Valor total", value: `R$ ${totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, detail: "valor acumulado", icon: "R$", tone: "amber" }, { label: "Comissão", value: `R$ ${totalComissao.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, detail: "comissão acumulada", icon: "%" }, { label: "Quantidade", value: vendas.length, detail: "vendas registradas", icon: "#" }]} />
-    <FilterBar><input placeholder="Buscar por cliente" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /></FilterBar>
+    <FilterBar><input placeholder="Buscar por cliente" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /><input type="date" aria-label="Data inicial" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} /><input type="date" aria-label="Data final" value={dataFim} onChange={(e) => setDataFim(e.target.value)} /><input placeholder="Vendedor" value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} /><input placeholder="Status" value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} /><select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)}><option value="">Todas as unidades</option><option value="KG">kg</option><option value="TON">tonelada</option></select><select value={filtroComissao} onChange={(e) => setFiltroComissao(e.target.value)}><option value="">Todos os tipos</option><option value="PER_KG">Por kg</option><option value="PERCENT_SALE">Percentual</option></select><button type="button" onClick={() => generateSalesReport({ records: vendasFiltradas, companyName, issuedBy, period: describePeriod(dataInicio, dataFim) })}>Gerar Relatório PDF</button></FilterBar>
     <section className="ops-panel"><div className="ops-panel__header"><h2>Registro de vendas</h2><span>{vendasFiltradas.length} resultado(s)</span></div>{vendasFiltradas.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Comissão</th><th>Vendedor</th><th>Ações</th></tr></thead><tbody>{vendasFiltradas.map((v) => <tr key={v.id}><td>{formatarData(v.data_venda)}</td><td><strong>{v.cliente_nome || "-"}</strong></td><td>{v.produto || "-"}</td><td>{Number(v.kilos || 0).toLocaleString("pt-BR")} kg</td><td>R$ {Number(v.valor || 0).toFixed(2)}</td><td>R$ {Number(v.comissao || 0).toFixed(2)}</td><td>—</td><td><ActionButtons onEdit={() => editarVenda(v)} onDelete={() => excluirVenda(v.id)} /></td></tr>)}</tbody></table></div>}</section>
     {modalAberto && <OperationModal title={editandoId ? "Editar venda" : "Nova venda"} editing={Boolean(editandoId)} onClose={() => setModalAberto(false)} onSubmit={salvarVenda} submitLabel={editandoId ? "Atualizar Venda" : "Salvar Venda"}>
       <label className="ops-field"><span>Data</span><input type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} /></label><label className="ops-field"><span>Cliente</span><input value={cliente} onChange={(e) => setCliente(e.target.value)} /></label><label className="ops-field"><span>Produto</span><input value={produto} onChange={(e) => setProduto(e.target.value)} /></label><label className="ops-field"><span>Quantidade</span><input type="number" step="any" min="0" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} /></label><label className="ops-field"><span>Unidade</span><select value={tipo} onChange={(e) => setTipo(e.target.value)}><option value="KG">Quilograma</option><option value="TON">Tonelada</option></select></label><label className="ops-field"><span>Valor por kg</span><input type="number" step="any" min="0" value={valor} onChange={(e) => setValor(e.target.value)} /></label>{calculoComissao.rule.type === COMMISSION_TYPES.PERCENT_SALE && <label className="ops-field"><span>Percentual da comissão (%)</span><input type="number" step="any" min="0" value={percentualComissao} onChange={(e) => setPercentualComissao(e.target.value)} /></label>}<div className="ops-preview"><strong>Peso:</strong> {calculoComissao.kilograms.toLocaleString("pt-BR")} kg · <strong>Valor da venda:</strong> R$ {calculoComissao.totalSale.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · <strong>Comissão:</strong> R$ {calculoComissao.commission.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>

@@ -36,6 +36,7 @@ export default function App() {
   if (!session) return <Login />;
 
   const emailLogado = session?.user?.email || "";
+  const nomeEmpresa = session?.user?.user_metadata?.empresa_nome || "Cunha Finance";
   const loginMaster = emailLogado === "maurojean3211@gmail.com";
   const menuItem = findMenuItem(pagina);
   const paginaRelatorio = ["relatorio", "relatorio_comercial", "relatorio_financeiro", "relatorio_compras", "relatorio_vendas"].includes(pagina);
@@ -61,8 +62,8 @@ export default function App() {
       {pagina === "contas_pagar" && <GastosPessoaisPage empresaId={empresaId} />}
       {pagina === "contas_fixas" && <ContasFixasPessoaisPage empresaId={empresaId} />}
       {pagina === "relatorios_pessoais" && <RelatoriosPessoaisPage />}
-      {pagina === "vendas" && (loginMaster ? <Vendas empresaId={empresaId} userId={session.user.id} /> : <VendasUsuario empresaId={empresaId} userId={session.user.id} />)}
-      {pagina === "compras" && (loginMaster ? <Compras empresaId={empresaId} userId={session.user.id} userEmail={emailLogado} /> : <ComprasUsuario empresaId={empresaId} userId={session.user.id} />)}
+      {pagina === "vendas" && (loginMaster ? <Vendas empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} /> : <VendasUsuario empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} />)}
+      {pagina === "compras" && (loginMaster ? <Compras empresaId={empresaId} userId={session.user.id} userEmail={emailLogado} companyName={nomeEmpresa} issuedBy={nomeUsuario} /> : <ComprasUsuario empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} />)}
       {paginaRelatorio && (loginMaster ? <Relatorio empresaId={empresaId} /> : <RelatorioUsuario empresaId={empresaId} />)}
       {pagina === "master" && loginMaster && <MasterAdmin />}
       {pagina === "admin" && <Admin />}
