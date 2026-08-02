@@ -1,0 +1,2 @@
+import { ModuleHeader } from "../../../components/operations/OperationsUI";
+export default function OrcamentoHeader({ onNew, onImport }) { return <><ModuleHeader eyebrow="Comercial" title="Orçamento Inteligente" description="Propostas revisáveis, precificação assistida e aprovação humana." actionLabel="Novo Orçamento" onAction={onNew} /><button className="quote-import" onClick={onImport}>Importar PDF/Imagem <small>demonstrativo</small></button></>; }

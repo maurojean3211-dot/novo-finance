@@ -16,7 +16,7 @@ export const menuGroups = [
       { page: "crm", label: "CRM e Prospecção", icon: "◎", permissionKey: "vendas" },
       { page: "clientes", label: "Empresas e Clientes", icon: "👥", permissionKey: "clientes" },
       { page: "contatos", label: "Contatos", icon: "◉", planned: true },
-      { page: "orcamentos", label: "Orçamentos", icon: "▤", planned: true },
+      { page: "orcamentos", label: "Orçamento Inteligente", icon: "▤", permissionKey: "vendas" },
       { page: "vendas", label: "Vendas", icon: "📦", permissionKey: "vendas" },
       { page: "pos_venda", label: "Pós-venda", icon: "↗", planned: true },
       { page: "recebimentos", label: "Contas a Receber", icon: "💵", permissionKey: "recebimentos" },

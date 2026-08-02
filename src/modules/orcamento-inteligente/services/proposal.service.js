@@ -1,0 +1,1 @@
+export function getDemoProposal(quote) { return { emissora: "Cunha Empreendimentos em Alumínio", documento: "Dados demonstrativos", responsavel: quote.vendedor, versao: 3, data: new Date().toLocaleDateString("pt-BR"), quote }; }

@@ -27,6 +27,7 @@ import Layout from "./components/layout/Layout";
 import ModulePlanning from "./components/ModulePlanning";
 import CatalogoInteligente from "./modules/catalogo-inteligente";
 import CrmComercial from "./modules/crm-comercial";
+import OrcamentoInteligente from "./modules/orcamento-inteligente";
 
 export default function App() {
   const { session, loadingSession, empresaId, permissoes, nomeUsuario, sair } = useAuth();
@@ -55,6 +56,7 @@ export default function App() {
       {pagina === "recebimentos" && <Recebimentos empresaId={empresaId} />}
       {pagina === "clientes" && <Clientes />}
       {pagina === "crm" && <CrmComercial />}
+      {pagina === "orcamentos" && <OrcamentoInteligente />}
       {pagina === "catalogo_inteligente" && <CatalogoInteligente />}
       {pagina === "produtos" && <Produtos />}
       {pagina === "fornecedores" && <Fornecedores />}

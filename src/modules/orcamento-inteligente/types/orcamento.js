@@ -1,0 +1,3 @@
+export const QUOTE_STATUSES = ["Rascunho", "Aguardando análise", "Materiais identificados", "Pendência de correspondência", "Aguardando preço", "Aguardando aprovação", "Aprovado internamente", "Enviado ao cliente", "Em negociação", "Aceito", "Recusado", "Vencido", "Convertido em venda", "Cancelado"];
+export const OPEN_QUOTE_STATUSES = QUOTE_STATUSES.slice(0, 9);
+export const EMPTY_QUOTE = { cliente: "", contato: "", oportunidade: "", vendedor: "", moeda: "BRL", validade: "", condicaoPagamento: "28 dias", prazoEntrega: "15 dias", modalidadeFrete: "CIF", observacoesInternas: "", observacoesCliente: "", status: "Rascunho", origem: "Manual", items: [] };
