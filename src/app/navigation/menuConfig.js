@@ -39,9 +39,6 @@ export const menuGroups = [
     items: [
       { page: "financeiro", label: "Fluxo de Caixa", icon: "⌁", permissionKey: "financeiro" },
       { page: "recebimentos", label: "Contas a Receber", icon: "💵", permissionKey: "recebimentos" },
-      { page: "contas_pagar", label: "Contas a Pagar", icon: "💸", permissionKey: "contas_pagar" },
-      { page: "contas_fixas", label: "Contas Fixas", icon: "🔁", permissionKey: "contas_fixas" },
-      { page: "emprestimos", label: "Empréstimos", icon: "🏦", permissionKey: "emprestimos" },
       { page: "bancos", label: "Bancos", icon: "▣", planned: true },
     ],
   },
@@ -77,10 +74,8 @@ export const menuGroups = [
     label: "Financeiro Pessoal",
     icon: "♡",
     items: [
-      { page: "receitas_pessoais", label: "Receitas", icon: "+", planned: true },
-      { page: "pessoal", label: "Despesas", icon: "💳", permissionKey: "pessoal" },
-      { page: "investimentos", label: "Investimentos", icon: "↗", planned: true },
-      { page: "metas_pessoais", label: "Metas", icon: "◎", planned: true },
+      { page: "contas_pagar", label: "Contas a Pagar", icon: "💸", permissionKey: "contas_pagar" },
+      { page: "contas_fixas", label: "Contas Fixas", icon: "🔁", permissionKey: "contas_fixas" },
     ],
   },
   {

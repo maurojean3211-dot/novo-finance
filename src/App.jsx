@@ -8,7 +8,6 @@ import ContasFixas from "./ContasFixas.jsx";
 import ContasPagar from "./ContasPagar.jsx";
 import Dashboard from "./Dashboard";
 import DespesasPessoais from "./DespesasPessoais.jsx";
-import EmprestimosLista from "./Emprestimos.jsx";
 import Financeiro from "./Financeiro.jsx";
 import Fornecedores from "./Fornecedores.jsx";
 import Login from "./Login";
@@ -61,7 +60,6 @@ export default function App() {
       {pagina === "financeiro" && <Financeiro empresaId={empresaId} />}
       {pagina === "contas_pagar" && <ContasPagar empresaId={empresaId} />}
       {pagina === "contas_fixas" && <ContasFixas empresaId={empresaId} />}
-      {pagina === "emprestimos" && <EmprestimosLista empresaId={empresaId} />}
       {pagina === "vendas" && (loginMaster ? <Vendas /> : <VendasUsuario />)}
       {pagina === "compras" && (loginMaster ? <Compras /> : <ComprasUsuario />)}
       {paginaRelatorio && (loginMaster ? <Relatorio empresaId={empresaId} /> : <RelatorioUsuario empresaId={empresaId} />)}

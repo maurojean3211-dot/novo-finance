@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
-import InstallmentSaleModal from "./components/operations/InstallmentSaleModal";
 
 function formatarData(data) {
   if (!data) return "";
@@ -43,7 +42,6 @@ export default function VendasUsuario() {
   const [busca, setBusca] = useState("");
   const [filtroProduto, setFiltroProduto] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
-  const [parceladaAberta, setParceladaAberta] = useState(false);
 
   useEffect(() => {
     carregarEmpresa();
@@ -224,13 +222,11 @@ export default function VendasUsuario() {
 
   return <div className="ops-page">
     <ModuleHeader eyebrow="Operação comercial" title="Vendas" description="Acompanhe registros, volumes e valores comerciais." actionLabel="Nova Venda" onAction={() => { limpar(); setModalAberto(true); }} />
-    <div className="ops-inline-actions"><button onClick={() => setParceladaAberta(true)}>Venda parcelada</button><span>Cria a venda e os títulos em Contas a Receber.</span></div>
     <MetricGrid items={[{ label: "Vendas do mês", value: vendas.length, detail: "registros carregados", icon: "▥" }, { label: "Peso vendido", value: totalQuantidade.toLocaleString("pt-BR"), detail: "quantidade total", icon: "⚖", tone: "green" }, { label: "Valor total", value: `R$ ${totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, detail: "valor acumulado", icon: "R$", tone: "amber" }, { label: "Comissão", value: "R$ 0,00", detail: "regra atual do usuário", icon: "%" }, { label: "Quantidade", value: vendas.length, detail: "vendas registradas", icon: "#" }]} />
     <FilterBar><input placeholder="Buscar por cliente" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /></FilterBar>
     <section className="ops-panel"><div className="ops-panel__header"><h2>Registro de vendas</h2><span>{vendasFiltradas.length} resultado(s)</span></div>{vendasFiltradas.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Peso/quantidade</th><th>Valor</th><th>Comissão</th><th>Vendedor</th><th>Ações</th></tr></thead><tbody>{vendasFiltradas.map((v) => <tr key={v.id}><td>{formatarData(v.data_venda)}</td><td><strong>{v.cliente_nome || "-"}</strong></td><td>{v.produto || "-"}</td><td>{v.kilos} {tipo}</td><td>R$ {Number(v.valor || 0).toFixed(2)}</td><td>R$ {Number(v.comissao || 0).toFixed(2)}</td><td>—</td><td><ActionButtons onEdit={() => editarVenda(v)} onDelete={() => excluirVenda(v.id)} /></td></tr>)}</tbody></table></div>}</section>
     {modalAberto && <OperationModal title={editandoId ? "Editar venda" : "Nova venda"} editing={Boolean(editandoId)} onClose={() => setModalAberto(false)} onSubmit={salvarVenda} submitLabel={editandoId ? "Atualizar Venda" : "Salvar Venda"}>
       <label className="ops-field"><span>Data</span><input type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} /></label><label className="ops-field"><span>Cliente</span><input value={cliente} onChange={(e) => setCliente(e.target.value)} /></label><label className="ops-field"><span>Produto</span><input value={produto} onChange={(e) => setProduto(e.target.value)} /></label><label className="ops-field"><span>Quantidade</span><input type="number" value={quantidade} onChange={(e) => setQuantidade(e.target.value)} /></label><label className="ops-field"><span>Unidade</span><select value={tipo} onChange={(e) => setTipo(e.target.value)}><option value="UN">Unidade</option><option value="KG">Kilo</option></select></label><label className="ops-field"><span>Valor</span><input type="number" value={valor} onChange={(e) => setValor(e.target.value)} /></label>
     </OperationModal>}
-    {parceladaAberta && <InstallmentSaleModal empresaId={empresaId} commissionNote="R$ 0,00, conforme a regra atual do fluxo de usuário." onClose={() => setParceladaAberta(false)} onSaved={() => carregarVendas(empresaId)} />}
   </div>;
 }
