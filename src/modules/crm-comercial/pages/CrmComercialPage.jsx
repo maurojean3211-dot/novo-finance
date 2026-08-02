@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { MetricGrid, ModuleHeader } from "../../../components/operations/OperationsUI";
 import CrmFilters from "../components/CrmFilters";
+import CrmCustomerBase from "../components/CrmCustomerBase";
+import CrmLinkedQuotes from "../components/CrmLinkedQuotes";
 import OpportunityBoard from "../components/OpportunityBoard";
 import OpportunityDetails from "../components/OpportunityDetails";
 import OpportunityModal from "../components/OpportunityModal";
@@ -13,6 +15,7 @@ const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "cu
 export default function CrmComercialPage() {
   const crm = useCrm();
   const [view, setView] = useState("board");
+  const [workspace, setWorkspace] = useState("opportunities");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
@@ -23,7 +26,11 @@ export default function CrmComercialPage() {
 
   return <main className="ops-page crm-page">
     <ModuleHeader eyebrow="Comercial" title="CRM e Prospecção" description="Oportunidades, relacionamentos e próximos passos em uma visão executiva." actionLabel="Nova Oportunidade" onAction={openCreate} />
-    <div className="crm-demo-note"><span /> Ambiente demonstrativo · alterações mantidas somente em memória</div>
+    <div className="crm-demo-note"><span /> Oportunidades locais · clientes preservados na base comercial existente</div>
+    <nav className="crm-workspace-tabs"><button className={workspace === "opportunities" ? "active" : ""} onClick={() => setWorkspace("opportunities")}>Oportunidades</button><button className={workspace === "customers" ? "active" : ""} onClick={() => setWorkspace("customers")}>Empresas e contatos</button><button className={workspace === "quotes" ? "active" : ""} onClick={() => setWorkspace("quotes")}>Orçamentos vinculados</button></nav>
+    {workspace === "customers" && <CrmCustomerBase />}
+    {workspace === "quotes" && <CrmLinkedQuotes />}
+    {workspace === "opportunities" && <>
     <MetricGrid items={[
       { label: "Oportunidades abertas", value: crm.metrics.abertas, detail: "em etapas ativas", icon: "◇" },
       { label: "Valor total do funil", value: money(crm.metrics.valorFunil), detail: "potencial em aberto", icon: "R$", tone: "green" },
@@ -38,5 +45,6 @@ export default function CrmComercialPage() {
     {view === "board" ? <OpportunityBoard opportunities={crm.filtered} onSelect={(item) => setSelectedId(item.id)} onMove={crm.moveOpportunity} /> : <OpportunityTable opportunities={crm.filtered} onSelect={(item) => setSelectedId(item.id)} onMove={crm.moveOpportunity} />}
     {modalOpen && <OpportunityModal opportunity={editing} onClose={() => setModalOpen(false)} onSave={save} />}
     {selected && !modalOpen && <OpportunityDetails opportunity={selected} onClose={() => setSelectedId(null)} onEdit={openEdit} onAddActivity={crm.addActivity} />}
+    </>}
   </main>;
 }

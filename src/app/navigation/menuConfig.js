@@ -14,12 +14,10 @@ export const menuGroups = [
     icon: "◇",
     items: [
       { page: "crm", label: "CRM e Prospecção", icon: "◎", permissionKey: "vendas" },
-      { page: "clientes", label: "Empresas e Clientes", icon: "👥", permissionKey: "clientes" },
       { page: "contatos", label: "Contatos", icon: "◉", planned: true },
       { page: "orcamentos", label: "Orçamento Inteligente", icon: "▤", permissionKey: "vendas" },
       { page: "vendas", label: "Vendas", icon: "📦", permissionKey: "vendas" },
       { page: "pos_venda", label: "Pós-venda", icon: "↗", planned: true },
-      { page: "recebimentos", label: "Contas a Receber", icon: "💵", permissionKey: "recebimentos" },
     ],
   },
   {
@@ -40,6 +38,7 @@ export const menuGroups = [
     icon: "$",
     items: [
       { page: "financeiro", label: "Fluxo de Caixa", icon: "⌁", permissionKey: "financeiro" },
+      { page: "recebimentos", label: "Contas a Receber", icon: "💵", permissionKey: "recebimentos" },
       { page: "contas_pagar", label: "Contas a Pagar", icon: "💸", permissionKey: "contas_pagar" },
       { page: "contas_fixas", label: "Contas Fixas", icon: "🔁", permissionKey: "contas_fixas" },
       { page: "emprestimos", label: "Empréstimos", icon: "🏦", permissionKey: "emprestimos" },

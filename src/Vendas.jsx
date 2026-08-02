@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
+import InstallmentSaleModal from "./components/operations/InstallmentSaleModal";
 
 // 🔥 FORMATA DATA
 function formatarData(data) {
@@ -37,6 +38,7 @@ export default function Vendas() {
   const [modalAberto, setModalAberto] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtroProduto, setFiltroProduto] = useState("");
+  const [parceladaAberta, setParceladaAberta] = useState(false);
 
   // 🔥 PRODUTOS INDUSTRIAIS PERMITIDOS
   const produtosPermitidos = [
@@ -231,6 +233,7 @@ export default function Vendas() {
 
   return <div className="ops-page">
     <ModuleHeader eyebrow="Operação comercial" title="Vendas" description="Gestão das vendas industriais e respectivas comissões." actionLabel="Nova Venda" onAction={() => { setEditandoId(null); setModalAberto(true); }} />
+    <div className="ops-inline-actions"><button onClick={() => setParceladaAberta(true)}>Venda parcelada</button><span>Cria a venda e os títulos em Contas a Receber.</span></div>
     <MetricGrid items={[
       { label: "Vendas do mês", value: vendas.length, detail: "registros carregados", icon: "▥" },
       { label: "Peso vendido", value: `${pesoTotal.toLocaleString("pt-BR")} kg`, detail: "volume total", icon: "⚖", tone: "green" },
@@ -249,5 +252,6 @@ export default function Vendas() {
       <label className="ops-field"><span>Kilos</span><input type="number" placeholder="Kilos" value={kilos} onChange={(e) => setKilos(e.target.value)} /></label>
       <div className="ops-preview"><strong>Comissão:</strong> R$ {dinheiro(calcularComissao())}</div>
     </OperationModal>}
+    {parceladaAberta && <InstallmentSaleModal empresaId={empresaId} commissionNote="a venda industrial mantém sua regra atual; o payload parcelado legado não grava comissão adicional." onClose={() => setParceladaAberta(false)} onSaved={() => carregarVendas(empresaId)} />}
   </div>;
 }

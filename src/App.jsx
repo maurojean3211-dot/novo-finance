@@ -6,7 +6,6 @@ import Compras from "./Compras.jsx";
 import ComprasUsuario from "./ComprasUsuario.jsx";
 import ContasFixas from "./ContasFixas.jsx";
 import ContasPagar from "./ContasPagar.jsx";
-import Clientes from "./Clientes.jsx";
 import Dashboard from "./Dashboard";
 import DespesasPessoais from "./DespesasPessoais.jsx";
 import EmprestimosLista from "./Emprestimos.jsx";
@@ -15,7 +14,7 @@ import Fornecedores from "./Fornecedores.jsx";
 import Login from "./Login";
 import MasterAdmin from "./MasterAdmin";
 import Produtos from "./Produtos.jsx";
-import Recebimentos from "./Recebimentos.jsx";
+import ContasReceber from "./ContasReceber.jsx";
 import Relatorio from "./Relatorio.jsx";
 import RelatorioUsuario from "./RelatorioUsuario.jsx";
 import Vendas from "./Vendas.jsx";
@@ -53,8 +52,7 @@ export default function App() {
       onLogout={sair}
     >
       {["dashboard", "painel_executivo"].includes(pagina) && <Dashboard nomeUsuario={nomeUsuario} />}
-      {pagina === "recebimentos" && <Recebimentos empresaId={empresaId} />}
-      {pagina === "clientes" && <Clientes />}
+      {pagina === "recebimentos" && <ContasReceber empresaId={empresaId} />}
       {pagina === "crm" && <CrmComercial />}
       {pagina === "orcamentos" && <OrcamentoInteligente />}
       {pagina === "catalogo_inteligente" && <CatalogoInteligente />}
