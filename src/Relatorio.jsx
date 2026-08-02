@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { FilterBar, MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
+import { getStoredOrCalculatedCommission } from "./services/commissionEngine";
 
 export default function Relatorio({ empresaId }) {
   const [dados, setDados] = useState([]);
@@ -138,8 +139,7 @@ export default function Relatorio({ empresaId }) {
         item.valor_total || item.valor || 0
       );
 
-      const com =
-        Number(item.comissao) || kg * 0.05;
+      const com = getStoredOrCalculatedCommission(item);
 
       resumo[cliente].vendas += kg;
       resumo[cliente].comissao += com;
