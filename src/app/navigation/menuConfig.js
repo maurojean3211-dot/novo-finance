@@ -13,7 +13,7 @@ export const menuGroups = [
     label: "Comercial",
     icon: "◇",
     items: [
-      { page: "crm", label: "CRM", icon: "◎", planned: true },
+      { page: "crm", label: "CRM e Prospecção", icon: "◎", permissionKey: "vendas" },
       { page: "clientes", label: "Empresas e Clientes", icon: "👥", permissionKey: "clientes" },
       { page: "contatos", label: "Contatos", icon: "◉", planned: true },
       { page: "orcamentos", label: "Orçamentos", icon: "▤", planned: true },
