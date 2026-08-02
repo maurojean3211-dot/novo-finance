@@ -61,8 +61,8 @@ export default function App() {
       {pagina === "contas_pagar" && <GastosPessoaisPage empresaId={empresaId} />}
       {pagina === "contas_fixas" && <ContasFixasPessoaisPage empresaId={empresaId} />}
       {pagina === "relatorios_pessoais" && <RelatoriosPessoaisPage />}
-      {pagina === "vendas" && (loginMaster ? <Vendas /> : <VendasUsuario />)}
-      {pagina === "compras" && (loginMaster ? <Compras /> : <ComprasUsuario />)}
+      {pagina === "vendas" && (loginMaster ? <Vendas empresaId={empresaId} userId={session.user.id} /> : <VendasUsuario empresaId={empresaId} userId={session.user.id} />)}
+      {pagina === "compras" && (loginMaster ? <Compras empresaId={empresaId} userId={session.user.id} userEmail={emailLogado} /> : <ComprasUsuario empresaId={empresaId} userId={session.user.id} />)}
       {paginaRelatorio && (loginMaster ? <Relatorio empresaId={empresaId} /> : <RelatorioUsuario empresaId={empresaId} />)}
       {pagina === "master" && loginMaster && <MasterAdmin />}
       {pagina === "admin" && <Admin />}

@@ -37,7 +37,7 @@ export default function ContasFixasPessoaisPage({ empresaId }) {
     const valorNumero = Number(form.valor.toString().trim().replace(/\./g, "").replace(",", "."));
     if (Number.isNaN(valorNumero)) return alert("Valor inválido");
     const result = editandoId
-      ? await supabase.from("contas_fixas").update({ descricao: form.descricao, valor: valorNumero, dia_vencimento: Number(form.dia) }).eq("id", editandoId)
+      ? await supabase.from("contas_fixas").update({ descricao: form.descricao, valor: valorNumero, dia_vencimento: Number(form.dia) }).eq("id", editandoId).eq("empresa_id", empresaId)
       : await supabase.from("contas_fixas").insert([{ empresa_id: empresaId, descricao: form.descricao, valor: valorNumero, dia_vencimento: Number(form.dia), frequencia: "Mensal", ativo: true }]);
     if (result.error) return alert(result.error.message);
     if (editandoId) setVisualStatus((current) => ({ ...current, [editandoId]: form.statusVisual }));
@@ -47,7 +47,7 @@ export default function ContasFixasPessoaisPage({ empresaId }) {
 
   async function excluir(id) {
     if (!window.confirm("Excluir conta fixa?")) return;
-    const { error } = await supabase.from("contas_fixas").delete().eq("id", id);
+    const { error } = await supabase.from("contas_fixas").delete().eq("id", id).eq("empresa_id", empresaId);
     if (error) return alert(error.message);
     carregar();
   }

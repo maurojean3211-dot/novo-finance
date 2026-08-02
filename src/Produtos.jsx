@@ -1,202 +1,59 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import useCompanyScope from "./app/providers/useCompanyScope";
+import { ActionButtons, EmptyState, FeedbackBanner, FilterBar, LoadingState, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 import { supabase } from "./supabase";
+import { confirmarAcao, dataAtualIso, formatarData, formatarMoeda } from "./utils";
 
 export default function Produtos() {
+  const { empresaId, userId, ready } = useCompanyScope();
+  const [produtos, setProdutos] = useState([]);
+  const [nome, setNome] = useState("");
+  const [comissao, setComissao] = useState("0.05");
+  const [busca, setBusca] = useState("");
+  const [modalAberto, setModalAberto] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [feedback, setFeedback] = useState(null);
 
-const [produtos,setProdutos]=useState([]);
-const [nome,setNome]=useState("");
-const [comissao,setComissao]=useState("0.05");
+  const carregarProdutos = useCallback(async () => {
+    if (!empresaId) { setCarregando(false); return; }
+    const { data, error } = await supabase.from("produtos").select("*").eq("empresa_id", empresaId).order("data_cadastro", { ascending: false });
+    if (error) setFeedback({ type: "error", message: error.message }); else setProdutos(data || []);
+    setCarregando(false);
+  }, [empresaId]);
 
-const [empresaId,setEmpresaId] = useState(null);
+  useEffect(() => { const timer = window.setTimeout(() => carregarProdutos(), 0); return () => window.clearTimeout(timer); }, [carregarProdutos]);
 
-async function iniciar(){
+  function alterarNome(valor) {
+    setNome(valor);
+    const texto = valor.toLowerCase();
+    if (texto.includes("cavaco")) setComissao("0.07");
+    else if (texto.includes("sucata")) setComissao("0.05");
+  }
 
-const { data:{ user } } = await supabase.auth.getUser();
-if(!user) return;
+  async function salvarProduto() {
+    if (!nome.trim()) return setFeedback({ type: "error", message: "Informe o nome do produto." });
+    if (!ready) return setFeedback({ type: "error", message: "Empresa ou usuário não carregado." });
+    const { error } = await supabase.from("produtos").insert([{ empresa_id: empresaId, nome: nome.trim(), comissao: Number(comissao), data_cadastro: dataAtualIso(), user_id: userId }]);
+    if (error) return setFeedback({ type: "error", message: error.message });
+    setNome(""); setComissao("0.05"); setModalAberto(false); setFeedback({ type: "success", message: "Produto salvo com sucesso." });
+    carregarProdutos();
+  }
 
-const { data } = await supabase
-  .from("usuarios")
-  .select("empresa_id")
-  .eq("id",user.id)
-  .single();
+  async function excluirProduto(id) {
+    if (!confirmarAcao("Excluir produto?")) return;
+    const { error } = await supabase.from("produtos").delete().eq("id", id).eq("empresa_id", empresaId);
+    if (error) return setFeedback({ type: "error", message: "Erro ao excluir produto." });
+    setFeedback({ type: "success", message: "Produto excluído." }); carregarProdutos();
+  }
 
-if(data){
-  setEmpresaId(data.empresa_id);
-  carregarProdutos(data.empresa_id);
-}
-}
+  const filtrados = useMemo(() => produtos.filter((produto) => String(produto.nome || "").toLowerCase().includes(busca.toLowerCase())), [busca, produtos]);
+  const cavaco = produtos.filter((produto) => Number(produto.comissao) === 0.07).length;
 
-// ================= CARREGAR PRODUTOS
-async function carregarProdutos(empresa_id){
-
-const {data,error} = await supabase
-  .from("produtos")
-  .select("*")
-  .eq("empresa_id",empresa_id)
-  .order("data_cadastro",{ascending:false});
-
-if(error){
-  console.log(error);
-  return;
-}
-
-setProdutos(data || []);
-
-}
-
-// ================= AUTO DEFINIR COMISSÃO
-function alterarNome(valor){
-
-setNome(valor);
-
-const texto = valor.toLowerCase();
-
-if(texto.includes("cavaco")){
-  setComissao("0.07");
-} else if(texto.includes("sucata")){
-  setComissao("0.05");
-}
-}
-
-// ================= SALVAR PRODUTO
-async function salvarProduto(){
-
-if(!nome.trim()){
-  alert("Informe o nome do produto");
-  return;
-}
-
-const { data:{ user } } = await supabase.auth.getUser();
-if(!user) return;
-
-const {error} = await supabase
-  .from("produtos")
-  .insert([{
-    empresa_id:empresaId,
-    nome: nome.trim(),
-    comissao: Number(comissao),
-    data_cadastro: new Date().toISOString().split("T")[0],
-    user_id:user.id
-  }]);
-
-if(error){
-  console.log(error);
-  alert(error.message);
-  return;
-}
-
-setNome("");
-setComissao("0.05");
-
-carregarProdutos(empresaId);
-
-}
-
-// ================= EXCLUIR
-async function excluirProduto(id){
-
-if(!window.confirm("Excluir produto?")) return;
-
-const {error} = await supabase
-  .from("produtos")
-  .delete()
-  .eq("id",id)
-  .eq("empresa_id",empresaId);
-
-if(error){
-  console.log(error);
-  alert("Erro ao excluir");
-  return;
-}
-
-carregarProdutos(empresaId);
-
-}
-
-useEffect(()=>{
-void Promise.resolve().then(iniciar);
-// A inicialização preserva a consulta única executada na montagem.
-// eslint-disable-next-line react-hooks/exhaustive-deps
-},[]);
-
-// ================= FORMATAR DATA
-function formatarData(data){
-if(!data) return "";
-return new Date(data).toLocaleDateString("pt-BR");
-}
-
-// ================= TELA
-return( <div style={{padding:20}}>
-
-  <h1>📦 Produtos</h1>
-
-  <input
-    placeholder="Ex: Sucata Latinha ou Cavaco"
-    value={nome}
-    onChange={e=>alterarNome(e.target.value)}
-  />
-
-  <br/><br/>
-
-  <select
-    value={comissao}
-    onChange={e=>setComissao(e.target.value)}
-  >
-    <option value="0.05">
-      Sucata (Latinha / Perfil / Panela / Chaparia) — R$ 0,05
-    </option>
-
-    <option value="0.07">
-      Cavaco — R$ 0,07
-    </option>
-  </select>
-
-  <br/><br/>
-
-  <button onClick={salvarProduto}>
-    Salvar Produto
-  </button>
-
-  <hr/>
-
-  {produtos.map(p=>(
-    <div
-      key={p.id}
-      style={{
-        marginBottom:12,
-        padding:15,
-        border:"1px solid #374151",
-        borderRadius:8,
-        background:"#020617"
-      }}
-    >
-      📅 {formatarData(p.data_cadastro)}
-
-      <div style={{fontSize:18,fontWeight:"bold"}}>
-        {p.nome}
-      </div>
-
-      💰 Comissão: R$ {Number(p.comissao || 0).toFixed(2)} / kg
-
-      <br/>
-
-      <button
-        onClick={()=>excluirProduto(p.id)}
-        style={{
-          marginTop:8,
-          background:"#dc2626",
-          color:"#fff",
-          border:"none",
-          padding:"5px 10px",
-          cursor:"pointer"
-        }}
-      >
-        Excluir
-      </button>
-    </div>
-  ))}
-
-</div>
-
-);
+  return <main className="ops-page"><ModuleHeader eyebrow="Materiais e operações" title="Produtos" description="Cadastro de produtos e regras atuais de comissão." actionLabel="Novo Produto" onAction={() => setModalAberto(true)} />
+    <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)} />
+    <MetricGrid items={[{ label: "Produtos cadastrados", value: produtos.length, detail: "base da empresa", icon: "▦" }, { label: "Produtos padrão", value: produtos.length - cavaco, detail: "R$ 0,05/kg", icon: "R$", tone: "green" }, { label: "Cavaco", value: cavaco, detail: "R$ 0,07/kg", icon: "%", tone: "amber" }]} />
+    <FilterBar><input placeholder="Pesquisar produto" value={busca} onChange={(event) => setBusca(event.target.value)} /></FilterBar>
+    <section className="ops-panel"><div className="ops-panel__header"><h2>Catálogo operacional</h2><span>{filtrados.length} resultado(s)</span></div>{carregando ? <LoadingState>Carregando produtos...</LoadingState> : filtrados.length === 0 ? <EmptyState title="Nenhum produto encontrado" /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Produto</th><th>Data de cadastro</th><th>Comissão</th><th>Ações</th></tr></thead><tbody>{filtrados.map((produto) => <tr key={produto.id}><td><strong>{produto.nome}</strong></td><td>{formatarData(produto.data_cadastro)}</td><td>{formatarMoeda(produto.comissao)} / kg</td><td><ActionButtons onDelete={() => excluirProduto(produto.id)} /></td></tr>)}</tbody></table></div>}</section>
+    {modalAberto && <OperationModal title="Novo produto" onClose={() => setModalAberto(false)} onSubmit={salvarProduto} submitLabel="Salvar produto" disabled={!ready}><label className="ops-field ops-field--wide"><span>Nome do produto</span><input placeholder="Ex: Sucata Latinha ou Cavaco" value={nome} onChange={(event) => alterarNome(event.target.value)} /></label><label className="ops-field ops-field--wide"><span>Comissão atual</span><select value={comissao} onChange={(event) => setComissao(event.target.value)}><option value="0.05">Sucata — R$ 0,05/kg</option><option value="0.07">Cavaco — R$ 0,07/kg</option></select></label><div className="ops-preview">A seleção preserva exatamente a regra existente de comissão por quilo.</div></OperationModal>}
+  </main>;
 }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 
-export default function Compras() {
+export default function Compras({ empresaId, userId, userEmail }) {
   const [compras, setCompras] = useState([]);
 
   const [fornecedor, setFornecedor] = useState("");
@@ -13,52 +13,18 @@ export default function Compras() {
     new Date().toISOString().split("T")[0]
   );
 
-  const [empresaId, setEmpresaId] = useState(null);
-  const [userEmail, setUserEmail] = useState(null);
-  const [loadingEmpresa, setLoadingEmpresa] = useState(true);
-
   const [editandoId, setEditandoId] = useState(null);
   const [busca, setBusca] = useState("");
   const [filtroProduto, setFiltroProduto] = useState("");
   const [modalAberto, setModalAberto] = useState(false);
 
   useEffect(() => {
-    carregarEmpresa();
-  }, []);
-
-  async function carregarEmpresa() {
-    setLoadingEmpresa(true);
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      alert("Usuário não logado");
-      setLoadingEmpresa(false);
-      return;
-    }
-
-    setUserEmail(user.email);
-
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("empresa_id")
-      .eq("email", user.email)
-      .single();
-
-    if (error || !data?.empresa_id) {
-      alert("Empresa não encontrada");
-      setLoadingEmpresa(false);
-      return;
-    }
-
-    setEmpresaId(data.empresa_id);
-
-    await carregarCompras(data.empresa_id);
-
-    setLoadingEmpresa(false);
-  }
+    if (!empresaId) return undefined;
+    // A carga é adiada para preservar o ciclo de montagem do componente legado.
+    // eslint-disable-next-line react-hooks/immutability
+    const timer = window.setTimeout(() => carregarCompras(empresaId), 0);
+    return () => window.clearTimeout(timer);
+  }, [empresaId]);
 
   if (userEmail && userEmail !== "maurojean3211@gmail.com") {
     return (
@@ -68,7 +34,7 @@ export default function Compras() {
     );
   }
 
-  if (loadingEmpresa) {
+  if (!empresaId) {
     return (
       <div style={{ padding: 20, color: "#fff" }}>
         Carregando empresa...
@@ -125,11 +91,7 @@ export default function Compras() {
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    if (!userId) {
       alert("Usuário não carregado");
       return;
     }
@@ -152,7 +114,8 @@ export default function Compras() {
           comissao,
           data_compra: dataCompra,
         })
-        .eq("id", editandoId));
+        .eq("id", editandoId)
+        .eq("empresa_id", empresaId));
 
       if (error) return alert(error.message);
 
@@ -169,7 +132,7 @@ export default function Compras() {
             kilos: Number(kilos),
             comissao,
             data_compra: dataCompra,
-            user_id: user.id,
+            user_id: userId,
           },
         ]));
 
@@ -209,7 +172,8 @@ export default function Compras() {
     await supabase
       .from("compras")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
 
     await carregarCompras(empresaId);
   }

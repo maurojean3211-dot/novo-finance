@@ -48,9 +48,9 @@ export default function ContasReceber({ empresaId }) {
 
   async function receber(recebimento) {
     if (!window.confirm("Confirmar pagamento?")) return;
-    const { error } = await supabase.from("recebimentos").update({ status: "pago" }).eq("id", recebimento.id);
+    const { error } = await supabase.from("recebimentos").update({ status: "pago" }).eq("id", recebimento.id).eq("empresa_id", empresaId);
     if (error) return alert("Erro ao confirmar pagamento");
-    const { data: existente } = await supabase.from("lancamentos").select("id").eq("recebimento_id", recebimento.id).maybeSingle();
+    const { data: existente } = await supabase.from("lancamentos").select("id").eq("recebimento_id", recebimento.id).eq("empresa_id", empresaId).maybeSingle();
     if (!existente) await supabase.from("lancamentos").insert([{ empresa_id: empresaId, cliente_id: recebimento.cliente_id, recebimento_id: recebimento.id, tipo: "receita", descricao: `Recebimento - ${recebimento.cliente_nome}`, valor: recebimento.valor, data: new Date(), status: "recebido" }]);
     await carregar();
     alert("✅ Pagamento confirmado!");
@@ -58,7 +58,7 @@ export default function ContasReceber({ empresaId }) {
 
   async function reabrir(id) {
     if (!window.confirm("Voltar para pendente?")) return;
-    const { error } = await supabase.from("recebimentos").update({ status: "pendente" }).eq("id", id);
+    const { error } = await supabase.from("recebimentos").update({ status: "pendente" }).eq("id", id).eq("empresa_id", empresaId);
     if (error) return alert("Erro ao reabrir");
     await carregar();
     alert("🔄 Voltou para pendente!");
@@ -66,7 +66,7 @@ export default function ContasReceber({ empresaId }) {
 
   async function excluir(id) {
     if (!window.confirm("Excluir recebimento?")) return;
-    await supabase.from("recebimentos").delete().eq("id", id);
+    await supabase.from("recebimentos").delete().eq("id", id).eq("empresa_id", empresaId);
     setLista((current) => current.filter((item) => item.id !== id));
   }
 

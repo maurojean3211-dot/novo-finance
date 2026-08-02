@@ -1,17 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
+import { formatarData } from "./utils";
 
-function formatarData(data) {
-  if (!data) return "";
-
-  const limpa = String(data).slice(0, 10);
-  const [ano, mes, dia] = limpa.split("-");
-
-  return `${dia}/${mes}/${ano}`;
-}
-
-export default function ComprasUsuario() {
+export default function ComprasUsuario({ empresaId, userId }) {
   const hoje = new Date();
 
   const dataHoje = `${hoje.getFullYear()}-${String(
@@ -40,12 +32,6 @@ export default function ComprasUsuario() {
   const [dataCompra, setDataCompra] =
     useState(dataHoje);
 
-  const [empresaId, setEmpresaId] =
-    useState(null);
-
-  const [userId, setUserId] =
-    useState(null);
-
   const [editandoId, setEditandoId] =
     useState(null);
 
@@ -56,34 +42,12 @@ export default function ComprasUsuario() {
     useState(false);
 
   useEffect(() => {
-    carregarEmpresa();
-  }, []);
-
-  async function carregarEmpresa() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user)
-      return alert("Usuário não logado");
-
-    setUserId(user.id);
-
-    const { data, error } =
-      await supabase
-        .from("usuarios")
-        .select("empresa_id")
-        .eq("email", user.email)
-        .single();
-
-    if (error || !data?.empresa_id) {
-      return alert("Empresa não encontrada");
-    }
-
-    setEmpresaId(data.empresa_id);
-
-    carregarCompras(data.empresa_id);
-  }
+    if (!empresaId) return undefined;
+    // A carga é adiada para preservar o ciclo de montagem do componente legado.
+    // eslint-disable-next-line react-hooks/immutability
+    const timer = window.setTimeout(() => carregarCompras(empresaId), 0);
+    return () => window.clearTimeout(timer);
+  }, [empresaId]);
 
   async function carregarCompras(empId) {
     const { data, error } =

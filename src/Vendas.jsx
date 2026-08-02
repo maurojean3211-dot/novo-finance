@@ -1,26 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
+import { formatarData, formatarNumero } from "./utils";
 
-// 🔥 FORMATA DATA
-function formatarData(data) {
-  if (!data) return "-";
-
-  const limpa = String(data).slice(0, 10);
-  const [ano, mes, dia] = limpa.split("-");
-
-  return `${dia}/${mes}/${ano}`;
-}
-
-// 🔥 FORMATA DINHEIRO
-function dinheiro(valor) {
-  return Number(valor || 0).toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-export default function Vendas() {
+export default function Vendas({ empresaId, userId }) {
   const [vendas, setVendas] = useState([]);
 
   const [cliente, setCliente] = useState("");
@@ -31,8 +14,6 @@ export default function Vendas() {
     new Date().toISOString().split("T")[0]
   );
 
-  const [empresaId, setEmpresaId] = useState(null);
-  const [userId, setUserId] = useState(null);
   const [editandoId, setEditandoId] = useState(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [busca, setBusca] = useState("");
@@ -54,32 +35,11 @@ export default function Vendas() {
   ];
 
   useEffect(() => {
-    carregarEmpresa();
-  }, []);
-
-  async function carregarEmpresa() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) return alert("Usuário não logado");
-
-    setUserId(user.id);
-
-    const { data } = await supabase
-      .from("usuarios")
-      .select("empresa_id")
-      .eq("email", user.email)
-      .single();
-
-    if (!data?.empresa_id) {
-      return alert("Empresa não encontrada");
-    }
-
-    setEmpresaId(data.empresa_id);
-
-    carregarVendas(data.empresa_id);
-  }
+    if (!empresaId) return undefined;
+    const timer = window.setTimeout(() => carregarVendas(empresaId), 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaId]);
 
   // 🔥 CARREGA SOMENTE VENDAS INDUSTRIAIS
   async function carregarVendas(empId) {
@@ -153,7 +113,8 @@ export default function Vendas() {
       const { error } = await supabase
         .from("vendas")
         .update(payload)
-        .eq("id", editandoId);
+        .eq("id", editandoId)
+        .eq("empresa_id", empresaId);
 
       if (error) {
         console.error(error);
@@ -212,7 +173,8 @@ export default function Vendas() {
     const { error } = await supabase
       .from("vendas")
       .delete()
-      .eq("id", id);
+      .eq("id", id)
+      .eq("empresa_id", empresaId);
 
     if (error) {
       console.error(error);
@@ -235,19 +197,19 @@ export default function Vendas() {
       { label: "Vendas do mês", value: vendas.length, detail: "registros carregados", icon: "▥" },
       { label: "Peso vendido", value: `${pesoTotal.toLocaleString("pt-BR")} kg`, detail: "volume total", icon: "⚖", tone: "green" },
       { label: "Valor total", value: "—", detail: "não informado neste fluxo", icon: "R$", tone: "amber" },
-      { label: "Comissão", value: `R$ ${dinheiro(comissaoTotal)}`, detail: "comissão acumulada", icon: "%", tone: "green" },
+      { label: "Comissão", value: `R$ ${formatarNumero(comissaoTotal)}`, detail: "comissão acumulada", icon: "%", tone: "green" },
       { label: "Quantidade", value: vendas.length, detail: "vendas registradas", icon: "#" },
     ]} />
     <FilterBar><input placeholder="Buscar por cliente" value={busca} onChange={(e) => setBusca(e.target.value)} /><input placeholder="Filtrar por produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} /></FilterBar>
     <section className="ops-panel"><div className="ops-panel__header"><h2>Registro de vendas</h2><span>{vendasFiltradas.length} resultado(s)</span></div>
-      {vendasFiltradas.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Comissão</th><th>Vendedor</th><th>Ações</th></tr></thead><tbody>{vendasFiltradas.map((v) => <tr key={v.id}><td>{formatarData(v.data_venda)}</td><td><strong>{v.cliente_nome || "-"}</strong></td><td>{v.produto || "-"}</td><td>{Number(v.kilos || 0).toLocaleString("pt-BR")} kg</td><td>—</td><td>R$ {dinheiro(v.comissao)}</td><td>—</td><td><ActionButtons onEdit={() => editarVenda(v)} onDelete={() => excluirVenda(v.id)} /></td></tr>)}</tbody></table></div>}
+      {vendasFiltradas.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Cliente</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Comissão</th><th>Vendedor</th><th>Ações</th></tr></thead><tbody>{vendasFiltradas.map((v) => <tr key={v.id}><td>{formatarData(v.data_venda)}</td><td><strong>{v.cliente_nome || "-"}</strong></td><td>{v.produto || "-"}</td><td>{Number(v.kilos || 0).toLocaleString("pt-BR")} kg</td><td>—</td><td>R$ {formatarNumero(v.comissao)}</td><td>—</td><td><ActionButtons onEdit={() => editarVenda(v)} onDelete={() => excluirVenda(v.id)} /></td></tr>)}</tbody></table></div>}
     </section>
     {modalAberto && <OperationModal title={editandoId ? "Editar venda" : "Nova venda"} editing={Boolean(editandoId)} onClose={() => setModalAberto(false)} onSubmit={salvarVenda} submitLabel={editandoId ? "Atualizar" : "Salvar"}>
       <label className="ops-field"><span>Data</span><input type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} /></label>
       <label className="ops-field"><span>Cliente</span><input placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
       <label className="ops-field"><span>Produto</span><input placeholder="Produto" value={produto} onChange={(e) => setProduto(e.target.value)} /></label>
       <label className="ops-field"><span>Kilos</span><input type="number" placeholder="Kilos" value={kilos} onChange={(e) => setKilos(e.target.value)} /></label>
-      <div className="ops-preview"><strong>Comissão:</strong> R$ {dinheiro(calcularComissao())}</div>
+      <div className="ops-preview"><strong>Comissão:</strong> R$ {formatarNumero(calcularComissao())}</div>
     </OperationModal>}
   </div>;
 }

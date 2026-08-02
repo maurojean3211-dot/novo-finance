@@ -21,9 +21,18 @@ export function OperationModal({ title, editing, onClose, children, onSubmit, su
 }
 
 export function ActionButtons({ onEdit, onDelete }) {
-  return <div className="ops-actions"><button onClick={onEdit}>Editar</button><button className="danger" onClick={onDelete}>Excluir</button></div>;
+  return <div className="ops-actions">{onEdit && <button onClick={onEdit}>Editar</button>}{onDelete && <button className="danger" onClick={onDelete}>Excluir</button>}</div>;
 }
 
 export function StatusPanel({ children }) {
   return <div className="ops-status-panel">{children}</div>;
+}
+
+export function LoadingState({ children = "Carregando dados..." }) {
+  return <div className="ops-loading" role="status">{children}</div>;
+}
+
+export function FeedbackBanner({ feedback, onClose }) {
+  if (!feedback?.message) return null;
+  return <div className={`ops-feedback ops-feedback--${feedback.type || "info"}`} role="status"><span>{feedback.message}</span><button onClick={onClose} aria-label="Fechar mensagem">×</button></div>;
 }
