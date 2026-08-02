@@ -1,0 +1,1 @@
+export default function PersonalFinanceSummary({ title, subtitle, children }) { return <section className="ops-panel pf-summary"><div className="ops-panel__header"><h2>{title}</h2><span>{subtitle}</span></div>{children}</section>; }

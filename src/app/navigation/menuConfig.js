@@ -74,8 +74,11 @@ export const menuGroups = [
     label: "Financeiro Pessoal",
     icon: "♡",
     items: [
-      { page: "contas_pagar", label: "Contas a Pagar", icon: "💸", permissionKey: "contas_pagar" },
+      { page: "financeiro_pessoal", label: "Visão Geral", icon: "▦", permissionKey: "pessoal" },
+      { page: "receitas_pessoais", label: "Receitas", icon: "↗", permissionKey: "pessoal" },
+      { page: "contas_pagar", label: "Gastos", icon: "💸", permissionKey: "contas_pagar" },
       { page: "contas_fixas", label: "Contas Fixas", icon: "🔁", permissionKey: "contas_fixas" },
+      { page: "relatorios_pessoais", label: "Relatórios Pessoais", icon: "▤", permissionKey: "pessoal" },
     ],
   },
   {

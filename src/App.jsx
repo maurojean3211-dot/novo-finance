@@ -4,10 +4,7 @@ import "./App.css";
 import Admin from "./Admin";
 import Compras from "./Compras.jsx";
 import ComprasUsuario from "./ComprasUsuario.jsx";
-import ContasFixas from "./ContasFixas.jsx";
-import ContasPagar from "./ContasPagar.jsx";
 import Dashboard from "./Dashboard";
-import DespesasPessoais from "./DespesasPessoais.jsx";
 import Financeiro from "./Financeiro.jsx";
 import Fornecedores from "./Fornecedores.jsx";
 import Login from "./Login";
@@ -26,6 +23,7 @@ import ModulePlanning from "./components/ModulePlanning";
 import CatalogoInteligente from "./modules/catalogo-inteligente";
 import CrmComercial from "./modules/crm-comercial";
 import OrcamentoInteligente from "./modules/orcamento-inteligente";
+import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, GastosPessoaisPage, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
 
 export default function App() {
   const { session, loadingSession, empresaId, permissoes, nomeUsuario, sair } = useAuth();
@@ -58,12 +56,14 @@ export default function App() {
       {pagina === "produtos" && <Produtos />}
       {pagina === "fornecedores" && <Fornecedores />}
       {pagina === "financeiro" && <Financeiro empresaId={empresaId} />}
-      {pagina === "contas_pagar" && <ContasPagar empresaId={empresaId} />}
-      {pagina === "contas_fixas" && <ContasFixas empresaId={empresaId} />}
+      {pagina === "financeiro_pessoal" && <FinanceiroPessoalDashboard />}
+      {pagina === "receitas_pessoais" && <ReceitasPessoaisPage />}
+      {pagina === "contas_pagar" && <GastosPessoaisPage empresaId={empresaId} />}
+      {pagina === "contas_fixas" && <ContasFixasPessoaisPage empresaId={empresaId} />}
+      {pagina === "relatorios_pessoais" && <RelatoriosPessoaisPage />}
       {pagina === "vendas" && (loginMaster ? <Vendas /> : <VendasUsuario />)}
       {pagina === "compras" && (loginMaster ? <Compras /> : <ComprasUsuario />)}
       {paginaRelatorio && (loginMaster ? <Relatorio empresaId={empresaId} /> : <RelatorioUsuario empresaId={empresaId} />)}
-      {pagina === "pessoal" && <DespesasPessoais />}
       {pagina === "master" && loginMaster && <MasterAdmin />}
       {pagina === "admin" && <Admin />}
       {menuItem?.planned && <ModulePlanning title={menuItem.label} />}
