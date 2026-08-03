@@ -1,6 +1,8 @@
-export default function PurchaseReportControls({ filters, onChange, onApply, onClear, onGenerate }) {
+export default function PurchaseReportControls({ filters, onChange, onDateChange, onApply, onClear, onGenerate }) {
   function update(field, value) {
-    onChange({ ...filters, [field]: value });
+    const nextFilters = { ...filters, [field]: value };
+    onChange(nextFilters);
+    if (field === "startDate" || field === "endDate") onDateChange(nextFilters);
   }
 
   return (

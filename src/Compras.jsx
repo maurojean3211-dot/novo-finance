@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 import PurchaseReportControls from "./components/operations/PurchaseReportControls";
+import { calculatePurchaseCommission, formatPurchaseCommissionRate, getDefaultPurchaseCommissionRate, getPurchaseCommissionData } from "./services/commissionEngine";
 import { describePeriod, EMPTY_PURCHASE_FILTERS, filterPurchaseRecords, generatePurchasesReport } from "./services/reportPdf.service";
 
 export default function Compras({ empresaId, userId, userEmail, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
@@ -10,6 +11,8 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
   const [fornecedor, setFornecedor] = useState("");
   const [produto, setProduto] = useState("");
   const [kilos, setKilos] = useState("");
+  const [comissaoPorKg, setComissaoPorKg] = useState("");
+  const comissaoAlteradaManualmente = useRef(false);
 
   const [dataCompra, setDataCompra] = useState(
     new Date().toISOString().split("T")[0]
@@ -62,15 +65,15 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
     setCompras(data || []);
   }
 
-  function calcularComissao() {
-    const nome = (produto || "").toUpperCase();
-    const kg = Number(kilos || 0);
+  function alterarProduto(value) {
+    const novaRegra = getDefaultPurchaseCommissionRate(value);
+    setProduto(value);
+    if (!comissaoAlteradaManualmente.current) setComissaoPorKg(formatPurchaseCommissionRate(novaRegra));
+  }
 
-    if (nome.includes("LIMALHA") || nome.includes("CAVACO")) {
-      return kg * 0.07;
-    }
-
-    return kg * 0.05;
+  function usarComissaoPadrao() {
+    comissaoAlteradaManualmente.current = false;
+    setComissaoPorKg(formatPurchaseCommissionRate(getDefaultPurchaseCommissionRate(produto)));
   }
 
   function formatarData(data) {
@@ -97,7 +100,7 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
     if (!kilos || Number(kilos) <= 0)
       return alert("Kilos inválido");
 
-    const comissao = calcularComissao();
+    const comissao = calculoComissao.commission;
 
     let error;
 
@@ -141,6 +144,8 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
     setFornecedor("");
     setProduto("");
     setKilos("");
+    setComissaoPorKg("");
+    comissaoAlteradaManualmente.current = false;
     setDataCompra(
       new Date().toISOString().split("T")[0]
     );
@@ -154,6 +159,9 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
     setFornecedor(c.fornecedor || "");
     setProduto(c.produto || "");
     setKilos(c.kilos || "");
+    const commissionData = getPurchaseCommissionData(c);
+    setComissaoPorKg(formatPurchaseCommissionRate(commissionData.rate));
+    comissaoAlteradaManualmente.current = commissionData.rate > 0 && commissionData.rate !== getDefaultPurchaseCommissionRate(c.produto);
     setDataCompra(c.data_compra || "");
     setModalAberto(true);
 
@@ -175,14 +183,20 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
     await carregarCompras(empresaId);
   }
 
-  const comissaoPreview = calcularComissao();
-  const comprasVisiveis = filterPurchaseRecords(compras, activeFilters).filter((item) => String(item.empresa_id) === String(empresaId));
+  const calculoComissao = calculatePurchaseCommission({ product: produto, quantity: kilos, rate: comissaoPorKg });
+  const filtrosAplicados = { ...activeFilters, startDate: filterDraft.startDate, endDate: filterDraft.endDate };
+  const comprasVisiveis = filterPurchaseRecords(compras, filtrosAplicados).filter((item) => String(item.empresa_id) === String(empresaId));
   const pesoTotal = comprasVisiveis.reduce((total, c) => total + Number(c.kilos || 0), 0);
-  const comissaoTotal = comprasVisiveis.reduce((total, c) => total + Number(c.comissao || 0), 0);
+  const comissaoTotal = comprasVisiveis.reduce((total, c) => total + getPurchaseCommissionData(c).commission, 0);
 
   function limparFiltros() {
     setFilterDraft(EMPTY_PURCHASE_FILTERS);
     setActiveFilters(EMPTY_PURCHASE_FILTERS);
+    setReportMessage("");
+  }
+
+  function aplicarDatasAutomaticamente(filters) {
+    setActiveFilters((current) => ({ ...current, startDate: filters.startDate, endDate: filters.endDate }));
     setReportMessage("");
   }
 
@@ -192,12 +206,12 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
       return;
     }
     setReportMessage("");
-    generatePurchasesReport({ records: comprasVisiveis, companyName, issuedBy, period: describePeriod(activeFilters.startDate, activeFilters.endDate) });
+    generatePurchasesReport({ records: comprasVisiveis, companyName, issuedBy, period: describePeriod(filtrosAplicados.startDate, filtrosAplicados.endDate) });
   }
 
   return <div className="ops-page">
-    <ModuleHeader eyebrow="Materiais e operações" title="Compras" description="Controle operacional de aquisições e comissões." actionLabel="Nova Compra" onAction={() => { setEditandoId(null); setModalAberto(true); }} />
-    <PurchaseReportControls filters={filterDraft} onChange={setFilterDraft} onApply={() => { setActiveFilters(filterDraft); setReportMessage(""); }} onClear={limparFiltros} onGenerate={gerarRelatorio} />
+    <ModuleHeader eyebrow="Materiais e operações" title="Compras" description="Controle operacional de aquisições e comissões." actionLabel="Nova Compra" onAction={() => { setEditandoId(null); setFornecedor(""); setProduto(""); setKilos(""); setComissaoPorKg(""); comissaoAlteradaManualmente.current = false; setModalAberto(true); }} />
+    <PurchaseReportControls filters={filterDraft} onChange={setFilterDraft} onDateChange={aplicarDatasAutomaticamente} onApply={() => { setActiveFilters(filterDraft); setReportMessage(""); }} onClear={limparFiltros} onGenerate={gerarRelatorio} />
     {(reportMessage || comprasVisiveis.length === 0) && <div className="ops-feedback ops-feedback--error" role="alert"><span>Nenhuma compra encontrada no período selecionado</span></div>}
     <MetricGrid items={[
       { label: "Compras do mês", value: comprasVisiveis.length, detail: "registros filtrados", icon: "▥" },
@@ -207,14 +221,17 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
       { label: "Quantidade", value: comprasVisiveis.length, detail: `R$ ${comissaoTotal.toFixed(2)} em comissões`, icon: "#" },
     ]} />
     <section className="ops-panel"><div className="ops-panel__header"><h2>Registro de compras</h2><span>{comprasVisiveis.length} resultado(s)</span></div>
-      {comprasVisiveis.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Custo unitário</th><th>Responsável</th><th>Ações</th></tr></thead><tbody>{comprasVisiveis.map((c) => <tr key={c.id}><td>{formatarData(c.data_compra)}</td><td><strong>{c.fornecedor || "-"}</strong></td><td>{c.produto || "-"}</td><td>{Number(c.kilos || 0).toLocaleString("pt-BR")} kg</td><td>—</td><td>—</td><td>—</td><td><ActionButtons onEdit={() => editarCompra(c)} onDelete={() => excluirCompra(c.id)} /></td></tr>)}</tbody></table></div>}
+      {comprasVisiveis.length === 0 ? <EmptyState /> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Peso</th><th>Valor</th><th>Custo unitário</th><th>Comissão</th><th>Responsável</th><th>Ações</th></tr></thead><tbody>{comprasVisiveis.map((c) => { const commissionData = getPurchaseCommissionData(c); return <tr key={c.id}><td>{formatarData(c.data_compra)}</td><td><strong>{c.fornecedor || "-"}</strong></td><td>{c.produto || "-"}</td><td>{Number(c.kilos || 0).toLocaleString("pt-BR")} kg</td><td>—</td><td>—</td><td>{commissionData.rate > 0 ? <><strong>R$ {commissionData.commission.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong><small>R$ {formatPurchaseCommissionRate(commissionData.rate)}/kg</small></> : "—"}</td><td>—</td><td><ActionButtons onEdit={() => editarCompra(c)} onDelete={() => excluirCompra(c.id)} /></td></tr>; })}</tbody></table></div>}
     </section>
     {modalAberto && <OperationModal title={editandoId ? "Editar compra" : "Nova compra"} editing={Boolean(editandoId)} onClose={() => setModalAberto(false)} onSubmit={salvarCompra} submitLabel={editandoId ? "Atualizar" : "Salvar"} disabled={!empresaId}>
       <label className="ops-field"><span>Data</span><input type="date" value={dataCompra} onChange={(e) => setDataCompra(e.target.value)} /></label>
       <label className="ops-field"><span>Fornecedor</span><input placeholder="Fornecedor" value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} /></label>
-      <label className="ops-field"><span>Produto</span><input placeholder="Produto (sucata, limalha ou cavaco)" value={produto} onChange={(e) => setProduto(e.target.value)} /></label>
+      <label className="ops-field"><span>Produto</span><input placeholder="Produto (sucata, limalha ou cavaco)" value={produto} onChange={(e) => alterarProduto(e.target.value)} /></label>
       <label className="ops-field"><span>Kilos</span><input type="number" placeholder="Kilos" value={kilos} onChange={(e) => setKilos(e.target.value)} /></label>
-      <div className="ops-preview"><strong>Comissão:</strong> R$ {comissaoPreview.toFixed(2)}</div>
+      <label className="ops-field"><span>Tipo de comissão</span><input value="Por kg" readOnly /></label>
+      <label className="ops-field"><span>Comissão por kg (R$)</span><input type="text" inputMode="decimal" placeholder="Informe a comissão" value={comissaoPorKg} onChange={(e) => { comissaoAlteradaManualmente.current = true; setComissaoPorKg(e.target.value); }} /></label>
+      <button type="button" onClick={usarComissaoPadrao} disabled={!getDefaultPurchaseCommissionRate(produto)}>Usar comissão padrão</button>
+      <div className="ops-preview"><strong>Regra:</strong> {calculoComissao.rate > 0 ? `R$ ${formatPurchaseCommissionRate(calculoComissao.rate)}/kg` : "—"} · <strong>Valor total da comissão:</strong> {calculoComissao.rate > 0 ? `R$ ${calculoComissao.commission.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</div>
     </OperationModal>}
   </div>;
 }

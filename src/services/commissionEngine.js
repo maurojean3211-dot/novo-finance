@@ -3,6 +3,8 @@ export const COMMISSION_TYPES = {
   PERCENT_SALE: "PERCENT_SALE",
 };
 
+export const DEFAULT_PROFILE_COMMISSION_PERCENT = 1.5;
+
 export function parseDecimal(value) {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   const text = String(value ?? "").trim();
@@ -23,7 +25,7 @@ export function getCommissionRule(product, fallbackPerKgRate = 0.05) {
   const name = String(product || "").trim().toUpperCase();
 
   if (name.includes("PERFIL")) {
-    return { type: COMMISSION_TYPES.PERCENT_SALE, rate: null };
+    return { type: COMMISSION_TYPES.PERCENT_SALE, rate: DEFAULT_PROFILE_COMMISSION_PERCENT };
   }
 
   if (name.includes("CAVACO") || name.includes("LIMALHA")) {
@@ -47,8 +49,10 @@ export function calculateCommission({
 }) {
   const kilograms = toKilograms(quantity, unit);
   const unitPrice = parseDecimal(pricePerKg);
-  const percent = parseDecimal(percentage);
   const rule = getCommissionRule(product, fallbackPerKgRate);
+  const percent = rule.type === COMMISSION_TYPES.PERCENT_SALE && String(percentage ?? "").trim() === ""
+    ? rule.rate
+    : parseDecimal(percentage);
   const totalSale = kilograms * unitPrice;
   const commission = rule.type === COMMISSION_TYPES.PERCENT_SALE
     ? totalSale * (percent / 100)
@@ -59,11 +63,61 @@ export function calculateCommission({
 
 export function getCommissionRuleLabel(product, storedRate = 0.05) {
   const rule = getCommissionRule(product, parseDecimal(storedRate));
-  if (rule.type === COMMISSION_TYPES.PERCENT_SALE) return "Percentual sobre venda";
+  if (rule.type === COMMISSION_TYPES.PERCENT_SALE) return `${formatPercentage(rule.rate)} sobre o total`;
   return `R$ ${Number(rule.rate || 0).toLocaleString("pt-BR", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}/kg`;
+}
+
+export function getSaleCommissionPercentage(sale) {
+  if (sale.percentual_comissao !== null && sale.percentual_comissao !== undefined && sale.percentual_comissao !== "") {
+    return parseDecimal(sale.percentual_comissao);
+  }
+
+  const totalSale = parseDecimal(sale.valor || sale.valor_total);
+  const storedCommission = parseDecimal(sale.comissao);
+  return totalSale > 0 && storedCommission >= 0
+    ? (storedCommission / totalSale) * 100
+    : DEFAULT_PROFILE_COMMISSION_PERCENT;
+}
+
+export function formatPercentage(value) {
+  return `${parseDecimal(value).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%`;
+}
+
+export function getDefaultPurchaseCommissionRate(product) {
+  const name = String(product || "").trim().toUpperCase();
+  if (name.includes("CAVACO") || name.includes("LIMALHA")) return 0.07;
+  if (name.includes("SUCATA")) return 0.05;
+  return 0;
+}
+
+export function calculatePurchaseCommission({ product, quantity, unit = "KG", rate = "" }) {
+  const kilograms = toKilograms(quantity, unit);
+  const manualRate = String(rate ?? "").trim();
+  const commissionRate = manualRate === "" ? getDefaultPurchaseCommissionRate(product) : parseDecimal(rate);
+  return { kilograms, rate: commissionRate, commission: kilograms * commissionRate };
+}
+
+export function getPurchaseCommissionData(purchase) {
+  const kilograms = toKilograms(purchase.kilos || purchase.quantidade || 0, purchase.unidade_original || "KG");
+  const persistedCommission = parseDecimal(purchase.comissao);
+  const explicitRate = purchase.comissao_por_kg ?? purchase.taxa_comissao;
+  const rate = explicitRate !== null && explicitRate !== undefined && explicitRate !== ""
+    ? parseDecimal(explicitRate)
+    : persistedCommission > 0 && kilograms > 0
+      ? persistedCommission / kilograms
+      : getDefaultPurchaseCommissionRate(purchase.produto);
+  const commission = persistedCommission > 0 ? persistedCommission : kilograms * rate;
+  return { kilograms, rate, commission };
+}
+
+export function formatPurchaseCommissionRate(rate) {
+  const value = parseDecimal(rate);
+  return value > 0
+    ? value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+    : "";
 }
 
 export function getStoredOrCalculatedCommission(sale) {

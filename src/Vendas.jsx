@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 import { formatarData, formatarNumero } from "./utils";
-import { calculateCommission, COMMISSION_TYPES } from "./services/commissionEngine";
+import { calculateCommission, COMMISSION_TYPES, DEFAULT_PROFILE_COMMISSION_PERCENT, getSaleCommissionPercentage } from "./services/commissionEngine";
 import { describePeriod, filterSalesRecords, generateSalesReport } from "./services/reportPdf.service";
 
 export default function Vendas({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
@@ -13,7 +13,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
   const [kilos, setKilos] = useState("");
   const [unidade, setUnidade] = useState("KG");
   const [valorPorKg, setValorPorKg] = useState("");
-  const [percentualComissao, setPercentualComissao] = useState("");
+  const [percentualComissao, setPercentualComissao] = useState(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
 
   const [dataVenda, setDataVenda] = useState(
     new Date().toISOString().split("T")[0]
@@ -173,7 +173,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     setKilos("");
     setUnidade("KG");
     setValorPorKg("");
-    setPercentualComissao("");
+    setPercentualComissao(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
     setModalAberto(false);
 
     carregarVendas(empresaId);
@@ -188,7 +188,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     setUnidade("KG");
     const precoUnitario = Number(v.kilos) > 0 ? Number(v.valor || 0) / Number(v.kilos) : 0;
     setValorPorKg(precoUnitario || "");
-    setPercentualComissao(Number(v.valor) > 0 ? (Number(v.comissao || 0) / Number(v.valor)) * 100 : "");
+    setPercentualComissao(String(getSaleCommissionPercentage(v)));
     setDataVenda(v.data_venda || "");
     setModalAberto(true);
 
@@ -222,7 +222,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     setKilos("");
     setUnidade("KG");
     setValorPorKg("");
-    setPercentualComissao("");
+    setPercentualComissao(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
     setDataVenda(new Date().toISOString().split("T")[0]);
     setModalAberto(true);
   }

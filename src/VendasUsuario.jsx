@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 import { formatarData } from "./utils";
-import { calculateCommission, COMMISSION_TYPES } from "./services/commissionEngine";
+import { calculateCommission, COMMISSION_TYPES, DEFAULT_PROFILE_COMMISSION_PERCENT, getSaleCommissionPercentage } from "./services/commissionEngine";
 import { describePeriod, filterSalesRecords, generateSalesReport } from "./services/reportPdf.service";
 
 export default function VendasUsuario({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
@@ -21,7 +21,7 @@ export default function VendasUsuario({ empresaId, userId, companyName = "Cunha 
   const [quantidade, setQuantidade] = useState("");
   const [tipo, setTipo] = useState("KG");
   const [valor, setValor] = useState("");
-  const [percentualComissao, setPercentualComissao] = useState("");
+  const [percentualComissao, setPercentualComissao] = useState(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
   const [dataVenda, setDataVenda] =
     useState(dataHoje);
 
@@ -154,7 +154,7 @@ export default function VendasUsuario({ empresaId, userId, companyName = "Cunha 
     setQuantidade("");
     setTipo("KG");
     setValor("");
-    setPercentualComissao("");
+    setPercentualComissao(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
     setDataVenda(dataHoje);
     setEditandoId(null);
   }
@@ -167,7 +167,7 @@ export default function VendasUsuario({ empresaId, userId, companyName = "Cunha 
     setTipo("KG");
     const precoUnitario = Number(v.kilos) > 0 ? Number(v.valor || 0) / Number(v.kilos) : 0;
     setValor(precoUnitario || "");
-    setPercentualComissao(Number(v.valor) > 0 ? (Number(v.comissao || 0) / Number(v.valor)) * 100 : "");
+    setPercentualComissao(String(getSaleCommissionPercentage(v)));
     setDataVenda(
       String(v.data_venda).slice(0, 10)
     );

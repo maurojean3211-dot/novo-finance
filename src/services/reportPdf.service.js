@@ -1,4 +1,4 @@
-import { COMMISSION_TYPES, getCommissionRule } from "./commissionEngine.js";
+import { COMMISSION_TYPES, formatPercentage, getCommissionRule, getPurchaseCommissionData, getSaleCommissionPercentage } from "./commissionEngine.js";
 
 const PAGE = { width: 841.89, height: 595.28, margin: 28 };
 
@@ -234,7 +234,7 @@ export function generateSalesReport({ records, companyName, issuedBy, period }) 
       date: formatDate(item.data_venda), client: item.cliente_nome || "-", product: item.produto || "-",
       kg: formatNumber(kg), unit: item.unidade_original || "kg", price: formatMoney(kg ? total / kg : 0), total: formatMoney(total),
       type: rule.type === COMMISSION_TYPES.PERCENT_SALE ? "Percentual" : "Por kg",
-      base: rule.type === COMMISSION_TYPES.PERCENT_SALE ? (item.percentual_comissao ? `${formatNumber(item.percentual_comissao)}%` : "Persistida") : `${formatMoney(rule.rate)}/kg`,
+      base: rule.type === COMMISSION_TYPES.PERCENT_SALE ? `${formatPercentage(getSaleCommissionPercentage(item))} sobre o total` : `${formatMoney(rule.rate)}/kg`,
       commission: formatMoney(item.comissao), seller: item.vendedor_nome || item.vendedor || item.user_id || "Não informado",
     };
   });
@@ -257,37 +257,45 @@ export function generateSalesReport({ records, companyName, issuedBy, period }) 
   downloadPdf(bytes, `relatorio-vendas-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-export function generatePurchasesReport({ records, companyName, issuedBy, period }) {
+export function buildPurchasesReportData({ records, companyName, issuedBy, period }) {
   const weight = records.reduce((sum, item) => sum + Number(item.kilos || 0), 0);
   const value = records.reduce((sum, item) => sum + Number(item.valor || item.valor_total || 0), 0);
   const suppliers = new Set(records.map((item) => item.fornecedor).filter(Boolean));
   const materialWeights = records.reduce((acc, item) => ({ ...acc, [item.produto || "Outros"]: (acc[item.produto || "Outros"] || 0) + Number(item.kilos || 0) }), {});
   const topMaterial = Object.entries(materialWeights).sort((a, b) => b[1] - a[1])[0]?.[0] || "Sem dados";
+  const commission = records.reduce((sum, item) => sum + getPurchaseCommissionData(item).commission, 0);
   const rows = records.map((item) => {
     const kg = Number(item.kilos || 0);
     const total = Number(item.valor || item.valor_total || 0);
+    const commissionData = getPurchaseCommissionData(item);
     return {
       date: formatDate(item.data_compra), supplier: item.fornecedor || "-", material: item.produto || "Outros", alloy: item.liga || "Não informada",
       quantity: formatNumber(item.quantidade_original || kg), unit: item.unidade_original || "kg", kg: formatNumber(kg), price: formatMoney(kg ? total / kg : 0),
       total: formatMoney(total), freight: item.frete != null ? formatMoney(item.frete) : "Não informado",
       finalCost: item.custo_final_kg != null ? formatMoney(item.custo_final_kg) : "Não informado", status: item.status || "Não informado",
+      commissionType: "Por kg", commissionRule: `${formatMoney(commissionData.rate)}/kg`, commission: formatMoney(commissionData.commission),
     };
   });
-  const bytes = generateReportPdfBytes({
+  return {
     title: "Relatório de Compras", companyName, period, issuedBy,
     summary: [
       { label: "Compras", value: records.length }, { label: "Peso (kg)", value: formatNumber(weight) },
       { label: "Peso (t)", value: formatNumber(weight / 1000, 3) }, { label: "Valor investido", value: formatMoney(value) },
       { label: "Valor médio/kg", value: formatMoney(weight ? value / weight : 0) }, { label: "Fornecedores", value: suppliers.size },
-      { label: "Material principal", value: topMaterial },
+      { label: "Material principal", value: topMaterial }, { label: "Comissão", value: formatMoney(commission) },
     ],
     columns: [
-      { key: "date", label: "Data", width: 48 }, { key: "supplier", label: "Fornecedor", width: 90 }, { key: "material", label: "Material", width: 70 },
-      { key: "alloy", label: "Liga", width: 65 }, { key: "quantity", label: "Qtd.", width: 55 }, { key: "unit", label: "Un.", width: 30 },
-      { key: "kg", label: "Kg", width: 55 }, { key: "price", label: "R$/kg", width: 60 }, { key: "total", label: "Total", width: 70 },
-      { key: "freight", label: "Frete", width: 80 }, { key: "finalCost", label: "Custo final/kg", width: 80 }, { key: "status", label: "Status", width: 80 },
+      { key: "date", label: "Data", width: 42 }, { key: "supplier", label: "Fornecedor", width: 65 }, { key: "material", label: "Material", width: 55 },
+      { key: "alloy", label: "Liga", width: 40 }, { key: "quantity", label: "Qtd.", width: 40 }, { key: "unit", label: "Un.", width: 22 },
+      { key: "kg", label: "Kg", width: 42 }, { key: "price", label: "R$/kg", width: 48 }, { key: "total", label: "Total", width: 55 },
+      { key: "freight", label: "Frete", width: 55 }, { key: "finalCost", label: "Custo final/kg", width: 55 }, { key: "status", label: "Status", width: 50 },
+      { key: "commissionType", label: "Tipo comissão", width: 55 }, { key: "commissionRule", label: "Regra", width: 55 }, { key: "commission", label: "Comissão", width: 55 },
     ], rows,
-    totals: `${records.length} compras | ${formatNumber(weight)} kg | ${formatMoney(value)} | ${suppliers.size} fornecedores`,
-  });
+    totals: `${records.length} compras | ${formatNumber(weight)} kg | ${formatMoney(value)} | comissão ${formatMoney(commission)} | ${suppliers.size} fornecedores`,
+  };
+}
+
+export function generatePurchasesReport(options) {
+  const bytes = generateReportPdfBytes(buildPurchasesReportData(options));
   downloadPdf(bytes, `relatorio-compras-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
