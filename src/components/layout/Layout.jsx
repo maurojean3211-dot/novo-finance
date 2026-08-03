@@ -14,7 +14,7 @@ export default function Layout({ children, pagina, permissoes, loginMaster, onNa
   return (
     <div className={`app-shell${isMobile ? " app-shell--mobile" : ""}`}>
       {!isMobile && <Sidebar key={`desktop-${pagina}`} pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} onNavigate={onNavigate} onLogout={onLogout} />}
-      <div className="app-content" style={{ paddingBottom: isMobile ? 90 : 20 }}>{children}</div>
+      <div className="app-content">{children}</div>
       {isMobile && <MobileNavigation key={`mobile-${pagina}`} pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} onNavigate={onNavigate} onLogout={onLogout} />}
     </div>
   );

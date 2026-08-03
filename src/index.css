@@ -178,10 +178,6 @@ th {
     white-space: nowrap;
   }
 
-  /* espaço para menu inferior */
-  #root {
-    padding-bottom: 78px;
-  }
 }
 
 /* MOBILE PEQUENO */

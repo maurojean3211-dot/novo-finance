@@ -88,3 +88,12 @@
   .compact-panel{min-height:164px}.finance-list{gap:6px}.finance-list>div{padding:7px}.finance-list strong{margin:3px 0 2px;font-size:11px}
   .stock-list>div{padding:5px 0}.activity-list>div{padding:4px 0}.activity-list>div>span{width:24px;height:24px}.activity-list{gap:0}
 }
+
+.professional-table-wrap{overflow-y:hidden;scrollbar-width:thin}
+.operation-modal{overscroll-behavior:contain;scrollbar-width:thin}
+
+@media(max-height:820px) and (min-width:701px){
+  .operation-overlay{padding:12px}
+  .operation-modal{max-height:calc(100dvh - 24px);padding:17px}
+  .operation-modal__header{margin-bottom:12px}
+}
