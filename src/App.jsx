@@ -1,6 +1,6 @@
 import "./index.css";
 import "./App.css";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import Admin from "./Admin";
 import Compras from "./Compras.jsx";
@@ -32,6 +32,7 @@ export default function App() {
   const { pagina, navigate } = useAppNavigation();
   const [enteredUserId, setEnteredUserId] = useState(null);
   const [isExiting, setIsExiting] = useState(false);
+  const logoutStartedRef = useRef(false);
 
   function completeEntry() {
     setEnteredUserId(session?.user?.id || null);
@@ -39,19 +40,49 @@ export default function App() {
   }
 
   function startLogout() {
-    if (!isExiting) setIsExiting(true);
+    if (isExiting || logoutStartedRef.current) return;
+    setIsExiting(true);
   }
 
-  if (isExiting) return <BrandTransition mode="exiting" onComplete={sair} />;
+  async function completeLogout() {
+    if (logoutStartedRef.current) return;
+
+    logoutStartedRef.current = true;
+
+    try {
+      await sair();
+    } finally {
+      logoutStartedRef.current = false;
+      setIsExiting(false);
+    }
+  }
+
+  if (isExiting) {
+    return (
+      <BrandTransition
+        key="brand-exit"
+        mode="exiting"
+        onComplete={completeLogout}
+        onFallback={() => setIsExiting(false)}
+      />
+    );
+  }
 
   if (loadingSession) {
-    return <BrandTransition mode="entering" />;
+    return <BrandTransition key="brand-loading" mode="loading" />;
   }
 
   if (!session) return <Login />;
 
   if (enteredUserId !== session.user.id) {
-    return <BrandTransition mode="entering" onComplete={completeEntry} />;
+    return (
+      <BrandTransition
+        key={`brand-entry-${session.user.id}`}
+        mode="entering"
+        onComplete={completeEntry}
+        onFallback={completeEntry}
+      />
+    );
   }
 
   const emailLogado = session?.user?.email || "";
