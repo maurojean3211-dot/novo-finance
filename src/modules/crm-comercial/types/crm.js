@@ -14,8 +14,8 @@ export const OPEN_STAGES = FUNNEL_STAGES.slice(0, 5);
 
 export const EMPTY_OPPORTUNITY = {
   empresa: "", contatoPrincipal: "", telefone: "", whatsapp: "", email: "",
-  cidade: "", estado: "", segmento: "", origemLead: "", vendedorResponsavel: "",
-  produtoInteresse: "", valorEstimado: "", pesoEstimado: "", probabilidade: "",
+  cidade: "", estado: "", pais: "", segmento: "", origemLead: "", vendedorResponsavel: "", clienteId: null,
+  produtoInteresse: "", quantidade: "", unidade: "kg", valorEstimado: "", pesoEstimado: "", probabilidade: "",
   etapa: FUNNEL_STAGES[0], prioridade: "Média", proximoContato: "", observacoes: "",
   motivoPerda: "", status: "Ativa",
 };

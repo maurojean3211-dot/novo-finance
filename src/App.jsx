@@ -106,7 +106,7 @@ export default function App() {
         <Dashboard empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />
       )}
       {pagina === "recebimentos" && <ContasReceber empresaId={empresaId} />}
-      {["crm", "clientes"].includes(pagina) && <CrmComercial />}
+      {["crm", "clientes"].includes(pagina) && <CrmComercial empresaId={empresaId} userId={session.user.id} />}
       {pagina === "prospeccao" && <ProspeccaoComercial />}
       {pagina === "agenda_comercial" && <AgendaComercial empresaId={empresaId} userId={session.user.id} />}
       {pagina === "ia_comercial" && <IAComercial empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} onNavigate={navigate} />}

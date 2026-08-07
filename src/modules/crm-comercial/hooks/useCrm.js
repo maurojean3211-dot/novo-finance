@@ -1,49 +1,16 @@
-import { useMemo, useState } from "react";
-import { createCrmDemoData } from "../services/crm.service";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { addOpportunityHistory, deleteOpportunityRecord, listOpportunities, saveOpportunityRecord, updateOpportunityStage } from "../services/crm.service";
 import { OPEN_STAGES } from "../types/crm";
-
 const initialFilters = { search: "", vendedor: "", etapa: "", prioridade: "", segmento: "", inicio: "", fim: "" };
-
-export default function useCrm() {
-  const [opportunities, setOpportunities] = useState(createCrmDemoData);
-  const [filters, setFilters] = useState(initialFilters);
-
-  const filtered = useMemo(() => opportunities.filter((item) => {
-    const termo = filters.search.toLowerCase();
-    const matchesSearch = [item.empresa, item.contatoPrincipal, item.produtoInteresse, item.cidade].some((value) => String(value).toLowerCase().includes(termo));
-    const date = item.proximoContato || "";
-    return matchesSearch && (!filters.vendedor || item.vendedorResponsavel === filters.vendedor) && (!filters.etapa || item.etapa === filters.etapa) && (!filters.prioridade || item.prioridade === filters.prioridade) && (!filters.segmento || item.segmento === filters.segmento) && (!filters.inicio || date >= filters.inicio) && (!filters.fim || date <= filters.fim);
-  }), [filters, opportunities]);
-
-  const metrics = useMemo(() => {
-    const abertas = opportunities.filter((item) => OPEN_STAGES.includes(item.etapa));
-    const ganhos = opportunities.filter((item) => item.etapa === "Fechado — ganho").length;
-    const concluidas = opportunities.filter((item) => item.etapa.startsWith("Fechado")).length;
-    const today = new Date().toISOString().slice(0, 10);
-    return {
-      abertas: abertas.length,
-      valorFunil: abertas.reduce((sum, item) => sum + Number(item.valorEstimado || 0), 0),
-      propostas: opportunities.filter((item) => item.etapa === "Proposta enviada").length,
-      negociacoes: opportunities.filter((item) => item.etapa === "Negociação").length,
-      ganhos,
-      conversao: concluidas ? (ganhos / concluidas) * 100 : 0,
-      vencidos: abertas.filter((item) => item.proximoContato && item.proximoContato < today).length,
-      hoje: opportunities.reduce((sum, item) => sum + item.atividades.filter((activity) => activity.data === today).length, 0),
-    };
-  }, [opportunities]);
-
-  function saveOpportunity(data) {
-    if (data.id) setOpportunities((current) => current.map((item) => item.id === data.id ? { ...item, ...data } : item));
-    else setOpportunities((current) => [{ ...data, id: Date.now(), atividades: [] }, ...current]);
-  }
-
-  function moveOpportunity(id, etapa) {
-    setOpportunities((current) => current.map((item) => item.id === id ? { ...item, etapa, status: etapa.startsWith("Fechado") ? "Encerrada" : "Ativa" } : item));
-  }
-
-  function addActivity(id, activity) {
-    setOpportunities((current) => current.map((item) => item.id === id ? { ...item, atividades: [{ ...activity, id: Date.now() }, ...item.atividades] } : item));
-  }
-
-  return { opportunities, filtered, filters, setFilters, clearFilters: () => setFilters(initialFilters), metrics, saveOpportunity, moveOpportunity, addActivity };
+export default function useCrm({ empresaId, userId }) {
+  const [opportunities,setOpportunities]=useState([]); const [filters,setFilters]=useState(initialFilters); const [loading,setLoading]=useState(true); const [error,setError]=useState("");
+  const refresh=useCallback(async()=>{if(!empresaId)return;setLoading(true);setError("");try{setOpportunities(await listOpportunities(empresaId));}catch(e){setError(e.message||"Não foi possível carregar o CRM persistente.");setOpportunities([]);}finally{setLoading(false);}},[empresaId]);
+  useEffect(()=>{const timer=window.setTimeout(refresh,0);return()=>window.clearTimeout(timer);},[refresh]);
+  const filtered=useMemo(()=>opportunities.filter((item)=>{const term=filters.search.toLowerCase();const date=item.proximoContato||item.createdAt||"";return [item.empresa,item.contatoPrincipal,item.produtoInteresse,item.cidade].some((v)=>String(v).toLowerCase().includes(term))&&(!filters.vendedor||item.vendedorResponsavel===filters.vendedor)&&(!filters.etapa||item.etapa===filters.etapa)&&(!filters.prioridade||item.prioridade===filters.prioridade)&&(!filters.segmento||item.segmento===filters.segmento)&&(!filters.inicio||date>=filters.inicio)&&(!filters.fim||date<=filters.fim);}),[filters,opportunities]);
+  const metrics=useMemo(()=>{const abertas=opportunities.filter((i)=>OPEN_STAGES.includes(i.etapa));const ganhos=opportunities.filter((i)=>i.etapa==="Fechado — ganho").length;const perdidos=opportunities.filter((i)=>i.etapa==="Fechado — perdido").length;return{abertas:abertas.length,valorFunil:abertas.reduce((s,i)=>s+Number(i.valorEstimado||0),0),propostas:opportunities.filter((i)=>i.etapa==="Proposta enviada").length,negociacoes:opportunities.filter((i)=>i.etapa==="Negociação").length,ganhos,perdidos,conversao:ganhos+perdidos?ganhos/(ganhos+perdidos)*100:0,vencidos:0,hoje:0};},[opportunities]);
+  async function saveOpportunity(data){const saved=await saveOpportunityRecord({opportunity:data,empresaId,userId});await refresh();return saved;}
+  async function moveOpportunity(id,stage){if(stage.startsWith("Fechado")&&!window.confirm(`Confirmar mudança para ${stage}?`))return;await updateOpportunityStage({id,stage,empresaId,userId});await refresh();}
+  async function addActivity(id,activity){await addOpportunityHistory({opportunityId:id,empresaId,userId,type:activity.tipo,description:activity.descricao});await refresh();}
+  async function removeOpportunity(id){if(!window.confirm("Excluir permanentemente esta oportunidade e seu histórico?"))return;await deleteOpportunityRecord({id,empresaId});await refresh();}
+  return{opportunities,filtered,filters,setFilters,clearFilters:()=>setFilters(initialFilters),metrics,saveOpportunity,moveOpportunity,addActivity,removeOpportunity,loading,error};
 }
