@@ -29,8 +29,8 @@ export default function MobileNavigation({ pagina, permissoes, loginMaster, onNa
                   <span>{group.icon}</span><strong>{group.label}</strong><b>⌄</b>
                 </button>
                 {open && <div className="mobile-nav-group__items">{items.map((item) => (
-                  <button className={pagina === item.page ? "is-active" : ""} onClick={() => navigate(item.page)} key={item.page}>
-                    <span>{item.icon}</span>{item.label}{item.planned && <small>Planejado</small>}
+                  <button className={pagina === item.page ? "is-active" : ""} onClick={() => !item.planned && navigate(item.page)} disabled={item.planned} key={item.page}>
+                    <span>{item.icon}</span>{item.label}{item.planned && <small>{item.badge || "Em breve"}</small>}
                   </button>
                 ))}</div>}
               </section>

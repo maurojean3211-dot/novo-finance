@@ -1,21 +1,24 @@
 export const menuGroups = [
   {
     id: "visao-geral",
-    label: "Visão Geral",
+    label: "VISÃO GERAL",
     icon: "▦",
     items: [
-      { page: "dashboard", label: "Dashboard Executivo", icon: "📊" },
+      { page: "dashboard", label: "Dashboard", icon: "📊" },
       { page: "painel_executivo", label: "Painel Executivo", icon: "◫" },
     ],
   },
   {
     id: "comercial",
-    label: "Comercial",
+    label: "COMERCIAL",
     icon: "◇",
     items: [
-      { page: "crm", label: "CRM e Prospecção", icon: "◎", permissionKey: "vendas" },
+      { page: "crm", label: "CRM", icon: "◎", permissionKey: "vendas" },
+      { page: "clientes", label: "Clientes", icon: "◉", permissionKey: "vendas" },
+      { page: "prospeccao", label: "Prospecção", icon: "⌕", permissionKey: "vendas" },
+      { page: "agenda_comercial", label: "Agenda Comercial", icon: "◷", permissionKey: "vendas" },
       { page: "contatos", label: "Contatos", icon: "◉", planned: true },
-      { page: "orcamentos", label: "Orçamento Inteligente", icon: "▤", permissionKey: "vendas" },
+      { page: "orcamentos", label: "Orçamentos", icon: "▤", permissionKey: "vendas" },
       { page: "vendas", label: "Vendas", icon: "📦", permissionKey: "vendas" },
       { page: "compras", label: "Compras", icon: "🧱", permissionKey: "compras" },
       { page: "pos_venda", label: "Pós-venda", icon: "↗", planned: true },
@@ -23,10 +26,10 @@ export const menuGroups = [
   },
   {
     id: "materiais-operacoes",
-    label: "Materiais e Operações",
+    label: "PRODUTOS",
     icon: "▧",
     items: [
-      { page: "catalogo_inteligente", label: "Catálogo Inteligente", icon: "▦", permissionKey: "compras" },
+      { page: "catalogo_inteligente", label: "Catálogo", icon: "▦", permissionKey: "compras" },
       { page: "produtos", label: "Produtos", icon: "◈", permissionKey: "compras" },
       { page: "estoque", label: "Estoque", icon: "▥", planned: true },
       { page: "fornecedores", label: "Fornecedores", icon: "🏭", permissionKey: "compras" },
@@ -34,33 +37,35 @@ export const menuGroups = [
   },
   {
     id: "financeiro-empresarial",
-    label: "Financeiro Empresarial",
+    label: "FINANCEIRO",
     icon: "$",
     items: [
-      { page: "financeiro", label: "Fluxo de Caixa", icon: "⌁", permissionKey: "financeiro" },
+      { page: "contas_pagar", label: "Contas a pagar", icon: "↘", permissionKey: "contas_pagar" },
       { page: "recebimentos", label: "Contas a Receber", icon: "💵", permissionKey: "recebimentos" },
+      { page: "financeiro", label: "Fluxo de Caixa", icon: "⌁", permissionKey: "financeiro" },
       { page: "bancos", label: "Bancos", icon: "▣", planned: true },
     ],
   },
   {
     id: "inteligencia",
-    label: "Inteligência",
+    label: "INTELIGÊNCIA ARTIFICIAL",
     icon: "✦",
     items: [
-      { page: "ia_comercial", label: "IA Comercial", icon: "✦", planned: true },
+      { page: "ia_comercial", label: "IA Comercial", icon: "✦" },
       { page: "leitor_pdf", label: "Leitor Inteligente de PDF", icon: "PDF", planned: true },
       { page: "dolar", label: "Dólar", icon: "$", planned: true },
       { page: "lme", label: "LME", icon: "Al", planned: true },
-      { page: "indicadores", label: "Indicadores", icon: "↗", planned: true },
       { page: "margens", label: "Margens", icon: "%", planned: true },
       { page: "simulador_precos", label: "Simulador de Preços", icon: "◫", planned: true },
     ],
   },
   {
     id: "relatorios",
-    label: "Relatórios",
+    label: "RELATÓRIOS",
     icon: "▤",
     items: [
+      { page: "relatorio", label: "Relatórios", icon: "▤", permissionKey: "relatorio" },
+      { page: "indicadores", label: "Indicadores de Mercado", icon: "↗", planned: true },
       { page: "relatorio_comercial", label: "Comercial", icon: "◇", permissionKey: "relatorio" },
       { page: "relatorio_financeiro", label: "Financeiro", icon: "$", permissionKey: "relatorio" },
       { page: "relatorio_estoque", label: "Estoque", icon: "▥", planned: true },
@@ -76,14 +81,13 @@ export const menuGroups = [
     items: [
       { page: "financeiro_pessoal", label: "Visão Geral", icon: "▦", permissionKey: "pessoal" },
       { page: "receitas_pessoais", label: "Receitas", icon: "↗", permissionKey: "pessoal" },
-      { page: "contas_pagar", label: "Gastos", icon: "💸", permissionKey: "contas_pagar" },
       { page: "contas_fixas", label: "Contas Fixas", icon: "🔁", permissionKey: "contas_fixas" },
       { page: "relatorios_pessoais", label: "Relatórios Pessoais", icon: "▤", permissionKey: "pessoal" },
     ],
   },
   {
     id: "administracao",
-    label: "Administração",
+    label: "SISTEMA",
     icon: "⚙",
     items: [
       { page: "usuarios", label: "Usuários", icon: "👤", planned: true },

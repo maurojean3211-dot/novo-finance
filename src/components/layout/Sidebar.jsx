@@ -4,11 +4,12 @@ import { canAccessMenuItem, findMenuGroupByPage, menuGroups } from "../../app/na
 function MenuItem({ item, pagina, onNavigate }) {
   return (
     <button
-      onClick={() => onNavigate(item.page)}
+      onClick={() => !item.planned && onNavigate(item.page)}
       className={`app-nav-button${pagina === item.page ? " app-nav-button--active" : ""}`}
+      disabled={item.planned}
     >
       <span>{item.icon}</span>{item.label}
-      {item.planned && <small>Planejado</small>}
+      {item.planned && <small>{item.badge || "Em breve"}</small>}
     </button>
   );
 }
@@ -50,17 +51,6 @@ export default function Sidebar({ pagina, permissoes, loginMaster, onNavigate, o
           );
         })}
       </nav>
-
-      <div className="app-ai-usage">
-        <div><span>Uso da IA hoje</span><b>Tempo economizado</b></div>
-        <strong>2h 48min</strong>
-        <dl>
-          <div><dt>Processamentos</dt><dd>18</dd></div>
-          <div><dt>PDFs analisados</dt><dd>7</dd></div>
-          <div><dt>Orçamentos</dt><dd>5</dd></div>
-        </dl>
-        <small>Dados demonstrativos</small>
-      </div>
 
       <button onClick={onLogout} className="app-logout"><span>↪</span>Sair</button>
     </aside>

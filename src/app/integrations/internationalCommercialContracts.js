@@ -1,0 +1,5 @@
+export const FUTURE_COMMERCIAL_CHANNELS = Object.freeze(["whatsapp-business", "email", "ai-service"]);
+export const FUTURE_COMMERCIAL_SOURCES = Object.freeze(["authorized-business-data-provider", "licensed-directory", "official-public-registry"]);
+export const INTERNATIONAL_COMMERCIAL_FLOW = Object.freeze(["language-detection", "commercial-qualification", "company-resolution", "document-reception", "intelligent-reading", "catalog-lookup", "intelligent-quote", "human-review", "proposal-delivery"]);
+export function createInternationalCompanyReference(company = {}) { return { companyId: company.id || null, countryCode: company.countryCode || "", region: company.region || "", city: company.city || "", postalCode: company.postalCode || "", preferredLocale: company.preferredLocale || "pt-BR", preferredCurrency: company.preferredCurrency || "BRL", timeZone: company.timeZone || "" }; }
+export function createInternationalProductContext(product = {}) { return { productId: product.id || null, markets: product.markets || [], localizedContent: product.localizedContent || {}, currencies: product.currencies || [] }; }

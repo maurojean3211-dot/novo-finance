@@ -23,8 +23,11 @@ import Layout from "./components/layout/Layout";
 import ModulePlanning from "./components/ModulePlanning";
 import BrandTransition from "./components/BrandTransition";
 import CatalogoInteligente from "./modules/catalogo-inteligente";
+import AgendaComercial from "./modules/agenda-comercial";
+import IAComercial from "./modules/ia-comercial";
 import CrmComercial from "./modules/crm-comercial";
 import OrcamentoInteligente from "./modules/orcamento-inteligente";
+import ProspeccaoComercial from "./modules/prospeccao-comercial";
 import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, GastosPessoaisPage, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
 
 export default function App() {
@@ -36,7 +39,7 @@ export default function App() {
 
   function completeEntry() {
     setEnteredUserId(session?.user?.id || null);
-    navigate("dashboard");
+    navigate(window.location.pathname === "/prospeccao" ? "prospeccao" : "dashboard");
   }
 
   function startLogout() {
@@ -99,9 +102,14 @@ export default function App() {
       onNavigate={navigate}
       onLogout={startLogout}
     >
-      {["dashboard", "painel_executivo"].includes(pagina) && <Dashboard nomeUsuario={nomeUsuario} />}
+      {["dashboard", "painel_executivo"].includes(pagina) && (
+        <Dashboard empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />
+      )}
       {pagina === "recebimentos" && <ContasReceber empresaId={empresaId} />}
-      {pagina === "crm" && <CrmComercial />}
+      {["crm", "clientes"].includes(pagina) && <CrmComercial />}
+      {pagina === "prospeccao" && <ProspeccaoComercial />}
+      {pagina === "agenda_comercial" && <AgendaComercial empresaId={empresaId} userId={session.user.id} />}
+      {pagina === "ia_comercial" && <IAComercial empresaId={empresaId} userId={session.user.id} />}
       {pagina === "orcamentos" && <OrcamentoInteligente />}
       {pagina === "catalogo_inteligente" && <CatalogoInteligente />}
       {pagina === "produtos" && <Produtos />}
