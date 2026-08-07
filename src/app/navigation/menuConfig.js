@@ -31,7 +31,7 @@ export const menuGroups = [
     items: [
       { page: "catalogo_inteligente", label: "Catálogo", icon: "▦", permissionKey: "compras" },
       { page: "produtos", label: "Produtos", icon: "◈", permissionKey: "compras" },
-      { page: "estoque", label: "Estoque", icon: "▥", planned: true },
+      { page: "estoque", label: "Estoque", icon: "▥", permissionKey: "compras" },
       { page: "fornecedores", label: "Fornecedores", icon: "🏭", permissionKey: "compras" },
     ],
   },

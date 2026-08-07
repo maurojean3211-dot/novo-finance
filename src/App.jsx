@@ -27,6 +27,7 @@ import AgendaComercial from "./modules/agenda-comercial";
 import IAComercial from "./modules/ia-comercial";
 import CrmComercial from "./modules/crm-comercial";
 import OrcamentoInteligente from "./modules/orcamento-inteligente";
+import EstoqueInteligente from "./modules/estoque-inteligente";
 import ProspeccaoComercial from "./modules/prospeccao-comercial";
 import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, GastosPessoaisPage, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
 
@@ -112,6 +113,7 @@ export default function App() {
       {pagina === "ia_comercial" && <IAComercial empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} onNavigate={navigate} />}
       {pagina === "orcamentos" && <OrcamentoInteligente empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
       {pagina === "catalogo_inteligente" && <CatalogoInteligente />}
+      {pagina === "estoque" && <EstoqueInteligente empresaId={empresaId} userId={session.user.id} />}
       {pagina === "produtos" && <Produtos />}
       {pagina === "fornecedores" && <Fornecedores />}
       {pagina === "financeiro" && <Financeiro empresaId={empresaId} />}

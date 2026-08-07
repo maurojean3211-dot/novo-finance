@@ -18,6 +18,10 @@ export default function Dashboard({ empresaId, userId, nomeEmpresa, nomeUsuario,
     { label: "Peso comprado", icon: "⚖", value: available("compras", dashboard.compras.length ? `${dashboard.pesoCompras.toLocaleString("pt-BR")} kg` : "Sem dados disponíveis"), detail: "Volume no período" },
     { label: "Comissão de compras", icon: "$", value: available("compras", dashboard.compras.length ? currency.format(dashboard.comissaoCompras) : "Sem dados disponíveis"), detail: "Motor de comissão existente" },
     { label: "Clientes", icon: "◎", value: available("clientes", dashboard.clientes.length || "Sem dados disponíveis"), detail: `${dashboard.novosClientes.length} novo(s) no período` },
+    { label: "Estoque atual", icon: "▥", value: available("estoque", dashboard.estoque.reduce((sum, item) => sum + Number(item.estoque_atual || 0), 0).toLocaleString("pt-BR")), detail: "Quantidade física real" },
+    { label: "Itens críticos", icon: "!", value: available("estoque", dashboard.estoque.filter((item) => Number(item.estoque_disponivel || 0) <= Number(item.ponto_reposicao || item.estoque_minimo || 0)).length), detail: "No ponto de reposição" },
+    { label: "Reservas", icon: "◇", value: available("estoque", dashboard.estoque.reduce((sum, item) => sum + Number(item.estoque_reservado || 0), 0).toLocaleString("pt-BR")), detail: "Quantidade reservada" },
+    { label: "Valor do estoque", icon: "R$", value: available("estoque", currency.format(dashboard.estoque.reduce((sum, item) => sum + Number(item.estoque_atual || 0) * Number(item.custo_unitario || 0), 0))), detail: "Custo persistido" },
   ];
 
   return <main className="executive-dashboard">

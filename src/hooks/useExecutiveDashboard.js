@@ -8,6 +8,7 @@ const TABLES = {
   compras: "*",
   recebimentos: "id, cliente_nome, valor, status, data_vencimento, created_at",
   clientes: "id, nome, created_at",
+  estoque: "id, estoque_atual, estoque_reservado, estoque_disponivel, estoque_minimo, ponto_reposicao, custo_unitario",
 };
 const emptyData = Object.fromEntries(Object.keys(TABLES).map((table) => [table, []]));
 
