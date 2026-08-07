@@ -5,6 +5,7 @@ import { listImportDrafts } from "../../catalogo-inteligente/services/catalogoIm
 import { loadProspects } from "../../prospeccao-comercial/services/prospeccao.service";
 import { listCustomers } from "../../../services/customer.service";
 import { analyzeCommercialCommand, buildDailySummary } from "../services/commercialAssistantRules.service";
+import { loadAttendanceHistory, saveAttendanceHistory } from "../services/commercialAttendance.service";
 
 export default function useCommercialAssistant({ empresaId, userId }) {
   const dashboard = useExecutiveDashboard(empresaId);
@@ -12,7 +13,7 @@ export default function useCommercialAssistant({ empresaId, userId }) {
   const [customers, setCustomers] = useState([]);
   const [prospects, setProspects] = useState([]);
   const [products, setProducts] = useState([]);
-  const [history, setHistory] = useState([]);
+  const [history, setHistory] = useState(() => loadAttendanceHistory(empresaId, userId));
   const [loadingContext, setLoadingContext] = useState(true);
 
   const loadContext = useCallback(async () => {
@@ -22,15 +23,19 @@ export default function useCommercialAssistant({ empresaId, userId }) {
       const [customerData, prospectData, drafts] = await Promise.all([listCustomers(empresaId), Promise.resolve(loadProspects({ empresaId, userId })), Promise.resolve(listImportDrafts(empresaId, userId))]);
       setCustomers(customerData);
       setProspects(prospectData);
-      setProducts(drafts.flatMap((draft) => draft.products || []));
+      setProducts(drafts.flatMap((draft) => draft.products || []).filter((product) => !(String(product.supplierName || "").toUpperCase() === "WZM" && String(product.supplierCode || "").toUpperCase().startsWith("WZM-"))));
     } finally { setLoadingContext(false); }
   }, [empresaId, userId]);
 
   useEffect(() => { const timer = window.setTimeout(loadContext, 0); return () => window.clearTimeout(timer); }, [loadContext]);
+  useEffect(() => { setHistory(loadAttendanceHistory(empresaId, userId)); }, [empresaId, userId]);
 
   const context = useMemo(() => ({ customers, prospects, products, agenda: agenda.activities, sales: dashboard.vendas, purchases: dashboard.compras, receivables: dashboard.recebimentos, movements: dashboard.lancamentos }), [agenda.activities, customers, dashboard.compras, dashboard.lancamentos, dashboard.recebimentos, dashboard.vendas, products, prospects]);
-  const analyze = useCallback((command) => { const result = analyzeCommercialCommand(command, context); setHistory((current) => [{ id: crypto.randomUUID(), command, result, createdAt: new Date().toISOString() }, ...current]); return result; }, [context]);
+  const record = useCallback((entry) => { setHistory((current) => { const next = [{ id: crypto.randomUUID(), createdAt: new Date().toISOString(), ...entry }, ...current].slice(0, 30); saveAttendanceHistory(empresaId, userId, next); return next; }); }, [empresaId, userId]);
+  const analyze = useCallback((command) => { const result = analyzeCommercialCommand(command, context); record({ command, result }); return result; }, [context, record]);
   const dailySummary = useCallback(() => { const result = buildDailySummary(context); setHistory((current) => [{ id: crypto.randomUUID(), command: "Gerar resumo comercial do dia", result, createdAt: new Date().toISOString() }, ...current]); return result; }, [context]);
 
-  return { context, history, analyze, dailySummary, loading: dashboard.loading || agenda.loading || loadingContext };
+  const addAttendance = useCallback((analysis, summary) => record({ command: `Atendimento: ${analysis.form.client || analysis.form.company || "sem identificação"}`, result: { title: analysis.classification, message: summary, source: "Atendimento local" }, attendance: analysis }), [record]);
+  const removeHistory = useCallback((id) => setHistory((current) => { const next = current.filter((item) => item.id !== id); saveAttendanceHistory(empresaId, userId, next); return next; }), [empresaId, userId]);
+  return { context, history, analyze, dailySummary, addAttendance, removeHistory, loading: dashboard.loading || agenda.loading || loadingContext };
 }

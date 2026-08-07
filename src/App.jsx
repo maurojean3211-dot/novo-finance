@@ -109,7 +109,7 @@ export default function App() {
       {["crm", "clientes"].includes(pagina) && <CrmComercial />}
       {pagina === "prospeccao" && <ProspeccaoComercial />}
       {pagina === "agenda_comercial" && <AgendaComercial empresaId={empresaId} userId={session.user.id} />}
-      {pagina === "ia_comercial" && <IAComercial empresaId={empresaId} userId={session.user.id} />}
+      {pagina === "ia_comercial" && <IAComercial empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} onNavigate={navigate} />}
       {pagina === "orcamentos" && <OrcamentoInteligente />}
       {pagina === "catalogo_inteligente" && <CatalogoInteligente />}
       {pagina === "produtos" && <Produtos />}

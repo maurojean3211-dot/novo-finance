@@ -51,7 +51,7 @@ export const menuGroups = [
     label: "INTELIGÊNCIA ARTIFICIAL",
     icon: "✦",
     items: [
-      { page: "ia_comercial", label: "IA Comercial", icon: "✦" },
+      { page: "ia_comercial", label: "Atendimento Comercial IA", icon: "✦" },
       { page: "leitor_pdf", label: "Leitor Inteligente de PDF", icon: "PDF", planned: true },
       { page: "dolar", label: "Dólar", icon: "$", planned: true },
       { page: "lme", label: "LME", icon: "Al", planned: true },

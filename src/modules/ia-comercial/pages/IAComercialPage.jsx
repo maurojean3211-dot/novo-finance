@@ -1,26 +1,31 @@
 import { useState } from "react";
-import BudgetAssistant from "../components/BudgetAssistant";
-import CommercialAnalysisResult from "../components/CommercialAnalysisResult";
-import CommercialAssistant from "../components/CommercialAssistant";
-import CommercialContextPanel from "../components/CommercialContextPanel";
-import DailyCommercialSummary from "../components/DailyCommercialSummary";
+import AttendanceForm from "../components/AttendanceForm";
+import AttendanceQualification from "../components/AttendanceQualification";
 import useCommercialAssistant from "../hooks/useCommercialAssistant";
+import { analyzeAttendance, attendanceSummary, EMPTY_ATTENDANCE, suggestedResponse } from "../services/commercialAttendance.service";
 import "../styles/ia-comercial.css";
 
-export default function IAComercialPage({ empresaId, userId }) {
+export default function IAComercialPage({ empresaId, userId, nomeEmpresa, onNavigate }) {
   const assistant = useCommercialAssistant({ empresaId, userId });
-  const [result, setResult] = useState(null);
-  const [dailyResult, setDailyResult] = useState(null);
-  const analyze = (command) => setResult(assistant.analyze(command));
-  const generateDaily = () => { const next = assistant.dailySummary(); setDailyResult(next); setResult(next); };
-  const contextItems = [
-    ["Clientes", assistant.context.customers.length, "Cliente"],
-    ["Prospects", assistant.context.prospects.length, "Prospecção"],
-    ["Agenda", assistant.context.agenda.length, "Agenda"],
-    ["Catálogo", assistant.context.products.length, "Catálogo"],
-    ["Vendas", assistant.context.sales.length, "Dashboard"],
-    ["Compras", assistant.context.purchases.length, "Dashboard"],
-  ];
+  const [form, setForm] = useState(EMPTY_ATTENDANCE);
+  const [analysis, setAnalysis] = useState(null);
+  const [response, setResponse] = useState("");
+  const [feedback, setFeedback] = useState("");
 
-  return <main className="ia-commercial-page"><header className="ia-commercial-header"><div><span>Inteligência Artificial</span><h1>IA Comercial</h1><p>Assistente local para organizar informações e apoiar decisões que permanecem sob conferência humana.</p></div><div><b>Modo seguro</b><small>Sem API externa · nenhuma ação automática</small></div></header><section className="ia-commercial-grid ia-commercial-grid--hero"><CommercialAssistant loading={assistant.loading} onAnalyze={analyze} /><CommercialAnalysisResult result={result} /></section><section className="commercial-source-strip">{contextItems.map(([label, value, source]) => <article key={label}><span>{label}</span><strong>{assistant.loading ? "…" : value || "Sem dados"}</strong><small>{source} · dado real</small></article>)}</section><section className="ia-commercial-grid"><CommercialContextPanel context={assistant.context} /><DailyCommercialSummary result={dailyResult} onGenerate={generateDaily} /></section><BudgetAssistant context={assistant.context} /><section className="commercial-session-history"><header><div><span>Sessão atual</span><h2>Histórico local</h2></div><small>Não será salvo ao encerrar a sessão.</small></header>{assistant.history.length ? <div>{assistant.history.map((item) => <article key={item.id}><span>{new Date(item.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span><div><strong>{item.command}</strong><p>{item.result.message}</p></div><small>{item.result.source}</small></article>)}</div> : <p className="commercial-history-empty">Nenhuma análise realizada nesta sessão.</p>}</section></main>;
+  function analyze() { const next = analyzeAttendance(form, assistant.context); setForm(next.form); setAnalysis(next); setResponse(""); setFeedback("Análise local concluída. Revise todas as sugestões antes de continuar."); assistant.addAttendance(next, attendanceSummary(next)); }
+  function clear() { setForm(EMPTY_ATTENDANCE); setAnalysis(null); setResponse(""); setFeedback(""); }
+  function patchAnalysis(changes) { setAnalysis((current) => ({ ...current, ...changes, form: { ...current.form, ...changes } })); }
+  async function copy(text, message) { await navigator.clipboard.writeText(text); setFeedback(message); }
+  async function prepare(target, label) { if (!analysis) return setFeedback("Analise o atendimento antes de preparar esta ação."); if (!window.confirm(`Confirmar preparação para ${label}? Nenhum registro será criado automaticamente.`)) return; await copy(attendanceSummary(analysis), `Rascunho copiado. Revise e conclua manualmente em ${label}.`); onNavigate(target); }
+  function consultCatalog() { if (!analysis) return setFeedback("Analise o atendimento antes de consultar o Catálogo."); setFeedback(analysis.matches.length ? `${analysis.matches.length} correspondência(s) local(is) encontrada(s). Confira os detalhes abaixo.` : "Nenhuma correspondência cadastrada foi encontrada. Produtos demonstrativos não são tratados como fonte real."); }
+  const summary = analysis ? attendanceSummary(analysis) : "";
+
+  return <main className="ia-commercial-page attendance-page"><header className="ia-commercial-header"><div><span>Inteligência comercial local</span><h1>Atendimento Comercial IA</h1><p>{nomeEmpresa || "Empresa não informada"} · qualificação assistida sem APIs externas e com confirmação humana obrigatória.</p></div><div><b>Modo seguro</b><small>Sem envio automático · sem API externa</small></div></header>
+    {feedback && <div className="attendance-feedback" role="status">{feedback}<button onClick={() => setFeedback("")}>×</button></div>}
+    <div className="attendance-workspace"><AttendanceForm form={form} onChange={(next) => { setForm(next); setAnalysis(null); setResponse(""); }} /><AttendanceQualification analysis={analysis} onClassification={(classification) => patchAnalysis({ classification })} onPriority={(priority) => patchAnalysis({ priority })} /></div>
+    <section className="attendance-actions"><button className="primary" onClick={analyze} disabled={assistant.loading || !(form.message || form.product || form.client || form.company)}>{assistant.loading ? "Carregando contexto…" : "✦ Analisar atendimento"}</button><button onClick={clear}>Limpar</button><button onClick={() => summary && copy(summary, "Resumo copiado como rascunho.")} disabled={!analysis}>Copiar resumo</button><button onClick={() => prepare("crm", "CRM")} disabled={!analysis}>Preparar oportunidade</button><button onClick={consultCatalog} disabled={!analysis}>Consultar catálogo</button><button onClick={() => prepare("orcamentos", "Orçamentos")} disabled={!analysis}>Preparar orçamento</button><button onClick={() => { if (!analysis) return; setResponse(suggestedResponse(analysis)); }} disabled={!analysis}>Gerar resposta sugerida</button></section>
+    {analysis && <section className="attendance-output-grid"><article className="attendance-card"><header><span>Ações sugeridas</span><h2>Perguntas e complementos</h2></header>{analysis.questions.length ? <ul>{analysis.questions.map((item) => <li key={item}>{item}</li>)}</ul> : <p>Não há perguntas básicas pendentes.</p>}<strong className="human-review">Confirmação humana obrigatória antes de qualquer ação comercial.</strong></article><article className="attendance-card catalog-results"><header><span>Catálogo local cadastrado</span><h2>Correspondências possíveis</h2></header>{analysis.matches.length ? analysis.matches.map((item) => <div key={item.id}><strong>{item.name || item.description || item.supplierCode}</strong><span>{[item.description, item.technical?.alloy, item.technical?.temper, item.technical?.dimensions?.originalText, item.technical?.weightPerMeter ? `${item.technical.weightPerMeter} kg/m` : ""].filter(Boolean).join(" · ")}</span></div>) : <p>Sem correspondências reais disponíveis.</p>}</article></section>}
+    {response && <section className="attendance-card suggested-response"><header><span>Rascunho — não enviado</span><h2>Resposta sugerida</h2></header><textarea value={response} onChange={(event) => setResponse(event.target.value)} /><button onClick={() => copy(response, "Resposta copiada. O envio permanece manual.")}>Copiar resposta</button></section>}
+    <section className="commercial-session-history"><header><div><span>Armazenamento local isolado</span><h2>Histórico de atendimentos</h2></div><small>Empresa e usuário atuais · exclusão manual</small></header>{assistant.history.length ? <div>{assistant.history.map((item) => <article key={item.id}><span>{new Date(item.createdAt).toLocaleDateString("pt-BR")}</span><div><strong>{item.command}</strong><p>{item.result.message}</p></div><button onClick={() => assistant.removeHistory(item.id)} aria-label="Excluir atendimento">Excluir</button></article>)}</div> : <p className="commercial-history-empty">Nenhum atendimento salvo localmente para esta empresa e usuário.</p>}</section>
+  </main>;
 }
