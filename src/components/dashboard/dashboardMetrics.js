@@ -88,6 +88,7 @@ export function calculateDashboardMetrics(data, range) {
   const pedidosCompra = data.pedidos_compra.filter((item) => inPeriod(item, ["data", "created_at"], range));
   const oportunidades = data.crm_oportunidades.filter((item) => inPeriod(item, ["created_at"], range));
   const orcamentos = data.orcamentos.filter((item) => inPeriod(item, ["data", "created_at"], range));
+  const apontamentosProducao = data.ordem_producao_apontamentos.filter((item) => inPeriod(item, ["created_at"], range));
   const receitas = lancamentos.filter((item) => item.tipo === "receita");
   const despesas = lancamentos.filter((item) => item.tipo === "despesa");
   const pendentes = recebimentos.filter((item) => !["pago", "recebido"].includes(String(item.status || "").toLowerCase().trim()));
@@ -97,7 +98,7 @@ export function calculateDashboardMetrics(data, range) {
   const totalDespesas = despesas.reduce((sum, item) => sum + moneyValue(item), 0);
   return {
     vendas, compras, lancamentos, recebimentos, novosClientes, receitas, despesas, pendentes,
-    pedidos_compra: pedidosCompra, crm_oportunidades: oportunidades, orcamentos,
+    pedidos_compra: pedidosCompra, crm_oportunidades: oportunidades, orcamentos, ordem_producao_apontamentos: apontamentosProducao,
     totalVendas, totalCompras, totalReceitas, totalDespesas,
     ticketMedio: vendas.length ? totalVendas / vendas.length : 0,
     comissaoVendas: vendas.reduce((sum, item) => sum + getStoredOrCalculatedCommission(item), 0),

@@ -19,6 +19,12 @@ export default function PainelExecutivo({ empresaId, nomeEmpresa, nomeUsuario, o
   const budgets = dashboard.orcamentos.filter((item) => !["Cancelado", "Rejeitado"].includes(item.status));
   const purchases = dashboard.pedidos_compra.reduce((sum, item) => sum + Number(item.valor_total || 0), 0);
   const stockValue = dashboard.estoque.reduce((sum, item) => sum + Number(item.estoque_atual || 0) * Number(item.custo_unitario || 0), 0);
+  const productionOpen = dashboard.ordens_producao.filter((item) => !["Concluída", "Cancelada"].includes(item.status));
+  const productionRunning = dashboard.ordens_producao.filter((item) => item.status === "Em produção");
+  const productionDelayed = productionOpen.filter((item) => item.data_prevista_fim && item.data_prevista_fim < new Date().toISOString().slice(0, 10));
+  const productionAmount = dashboard.ordem_producao_apontamentos.filter((item) => item.tipo === "Produção").reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
+  const productionLosses = dashboard.ordem_producao_apontamentos.filter((item) => item.tipo === "Perda").reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
+  const missingMaterials = dashboard.ordem_producao_materiais.filter((item) => item.necessidade_compra).length;
   const metrics = [
     { label: "Faturamento", icon: "↗", value: movement("vendas", dashboard.vendas.length, currency.format(dashboard.totalVendas)), detail: dashboard.vendas.length ? `${dashboard.vendas.length} venda(s) no período` : "Aguardando movimentação", featured: true },
     { label: "Margem", icon: "%", value: "—", detail: "Aguardando integração" },
@@ -31,6 +37,12 @@ export default function PainelExecutivo({ empresaId, nomeEmpresa, nomeUsuario, o
     { label: "Inadimplência", icon: "!", value: valid("financeiro_titulos", currency.format(overdueReceivables)), detail: overdueReceivables ? "Recebíveis vencidos" : "Nenhum valor vencido" },
     { label: "Contas a pagar", icon: "↘", value: valid("financeiro_titulos", currency.format(payable)), detail: titles.length ? "Saldo em aberto" : "Aguardando movimentação" },
     { label: "Contas a receber", icon: "↗", value: valid("financeiro_titulos", currency.format(receivable)), detail: titles.length ? "Saldo em aberto" : "Aguardando movimentação" },
+    { label: "OPs abertas", icon: "▤", value: valid("ordens_producao", productionOpen.length), detail: "Planejamento e execução" },
+    { label: "Em produção", icon: "▶", value: valid("ordens_producao", productionRunning.length), detail: "Execução atual" },
+    { label: "OPs atrasadas", icon: "!", value: valid("ordens_producao", productionDelayed.length), detail: "Condição por prazo previsto" },
+    { label: "Produção do período", icon: "⚙", value: valid("ordem_producao_apontamentos", productionAmount.toLocaleString("pt-BR")), detail: "Quantidade apontada" },
+    { label: "Perdas de produção", icon: "×", value: valid("ordem_producao_apontamentos", productionLosses.toLocaleString("pt-BR")), detail: "Refugo apontado" },
+    { label: "Materiais faltantes", icon: "▧", value: valid("ordem_producao_materiais", missingMaterials), detail: "Necessidade de compra" },
   ];
 
   return <main className="executive-dashboard management-dashboard">

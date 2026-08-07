@@ -14,6 +14,9 @@ const TABLES = {
   financeiro_baixas: "id, titulo_id, tipo, valor, data_movimento",
   crm_oportunidades: "id, etapa, valor_estimado, probabilidade, created_at",
   orcamentos: "id, status, valor_final, data, created_at",
+  ordens_producao: "id, status, prioridade, data_prevista_inicio, data_prevista_fim, quantidade_planejada, quantidade_produzida, peso_planejado, peso_produzido, quantidade_perdida, peso_perdido, created_at",
+  ordem_producao_materiais: "id, ordem_id, quantidade_prevista, quantidade_reservada, quantidade_consumida, necessidade_compra, created_at",
+  ordem_producao_apontamentos: "id, ordem_id, tipo, quantidade, peso, created_at",
 };
 const emptyData = Object.fromEntries(Object.keys(TABLES).map((table) => [table, []]));
 

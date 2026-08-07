@@ -18,6 +18,9 @@ export default function Dashboard({ empresaId, nomeEmpresa, nomeUsuario, onNavig
   const openPurchases = dashboard.pedidos_compra.filter((item) => !["Recebido", "Cancelado"].includes(item.status));
   const overdue = titles.filter((item) => Number(item.saldo || 0) > 0 && item.vencimento < new Date().toISOString().slice(0, 10));
   const todayPurchases = dashboard.pedidos_compra.filter((item) => item.data === new Date().toISOString().slice(0, 10));
+  const delayedProduction = dashboard.ordens_producao.filter((item) => !["Concluída", "Cancelada"].includes(item.status) && item.data_prevista_fim && item.data_prevista_fim < new Date().toISOString().slice(0, 10));
+  const missingMaterials = dashboard.ordem_producao_materiais.filter((item) => item.necessidade_compra);
+  const blockedProduction = new Set(missingMaterials.map((item) => item.ordem_id)).size;
   const metrics = [
     { label: "Saldo", icon: "$", value: source("lancamentos", currency.format(dashboard.saldoAtual)), detail: dashboard.lancamentos.length ? "Posição dos lançamentos" : "Aguardando movimentação", featured: true },
     { label: "Contas a receber", icon: "↗", value: source("financeiro_titulos", currency.format(receivable)), detail: titles.length ? "Saldo corporativo aberto" : "Aguardando movimentação" },
@@ -30,6 +33,9 @@ export default function Dashboard({ empresaId, nomeEmpresa, nomeUsuario, onNavig
     { label: "Títulos vencidos", value: overdue.length, detail: overdue.length ? currency.format(overdue.reduce((sum, item) => sum + Number(item.saldo || 0), 0)) : "Nenhuma pendência" },
     { label: "Pedidos em aberto", value: openPurchases.length, detail: openPurchases.length ? "Acompanhar compras" : "Nenhuma pendência" },
     { label: "Estoque em atenção", value: criticalStock.length, detail: criticalStock.length ? "Revisar reposição" : "Operação regular" },
+    { label: "OPs atrasadas", value: source("ordens_producao", delayedProduction.length), detail: delayedProduction.length ? "Revisar programação" : "Nenhuma OP atrasada" },
+    { label: "Produção bloqueada", value: source("ordem_producao_materiais", blockedProduction), detail: blockedProduction ? "Falta de material" : "Nenhum bloqueio registrado" },
+    { label: "Materiais faltantes", value: source("ordem_producao_materiais", missingMaterials.length), detail: missingMaterials.length ? "Preparar necessidade de compra" : "Nenhuma falta registrada" },
   ];
 
   return <main className="executive-dashboard operational-dashboard">

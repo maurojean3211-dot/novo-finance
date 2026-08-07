@@ -27,6 +27,7 @@ import OrcamentoInteligente from "./modules/orcamento-inteligente";
 import EstoqueInteligente from "./modules/estoque-inteligente";
 import ComprasInteligentes from "./modules/compras-inteligentes";
 import FinanceiroCorporativo from "./modules/financeiro-corporativo";
+import ProducaoPcp from "./modules/producao-pcp";
 import ProspeccaoComercial from "./modules/prospeccao-comercial";
 import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
 
@@ -112,6 +113,7 @@ export default function App() {
       {pagina === "orcamentos" && <OrcamentoInteligente empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
       {pagina === "catalogo_inteligente" && <CatalogoInteligente />}
       {pagina === "estoque" && <EstoqueInteligente empresaId={empresaId} userId={session.user.id} />}
+      {pagina === "producao" && <ProducaoPcp empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
       {pagina === "produtos" && <Produtos />}
       {pagina === "fornecedores" && <Fornecedores />}
       {pagina === "financeiro" && <FinanceiroCorporativo empresaId={empresaId} userId={session.user.id} initialTab="overview" />}
