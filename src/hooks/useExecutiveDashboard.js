@@ -12,14 +12,16 @@ const TABLES = {
   pedidos_compra: "id, fornecedor_id, fornecedor_snapshot, status, valor_total, data, previsao",
   financeiro_titulos: "id, tipo, status, vencimento, valor_original, valor_baixado, saldo",
   financeiro_baixas: "id, titulo_id, tipo, valor, data_movimento",
+  crm_oportunidades: "id, etapa, valor_estimado, probabilidade, created_at",
+  orcamentos: "id, status, valor_final, data, created_at",
 };
 const emptyData = Object.fromEntries(Object.keys(TABLES).map((table) => [table, []]));
 
-export default function useExecutiveDashboard(empresaId) {
+export default function useExecutiveDashboard(empresaId, initialPeriod = "month") {
   const [data, setData] = useState(emptyData);
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
-  const [period, setPeriod] = useState("month");
+  const [period, setPeriod] = useState(initialPeriod);
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
 

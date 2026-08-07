@@ -1,5 +1,5 @@
 export function EmptyData() {
-  return <p className="dashboard-empty">Sem dados disponíveis</p>;
+  return <p className="dashboard-empty">Aguardando movimentação.</p>;
 }
 
 export function DashboardPanel({ eyebrow, title, children, className = "" }) {

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 
 import Admin from "./Admin";
 import Dashboard from "./Dashboard";
+import PainelExecutivo from "./PainelExecutivo";
 import Fornecedores from "./Fornecedores.jsx";
 import Login from "./Login";
 import MasterAdmin from "./MasterAdmin";
@@ -101,9 +102,8 @@ export default function App() {
       onNavigate={navigate}
       onLogout={startLogout}
     >
-      {["dashboard", "painel_executivo"].includes(pagina) && (
-        <Dashboard empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />
-      )}
+      {pagina === "dashboard" && <Dashboard empresaId={empresaId} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />}
+      {pagina === "painel_executivo" && <PainelExecutivo empresaId={empresaId} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />}
       {pagina === "recebimentos" && <FinanceiroCorporativo empresaId={empresaId} userId={session.user.id} initialTab="receivable" />}
       {["crm", "clientes"].includes(pagina) && <CrmComercial empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
       {pagina === "prospeccao" && <ProspeccaoComercial />}
