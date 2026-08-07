@@ -3,8 +3,6 @@ import "./App.css";
 import { useRef, useState } from "react";
 
 import Admin from "./Admin";
-import Compras from "./Compras.jsx";
-import ComprasUsuario from "./ComprasUsuario.jsx";
 import Dashboard from "./Dashboard";
 import Financeiro from "./Financeiro.jsx";
 import Fornecedores from "./Fornecedores.jsx";
@@ -28,6 +26,7 @@ import IAComercial from "./modules/ia-comercial";
 import CrmComercial from "./modules/crm-comercial";
 import OrcamentoInteligente from "./modules/orcamento-inteligente";
 import EstoqueInteligente from "./modules/estoque-inteligente";
+import ComprasInteligentes from "./modules/compras-inteligentes";
 import ProspeccaoComercial from "./modules/prospeccao-comercial";
 import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, GastosPessoaisPage, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
 
@@ -123,7 +122,7 @@ export default function App() {
       {pagina === "contas_fixas" && <ContasFixasPessoaisPage empresaId={empresaId} />}
       {pagina === "relatorios_pessoais" && <RelatoriosPessoaisPage />}
       {pagina === "vendas" && (loginMaster ? <Vendas empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} /> : <VendasUsuario empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} />)}
-      {pagina === "compras" && (loginMaster ? <Compras empresaId={empresaId} userId={session.user.id} userEmail={emailLogado} companyName={nomeEmpresa} issuedBy={nomeUsuario} /> : <ComprasUsuario empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} />)}
+      {pagina === "compras" && <ComprasInteligentes empresaId={empresaId} userId={session.user.id} />}
       {paginaRelatorio && (loginMaster ? <Relatorio empresaId={empresaId} /> : <RelatorioUsuario empresaId={empresaId} />)}
       {pagina === "master" && loginMaster && <MasterAdmin />}
       {pagina === "admin" && <Admin />}

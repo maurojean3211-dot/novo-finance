@@ -22,6 +22,10 @@ export default function Dashboard({ empresaId, userId, nomeEmpresa, nomeUsuario,
     { label: "Itens críticos", icon: "!", value: available("estoque", dashboard.estoque.filter((item) => Number(item.estoque_disponivel || 0) <= Number(item.ponto_reposicao || item.estoque_minimo || 0)).length), detail: "No ponto de reposição" },
     { label: "Reservas", icon: "◇", value: available("estoque", dashboard.estoque.reduce((sum, item) => sum + Number(item.estoque_reservado || 0), 0).toLocaleString("pt-BR")), detail: "Quantidade reservada" },
     { label: "Valor do estoque", icon: "R$", value: available("estoque", currency.format(dashboard.estoque.reduce((sum, item) => sum + Number(item.estoque_atual || 0) * Number(item.custo_unitario || 0), 0))), detail: "Custo persistido" },
+    { label: "Valor comprado", icon: "▧", value: available("pedidos_compra", currency.format(dashboard.pedidos_compra.reduce((sum, item) => sum + Number(item.valor_total || 0), 0))), detail: "Pedidos persistentes" },
+    { label: "Pedidos em aberto", icon: "◎", value: available("pedidos_compra", dashboard.pedidos_compra.filter((item) => !["Recebido", "Cancelado"].includes(item.status)).length), detail: "Fluxo de compras" },
+    { label: "Recebimentos pendentes", icon: "!", value: available("pedidos_compra", dashboard.pedidos_compra.filter((item) => ["Comprado", "Recebido parcialmente"].includes(item.status)).length), detail: "Aguardando estoque" },
+    { label: "Fornecedores ativos", icon: "▦", value: available("pedidos_compra", new Set(dashboard.pedidos_compra.map((item) => item.fornecedor_id)).size), detail: "Com pedidos reais" },
   ];
 
   return <main className="executive-dashboard">
