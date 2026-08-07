@@ -1,13 +1,14 @@
 import ExecutivePanel from "./ExecutivePanel";
 
+const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
 export default function OperationalOverview({ data, onNavigate }) {
-  const purchasedWeight = data.compras.reduce((sum, item) => sum + Number(item.kilos || 0), 0);
+  const available = data.sourceAvailable("compras");
   const modules = [
-    { label: "Compras", value: data.compras.length ? `${data.compras.length} registro(s)` : null, page: "compras" },
-    { label: "Catálogo", value: null, page: "catalogo_inteligente" },
-    { label: "Estoque", value: null, page: "estoque", disabled: true },
-    { label: "Produtos", value: null, page: "produtos" },
-    { label: "Movimentações", value: data.lancamentos.length ? `${data.lancamentos.length} registro(s)` : null, page: "financeiro" },
+    ["Total comprado", available && data.compras.length ? currency.format(data.totalCompras) : null],
+    ["Quantidade", available && data.compras.length ? data.compras.length : null],
+    ["Peso total", available && data.compras.length ? `${data.pesoCompras.toLocaleString("pt-BR")} kg` : null],
+    ["Comissão", available && data.compras.length ? currency.format(data.comissaoCompras) : null],
   ];
-  return <ExecutivePanel title="Operação" eyebrow="Materiais e movimentação" icon="▧"><div className="operation-highlight"><span>Volume comprado</span><strong>{purchasedWeight ? `${purchasedWeight.toLocaleString("pt-BR")} kg` : "Sem dados disponíveis"}</strong></div><div className="command-module-list">{modules.map((item) => <button type="button" onClick={() => !item.disabled && onNavigate(item.page)} disabled={item.disabled} key={item.label}><span>{item.label}</span><strong>{item.value ?? "Sem dados disponíveis"}</strong><b>→</b></button>)}</div></ExecutivePanel>;
+  return <ExecutivePanel title="Compras" eyebrow="Aquisições no período" icon="▧"><div className="operation-highlight"><span>Indicadores reais do módulo</span><button type="button" onClick={() => onNavigate("compras")}>Abrir compras →</button></div><div className="command-kpis command-kpis--four">{modules.map(([label, value]) => <article key={label}><span>{label}</span><strong>{value ?? "Sem dados disponíveis"}</strong></article>)}</div></ExecutivePanel>;
 }

@@ -1,10 +1,10 @@
 const actions = [
-  { page: "crm", label: "Abrir CRM", icon: "◎" },
-  { page: "orcamentos", label: "Novo orçamento", icon: "▤" },
-  { page: "vendas", label: "Registrar venda", icon: "↗" },
-  { page: "compras", label: "Registrar compra", icon: "▧" },
-  { page: "financeiro", label: "Fluxo de caixa", icon: "$" },
-  { page: "relatorio", label: "Ver relatórios", icon: "◫" },
+  { page: "vendas", label: "Nova venda", icon: "↗" },
+  { page: "compras", label: "Nova compra", icon: "▧" },
+  { page: "financeiro", label: "Novo lançamento", icon: "$" },
+  { page: "clientes", label: "Clientes", icon: "◎" },
+  { page: "catalogo_inteligente", label: "Catálogo", icon: "▦" },
+  { page: "relatorio", label: "Relatórios", icon: "◫" },
 ];
 
 export default function QuickActions({ onNavigate }) {

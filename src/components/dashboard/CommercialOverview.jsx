@@ -1,13 +1,15 @@
 import ExecutivePanel from "./ExecutivePanel";
 
-export default function CommercialOverview({ data, agenda, onNavigate }) {
-  const prospecting = agenda.activities.filter((item) => item.origin === "Prospecção").length;
+const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+export default function CommercialOverview({ data, onNavigate }) {
+  const available = data.sourceAvailable("vendas");
   const modules = [
-    { label: "CRM", value: null, page: "crm" },
-    { label: "Agenda Comercial", value: agenda.activities.length || null, page: "agenda_comercial" },
-    { label: "Prospecção", value: prospecting || null, page: "prospeccao" },
-    { label: "Orçamentos", value: null, page: "orcamentos" },
-    { label: "Clientes", value: data.clientes.length || null, page: "clientes" },
+    { label: "Vendas", value: available && data.vendas.length ? data.vendas.length : null, page: "vendas" },
+    { label: "Faturamento", value: available && data.vendas.length ? currency.format(data.totalVendas) : null, page: "vendas" },
+    { label: "Ticket médio", value: available && data.vendas.length ? currency.format(data.ticketMedio) : null, page: "vendas" },
+    { label: "Comissão", value: available && data.vendas.length ? currency.format(data.comissaoVendas) : null, page: "vendas" },
+    { label: "Clientes", value: data.sourceAvailable("clientes") ? data.clientes.length : null, page: "clientes" },
   ];
-  return <ExecutivePanel title="Comercial" eyebrow="Relacionamento e vendas" icon="◎"><div className="command-module-list">{modules.map((item) => <button type="button" onClick={() => onNavigate(item.page)} key={item.label}><span>{item.label}</span><strong>{item.value ?? "Sem dados disponíveis"}</strong><b>→</b></button>)}</div></ExecutivePanel>;
+  return <ExecutivePanel title="Comercial" eyebrow="Vendas no período" icon="◎"><div className="command-module-list">{modules.map((item) => <button type="button" onClick={() => onNavigate(item.page)} key={item.label}><span>{item.label}</span><strong>{item.value ?? "Sem dados disponíveis"}</strong><b>→</b></button>)}</div></ExecutivePanel>;
 }

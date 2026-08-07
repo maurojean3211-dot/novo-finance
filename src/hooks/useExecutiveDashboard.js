@@ -1,45 +1,55 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabase";
+import { calculateDashboardMetrics, resolvePeriod } from "../components/dashboard/dashboardMetrics";
 
-const emptyData = { lancamentos: [], vendas: [], compras: [], recebimentos: [], clientes: [] };
-const total = (items, field = "valor") => items.reduce((sum, item) => sum + Number(item[field] || 0), 0);
-const dateOf = (item) => new Date(item.data_lancamento || item.data_venda || item.created_at || item.data || 0);
+const TABLES = {
+  lancamentos: "id, descricao, valor, tipo, data_lancamento, created_at",
+  vendas: "*",
+  compras: "*",
+  recebimentos: "id, cliente_nome, valor, status, data_vencimento, created_at",
+  clientes: "id, nome, created_at",
+};
+const emptyData = Object.fromEntries(Object.keys(TABLES).map((table) => [table, []]));
 
 export default function useExecutiveDashboard(empresaId) {
   const [data, setData] = useState(emptyData);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState({});
+  const [period, setPeriod] = useState("month");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   const refresh = useCallback(async () => {
-    if (!empresaId) { setData(emptyData); setLoading(false); return; }
-    setLoading(true); setError("");
-    const tables = ["lancamentos", "vendas", "compras", "recebimentos", "clientes"];
-    const results = await Promise.all(tables.map((table) => supabase.from(table).select("*").eq("empresa_id", empresaId)));
-    setData(Object.fromEntries(tables.map((table, index) => [table, results[index].data || []])));
-    if (results.some((result) => result.error)) setError("Alguns indicadores não puderam ser carregados.");
+    if (!empresaId) { setData(emptyData); setErrors({}); setLoading(false); return; }
+    setLoading(true);
+    const entries = Object.entries(TABLES);
+    const results = await Promise.all(entries.map(([table, fields]) => supabase.from(table).select(fields).eq("empresa_id", empresaId)));
+    const nextData = {};
+    const nextErrors = {};
+    entries.forEach(([table], index) => {
+      const result = results[index];
+      if (result.error) {
+        nextData[table] = [];
+        nextErrors[table] = result.error.message || "Falha na consulta";
+      } else nextData[table] = result.data || [];
+    });
+    setData(nextData);
+    setErrors(nextErrors);
     setLoading(false);
   }, [empresaId]);
 
-  useEffect(() => {
-    const timer = window.setTimeout(refresh, 0);
-    return () => window.clearTimeout(timer);
-  }, [refresh]);
+  useEffect(() => { const timer = window.setTimeout(refresh, 0); return () => window.clearTimeout(timer); }, [refresh]);
 
   return useMemo(() => {
-    const receitas = data.lancamentos.filter((item) => item.tipo === "receita");
-    const despesas = data.lancamentos.filter((item) => item.tipo !== "receita");
-    const pendentes = data.recebimentos.filter((item) => !["pago", "recebido"].includes(String(item.status || "").toLowerCase()));
-    const recent = [...data.lancamentos].sort((a, b) => dateOf(b) - dateOf(a)).slice(0, 6);
-    const now = new Date();
-    const salesThisMonth = data.vendas.filter((item) => { const date = dateOf(item); return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear(); });
-    const hasData = Object.values(data).some((items) => items.length);
-    return { ...data, loading, error, refresh, recent, metrics: hasData ? [
-      { label: "Faturamento no mês", value: total(salesThisMonth), detail: `${salesThisMonth.length} venda(s)`, icon: "↗", currency: true },
-      { label: "Entradas", value: total(receitas), detail: `${receitas.length} lançamento(s)`, icon: "＋", currency: true },
-      { label: "Saídas", value: total(despesas), detail: `${despesas.length} lançamento(s)`, icon: "−", currency: true },
-      { label: "Saldo atual", value: total(receitas) - total(despesas), detail: "Entradas menos saídas", icon: "$", currency: true },
-      { label: "Contas a receber", value: total(pendentes), detail: `${pendentes.length} pendência(s)`, icon: "◷", currency: true },
-      { label: "Clientes", value: data.clientes.length, detail: "Cadastros existentes", icon: "◎" },
-    ] : [] };
-  }, [data, error, loading, refresh]);
+    const range = resolvePeriod(period, customStart, customEnd);
+    const calculated = calculateDashboardMetrics(data, range);
+    const allRevenues = data.lancamentos.filter((item) => item.tipo === "receita").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+    const allExpenses = data.lancamentos.filter((item) => item.tipo === "despesa").reduce((sum, item) => sum + Number(item.valor || 0), 0);
+    return {
+      ...data, ...calculated, loading, errors, error: Object.keys(errors).length ? "Algumas fontes não puderam ser carregadas." : "", refresh,
+      period, setPeriod, customStart, setCustomStart, customEnd, setCustomEnd, range,
+      saldoAtual: allRevenues - allExpenses,
+      sourceAvailable: (table) => !errors[table],
+    };
+  }, [customEnd, customStart, data, errors, loading, period, refresh]);
 }
