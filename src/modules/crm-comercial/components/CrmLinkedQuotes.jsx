@@ -1,10 +1,4 @@
-import { StatusPanel } from "../../../components/operations/OperationsUI";
-
-const quotes = [
-  { id: "ORC-2026-0142", empresa: "Metalúrgica Horizonte", oportunidade: "Tarugo de alumínio", status: "Em negociação", valor: "R$ 286.400" },
-  { id: "ORC-2026-0140", empresa: "Fundição Vale Verde", oportunidade: "Lingote e sucata", status: "Enviado ao cliente", valor: "R$ 98.500" },
-];
-
-export default function CrmLinkedQuotes() {
-  return <section className="ops-panel"><div className="ops-panel__header"><h2>Orçamentos vinculados</h2><span>Base arquitetural local</span></div><StatusPanel>A vinculação persistente CRM → Orçamento permanece preparada para uma etapa futura. Nenhuma consulta ou gravação nova é executada aqui.</StatusPanel><div className="crm-linked-quotes">{quotes.map((quote) => <article key={quote.id}><div><small>{quote.id}</small><strong>{quote.empresa}</strong><span>{quote.oportunidade}</span></div><div><b>{quote.valor}</b><span>{quote.status}</span></div></article>)}</div></section>;
-}
+import { useEffect, useState } from "react";
+import { listQuotes } from "../../orcamento-inteligente/services/orcamentoPersistence.service";
+const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export default function CrmLinkedQuotes({ empresaId }) { const [quotes,setQuotes]=useState([]); const [error,setError]=useState(""); useEffect(()=>{let active=true;listQuotes(empresaId).then((data)=>active&&setQuotes(data.filter((item)=>item.oportunidadeId))).catch((reason)=>active&&setError(reason.message));return()=>{active=false}},[empresaId]); return <section className="ops-panel"><div className="ops-panel__header"><h2>Orçamentos vinculados</h2><span>Persistência CRM → Orçamento</span></div>{error&&<div className="ops-status-panel">{error}</div>}<div className="crm-linked-quotes">{quotes.map((quote)=><article key={quote.id}><div><small>{quote.numero}</small><strong>{quote.cliente}</strong><span>Oportunidade {quote.oportunidadeId}</span></div><div><b>{money(quote.valor)}</b><span>{quote.status}</span></div></article>)}</div>{!quotes.length&&!error&&<p>Nenhum orçamento vinculado.</p>}</section>; }

@@ -1,3 +1,3 @@
-export const QUOTE_STATUSES = ["Rascunho", "Aguardando análise", "Materiais identificados", "Pendência de correspondência", "Aguardando preço", "Aguardando aprovação", "Aprovado internamente", "Enviado ao cliente", "Em negociação", "Aceito", "Recusado", "Vencido", "Convertido em venda", "Cancelado"];
-export const OPEN_QUOTE_STATUSES = QUOTE_STATUSES.slice(0, 9);
-export const EMPTY_QUOTE = { clienteId: null, clienteSnapshot: null, cliente: "", contato: "", oportunidade: "", vendedor: "", moeda: "BRL", validade: "", condicaoPagamento: "28 dias", prazoEntrega: "15 dias", modalidadeFrete: "CIF", observacoesInternas: "", observacoesCliente: "", status: "Rascunho", origem: "Manual", items: [] };
+export const QUOTE_STATUSES = ["Rascunho", "Em elaboração", "Enviado", "Aprovado", "Rejeitado", "Cancelado"];
+export const OPEN_QUOTE_STATUSES = ["Rascunho", "Em elaboração", "Enviado"];
+export const EMPTY_QUOTE = { clienteId: null, clienteSnapshot: null, cliente: "", contato: "", oportunidadeId: null, oportunidade: "", vendedor: "", moeda: "BRL", data: new Date().toISOString().slice(0, 10), validade: "", condicaoPagamento: "28 dias", prazoEntrega: "15 dias", modalidadeFrete: "CIF", observacoesInternas: "", observacoesCliente: "", desconto: 0, impostos: 0, status: "Rascunho", origem: "Manual", items: [] };

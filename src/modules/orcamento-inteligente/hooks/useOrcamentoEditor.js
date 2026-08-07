@@ -5,7 +5,7 @@ import { EMPTY_QUOTE_ITEM } from "../types/orcamento-item";
 
 export default function useOrcamentoEditor(initial) {
   const [quote, setQuote] = useState(() => initial
-    ? { ...initial, clienteSnapshot: initial.clienteSnapshot ? { ...initial.clienteSnapshot } : null, items: initial.items.map((item) => ({ ...item })) }
+    ? { ...EMPTY_QUOTE, ...initial, clienteSnapshot: initial.clienteSnapshot ? { ...initial.clienteSnapshot } : null, items: (initial.items || []).map((item) => ({ ...item })) }
     : { ...EMPTY_QUOTE, items: [] });
 
   const update = (field, value) => setQuote((current) => ({ ...current, [field]: value }));

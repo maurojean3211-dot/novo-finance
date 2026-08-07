@@ -12,7 +12,7 @@ import "../crm-comercial.css";
 
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-export default function CrmComercialPage({ empresaId, userId }) {
+export default function CrmComercialPage({ empresaId, userId, onNavigate }) {
   const crm = useCrm({ empresaId, userId });
   const [view, setView] = useState("board");
   const [workspace, setWorkspace] = useState("opportunities");
@@ -30,7 +30,7 @@ export default function CrmComercialPage({ empresaId, userId }) {
     {crm.error && <div className="ops-status-panel">{crm.error} A migration local da Fase 16 precisa ser aplicada ao Supabase.</div>}
     <nav className="crm-workspace-tabs"><button className={workspace === "opportunities" ? "active" : ""} onClick={() => setWorkspace("opportunities")}>Oportunidades</button><button className={workspace === "customers" ? "active" : ""} onClick={() => setWorkspace("customers")}>Empresas e contatos</button><button className={workspace === "quotes" ? "active" : ""} onClick={() => setWorkspace("quotes")}>Orçamentos vinculados</button></nav>
     {workspace === "customers" && <CrmCustomerBase />}
-    {workspace === "quotes" && <CrmLinkedQuotes />}
+    {workspace === "quotes" && <CrmLinkedQuotes empresaId={empresaId} />}
     {workspace === "opportunities" && <>
     <MetricGrid items={[
       { label: "Oportunidades abertas", value: crm.metrics.abertas, detail: "em etapas ativas", icon: "◇" },
@@ -45,7 +45,7 @@ export default function CrmComercialPage({ empresaId, userId }) {
     <div className="crm-viewbar"><div><strong>Painel de oportunidades</strong><span>{crm.filtered.length} oportunidade(s)</span></div><div><button className={view === "board" ? "active" : ""} onClick={() => setView("board")}>Funil</button><button className={view === "table" ? "active" : ""} onClick={() => setView("table")}>Tabela</button></div></div>
     {crm.loading ? <div className="ops-status-panel">Carregando oportunidades persistentes...</div> : view === "board" ? <OpportunityBoard opportunities={crm.filtered} onSelect={(item) => setSelectedId(item.id)} onMove={crm.moveOpportunity} /> : <OpportunityTable opportunities={crm.filtered} onSelect={(item) => setSelectedId(item.id)} onMove={crm.moveOpportunity} />}
     {modalOpen && <OpportunityModal opportunity={editing} onClose={() => setModalOpen(false)} onSave={save} />}
-    {selected && !modalOpen && <OpportunityDetails opportunity={selected} onClose={() => setSelectedId(null)} onEdit={openEdit} onAddActivity={crm.addActivity} onDelete={async () => { await crm.removeOpportunity(selected.id); setSelectedId(null); }} />}
+    {selected && !modalOpen && <OpportunityDetails opportunity={selected} onClose={() => setSelectedId(null)} onEdit={openEdit} onCreateQuote={(opportunity)=>{if(!window.confirm("Preparar um orçamento vinculado a esta oportunidade? A gravação ocorrerá somente após sua revisão e confirmação."))return;sessionStorage.setItem("cunha-finance:quote-draft",JSON.stringify({clienteId:opportunity.clienteId,cliente:opportunity.empresa,contato:opportunity.contatoPrincipal,oportunidadeId:opportunity.id,oportunidade:opportunity.produtoInteresse,clienteSnapshot:{clienteId:opportunity.clienteId,nome:opportunity.empresa,contatoResponsavel:opportunity.contatoPrincipal,telefone:opportunity.telefone,whatsapp:opportunity.whatsapp,email:opportunity.email,cidade:opportunity.cidade,estado:opportunity.estado},observacoesCliente:opportunity.observacoes||"",items:[]}));onNavigate?.("orcamentos")}} onAddActivity={crm.addActivity} onDelete={async () => { await crm.removeOpportunity(selected.id); setSelectedId(null); }} />}
     </>}
   </main>;
 }
