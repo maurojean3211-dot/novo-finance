@@ -4,12 +4,10 @@ import { useRef, useState } from "react";
 
 import Admin from "./Admin";
 import Dashboard from "./Dashboard";
-import Financeiro from "./Financeiro.jsx";
 import Fornecedores from "./Fornecedores.jsx";
 import Login from "./Login";
 import MasterAdmin from "./MasterAdmin";
 import Produtos from "./Produtos.jsx";
-import ContasReceber from "./ContasReceber.jsx";
 import Relatorio from "./Relatorio.jsx";
 import RelatorioUsuario from "./RelatorioUsuario.jsx";
 import Vendas from "./Vendas.jsx";
@@ -27,8 +25,9 @@ import CrmComercial from "./modules/crm-comercial";
 import OrcamentoInteligente from "./modules/orcamento-inteligente";
 import EstoqueInteligente from "./modules/estoque-inteligente";
 import ComprasInteligentes from "./modules/compras-inteligentes";
+import FinanceiroCorporativo from "./modules/financeiro-corporativo";
 import ProspeccaoComercial from "./modules/prospeccao-comercial";
-import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, GastosPessoaisPage, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
+import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
 
 export default function App() {
   const { session, loadingSession, empresaId, permissoes, nomeUsuario, sair } = useAuth();
@@ -105,7 +104,7 @@ export default function App() {
       {["dashboard", "painel_executivo"].includes(pagina) && (
         <Dashboard empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />
       )}
-      {pagina === "recebimentos" && <ContasReceber empresaId={empresaId} />}
+      {pagina === "recebimentos" && <FinanceiroCorporativo empresaId={empresaId} userId={session.user.id} initialTab="receivable" />}
       {["crm", "clientes"].includes(pagina) && <CrmComercial empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
       {pagina === "prospeccao" && <ProspeccaoComercial />}
       {pagina === "agenda_comercial" && <AgendaComercial empresaId={empresaId} userId={session.user.id} />}
@@ -115,10 +114,10 @@ export default function App() {
       {pagina === "estoque" && <EstoqueInteligente empresaId={empresaId} userId={session.user.id} />}
       {pagina === "produtos" && <Produtos />}
       {pagina === "fornecedores" && <Fornecedores />}
-      {pagina === "financeiro" && <Financeiro empresaId={empresaId} />}
+      {pagina === "financeiro" && <FinanceiroCorporativo empresaId={empresaId} userId={session.user.id} initialTab="overview" />}
       {pagina === "financeiro_pessoal" && <FinanceiroPessoalDashboard />}
       {pagina === "receitas_pessoais" && <ReceitasPessoaisPage />}
-      {pagina === "contas_pagar" && <GastosPessoaisPage empresaId={empresaId} />}
+      {pagina === "contas_pagar" && <FinanceiroCorporativo empresaId={empresaId} userId={session.user.id} initialTab="payable" />}
       {pagina === "contas_fixas" && <ContasFixasPessoaisPage empresaId={empresaId} />}
       {pagina === "relatorios_pessoais" && <RelatoriosPessoaisPage />}
       {pagina === "vendas" && (loginMaster ? <Vendas empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} /> : <VendasUsuario empresaId={empresaId} userId={session.user.id} companyName={nomeEmpresa} issuedBy={nomeUsuario} />)}

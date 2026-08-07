@@ -10,6 +10,18 @@ const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "
 export default function Dashboard({ empresaId, userId, nomeEmpresa, nomeUsuario, onNavigate }) {
   const dashboard = useExecutiveDashboard(empresaId);
   const available = (table, value, empty = "Sem dados disponíveis") => dashboard.sourceAvailable(table) ? value : empty;
+  const financialTitles = dashboard.financeiro_titulos.filter((item) => item.status !== "Cancelado");
+  const payable = financialTitles.filter((item) => item.tipo === "Pagar").reduce((sum, item) => sum + Number(item.saldo || 0), 0);
+  const receivable = financialTitles.filter((item) => item.tipo === "Receber").reduce((sum, item) => sum + Number(item.saldo || 0), 0);
+  const today = new Date().toISOString().slice(0, 10);
+  const overdue = financialTitles.filter((item) => Number(item.saldo || 0) > 0 && item.vencimento < today).reduce((sum, item) => sum + Number(item.saldo || 0), 0);
+  const titleType = new Map(financialTitles.map((item) => [item.id, item.tipo]));
+  const month = today.slice(0, 7);
+  const monthlyFlow = dashboard.financeiro_baixas.filter((item) => String(item.data_movimento).startsWith(month)).reduce((sum, item) => {
+    const direction = titleType.get(item.titulo_id) === "Receber" ? 1 : -1;
+    const reversal = item.tipo === "Estorno" ? -1 : 1;
+    return sum + Number(item.valor || 0) * direction * reversal;
+  }, 0);
   const metrics = [
     { label: "Total vendido", icon: "↗", value: available("vendas", dashboard.vendas.length ? currency.format(dashboard.totalVendas) : "Sem dados disponíveis"), detail: `${dashboard.vendas.length} venda(s) no período`, featured: true },
     { label: "Ticket médio", icon: "◇", value: available("vendas", dashboard.vendas.length ? currency.format(dashboard.ticketMedio) : "Sem dados disponíveis"), detail: "Média por venda" },
@@ -26,6 +38,11 @@ export default function Dashboard({ empresaId, userId, nomeEmpresa, nomeUsuario,
     { label: "Pedidos em aberto", icon: "◎", value: available("pedidos_compra", dashboard.pedidos_compra.filter((item) => !["Recebido", "Cancelado"].includes(item.status)).length), detail: "Fluxo de compras" },
     { label: "Recebimentos pendentes", icon: "!", value: available("pedidos_compra", dashboard.pedidos_compra.filter((item) => ["Comprado", "Recebido parcialmente"].includes(item.status)).length), detail: "Aguardando estoque" },
     { label: "Fornecedores ativos", icon: "▦", value: available("pedidos_compra", new Set(dashboard.pedidos_compra.map((item) => item.fornecedor_id)).size), detail: "Com pedidos reais" },
+    { label: "Contas a pagar", icon: "↘", value: available("financeiro_titulos", currency.format(payable)), detail: "Saldo corporativo em aberto" },
+    { label: "Contas a receber", icon: "↗", value: available("financeiro_titulos", currency.format(receivable)), detail: "Saldo corporativo em aberto" },
+    { label: "Títulos vencidos", icon: "!", value: available("financeiro_titulos", currency.format(overdue)), detail: "Pagar e receber vencidos" },
+    { label: "Saldo projetado", icon: "◇", value: available("financeiro_titulos", currency.format(receivable - payable)), detail: "Recebíveis menos compromissos" },
+    { label: "Fluxo do mês", icon: "$", value: available("financeiro_baixas", currency.format(monthlyFlow)), detail: "Baixas realizadas no mês" },
   ];
 
   return <main className="executive-dashboard">
