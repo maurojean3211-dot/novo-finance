@@ -4,14 +4,16 @@ import useProducao from "../hooks/useProducao";
 import {
   PRODUCTION_STATUSES, addMaterial, budgetDraft, changeOrderStatus, consumeMaterial,
   createOrder, finishProduct, materialAvailability, preparePurchaseNeed, queuePurchaseNeed,
-  recordProduction, releaseMaterial, reserveMaterial, reverseConsumption, saleDraft,
+  recordProduction, releaseMaterial, reserveMaterial, reverseConsumption, saleDraft, saveAdditionalCost,
 } from "../services/producao.service";
 import "../producao.css";
 import "../fase22.css";
+import "../fase23.css";
 
 const today = () => new Date().toISOString().slice(0, 10);
 const nowTime = () => new Date().toTimeString().slice(0, 5);
 const number = (value) => Number(value || 0);
+const money = (value) => value === null || value === undefined ? "Dados insuficientes" : Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const emptyOrder = () => ({ client: "", product: "", description: "", alloy: "", temper: "", dimension: "", quantity: "", unit: "kg", weight: "", start: today(), end: "", priority: "Média", responsible: "", notes: "" });
 const emptyFilters = { status: "", priority: "", client: "", start: "", end: "" };
 
@@ -57,6 +59,10 @@ export default function ProducaoPage({ empresaId, userId, onNavigate }) {
     { label: "Peso produzido", value: `${manager.producedWeight.toLocaleString("pt-BR")} kg`, detail: "produção real", icon: "◎" },
     { label: "Perdas", value: manager.losses.toLocaleString("pt-BR"), detail: "refugo apontado", icon: "×", tone: "amber" },
     { label: "Materiais faltantes", value: manager.missing.length, detail: "necessidade de compra", icon: "▧", tone: "rose" },
+    { label: "Custo previsto aberto", value: money(manager.plannedOpenCost), detail: manager.plannedOpenPartial ? `Dados parciais · ${manager.knownPlannedCount}/${manager.open.length} OPs` : "todas as OPs abertas", icon: "R$", tone: manager.plannedOpenPartial ? "amber" : undefined },
+    { label: "Custo realizado aberto", value: money(manager.actualOpenCost), detail: manager.actualOpenPartial ? `Dados parciais · ${manager.knownActualCount}/${manager.open.length} OPs` : "materiais e custos manuais", icon: "◇", tone: manager.actualOpenPartial ? "amber" : undefined },
+    { label: "Variação de custo", value: money(manager.openCostVariation), detail: manager.variationOpenPartial ? `Dados parciais · ${manager.knownDifferenceCount}/${manager.open.length} OPs` : "realizado menos previsto", icon: "↕", tone: manager.openCostVariation > 0 ? "rose" : undefined },
+    { label: "Acima do previsto", value: manager.overBudget, detail: manager.variationOpenPartial ? "contagem parcial das OPs abertas" : "OPs abertas com variação positiva", icon: "!", tone: manager.overBudget ? "rose" : undefined },
   ];
   return <main className="ops-page production-page">
     <ModuleHeader eyebrow="Operação industrial" title="Produção e PCP" description="Ordens, materiais, apontamentos e planejamento conectados ao estoque real." actionLabel="Nova OP" onAction={() => setForm(emptyOrder())} />
@@ -119,16 +125,58 @@ function ProductionEntryModal({ loss, onClose, onSubmit, busy }) {
 
 function OrderDetails({ order, manager, empresaId, userId, stockById, busy, run, onClose, onNavigate }) {
   const [entryType, setEntryType] = useState(null);
+  const [costForm, setCostForm] = useState(null);
+  const costs = manager.costsByOrder.get(order.id);
   async function status(value) { if (window.confirm(`Confirmar mudança da ${order.numero_op} para ${value}?`)) await run(() => changeOrderStatus({ empresaId, userId, order, status: value }), `OP atualizada para ${value}.`); }
   async function add() { const id = window.prompt("ID do item de estoque (copie da lista exibida):", manager.stock[0]?.id || ""); const stock = manager.stock.find((item) => item.id === id); if (!stock) return; const quantity = window.prompt(`Quantidade prevista de ${stock.codigo}:`, "1"); if (quantity && window.confirm("Adicionar este material ao planejamento da OP?")) await run(() => addMaterial({ empresaId, userId, orderId: order.id, stock, quantity }), "Material adicionado ao planejamento."); }
   async function point(entry) { if (number(entry.quantity) <= 0) return; if (!window.confirm("Confirmar este apontamento imutável?")) return; if (await run(() => recordProduction({ empresaId, userId, order, entry }), entry.type === "Perda" ? "Perda registrada." : "Produção apontada.")) setEntryType(null); }
   return <div className="production-overlay"><aside className="production-details"><header><div><small>{order.status}</small><h2>{order.numero_op}</h2><p>{order.produto} · {order.cliente_nome || "produção interna"}</p></div><button onClick={onClose}>×</button></header>
     <section className="production-status"><select value={order.status} onChange={(event) => status(event.target.value)} disabled={busy}>{PRODUCTION_STATUSES.map((item) => <option key={item}>{item}</option>)}</select><button disabled={!['Em produção', 'Pausada'].includes(order.status) || busy} onClick={() => setEntryType("production")}>Apontar produção</button><button disabled={!['Em produção', 'Pausada'].includes(order.status) || busy} onClick={() => setEntryType("loss")}>Registrar perda</button></section>
     <section><div className="production-section-title"><h3>Materiais</h3><button onClick={add}>Adicionar do estoque</button></div><div className="production-stock-reference">{manager.stock.slice(0, 8).map((item) => <small key={item.id}>{item.id} · {item.codigo} · disponível {item.estoque_disponivel}</small>)}</div>{!(order.ordem_producao_materiais || []).length && <p>Dados insuficientes: nenhum material foi planejado para esta OP.</p>}{(order.ordem_producao_materiais || []).map((item) => <MaterialRow key={item.id} item={item} order={order} manager={manager} empresaId={empresaId} userId={userId} stock={stockById.get(item.estoque_id)} run={run} onNavigate={onNavigate} />)}</section>
+    <ProductionCosts order={order} costs={costs} onAdd={() => setCostForm({ type: "Mão de obra", description: "", value: "", date: today(), notes: "" })} onEdit={(cost) => setCostForm({ id: cost.id, type: cost.tipo, description: cost.descricao, value: cost.valor, date: cost.data, notes: cost.observacoes || "" })} />
     <section><h3>Produto acabado</h3><button disabled={order.status !== "Concluída" || order.entrada_produto_acabado_em || busy} onClick={async () => { const stockId = window.prompt("ID do item de estoque do produto acabado:", manager.stock.find((item) => String(item.produto_id) === String(order.produto_id))?.id || ""); const quantity = window.prompt("Quantidade de entrada:", String(order.quantidade_produzida)); if (stockId && quantity && window.confirm("Confirmar entrada única do produto acabado?")) await run(() => finishProduct({ empresaId, orderId: order.id, stockId, quantity }), "Produto acabado recebido no estoque."); }}>{order.entrada_produto_acabado_em ? "Entrada já realizada" : "Confirmar entrada no estoque"}</button></section>
     <section><h3>Apontamentos e histórico</h3><div className="production-history">{[...(order.ordem_producao_apontamentos || []), ...(order.ordem_producao_historico || [])].sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).map((item) => <p key={item.id}><strong>{item.tipo}</strong> · {item.descricao || item.observacoes || "Evento registrado"}<small>{new Date(item.created_at).toLocaleString("pt-BR")}</small></p>)}</div></section>
     {entryType && <ProductionEntryModal loss={entryType === "loss"} onClose={() => setEntryType(null)} onSubmit={point} busy={busy} />}
+    {costForm && <AdditionalCostModal cost={costForm} setCost={setCostForm} busy={busy} onClose={() => setCostForm(null)} onSave={async () => { if (!window.confirm("Confirmar este custo adicional manual? Nenhum lançamento financeiro será criado.")) return; if (await run(() => saveAdditionalCost({ empresaId, userId, orderId: order.id, cost: costForm }), costForm.id ? "Custo adicional atualizado." : "Custo adicional registrado.")) setCostForm(null); }} />}
   </aside></div>;
+}
+
+function DataValue({ label, value, tone }) { return <article className={tone || ""}><span>{label}</span><strong>{value}</strong></article>; }
+
+function ProductionCosts({ order, costs, onAdd, onEdit }) {
+  if (!costs) return <section><h3>Custos da Produção</h3><p>Dados insuficientes.</p></section>;
+  const lossAlert = costs.lossRate !== null && costs.lossRate > 5;
+  const end = order.data_prevista_fim ? new Date(`${order.data_prevista_fim}T12:00:00`) : null;
+  const schedule = end ? Math.ceil((end - new Date()) / 86400000) : null;
+  const losses = (order.ordem_producao_apontamentos || []).filter((item) => item.tipo === "Perda");
+  return <section className="production-costs"><div className="production-section-title"><div><h3>Custos da Produção</h3><small>Valores reais disponíveis no estoque e custos informados manualmente.</small></div><button onClick={onAdd}>Adicionar custo manual</button></div>
+    <div className="production-cost-metrics">
+      <DataValue label="Custo previsto" value={money(costs.plannedMaterials)} />
+      <DataValue label="Custo realizado" value={money(costs.totalActual)} />
+      <DataValue label="Diferença" value={money(costs.difference)} tone={costs.difference > 0 ? "alert" : ""} />
+      <DataValue label="Custo real/unidade" value={money(costs.actualUnit)} />
+      <DataValue label="Progresso físico" value={costs.progress === null ? "Dados insuficientes" : `${costs.progress.toFixed(1)}%`} />
+      <DataValue label="Perda/refugo" value={costs.lossRate === null ? "Dados insuficientes" : `${costs.lossRate.toFixed(1)}%`} tone={lossAlert ? "alert" : ""} />
+    </div>
+    <div className="production-efficiency"><span>Planejado x produzido: {costs.plannedQuantity} x {costs.producedQuantity} {order.unidade}</span><span>{schedule === null ? "Prazo: Dados insuficientes" : schedule < 0 ? `${Math.abs(schedule)} dia(s) em atraso` : `${schedule} dia(s) até a conclusão prevista`}</span><span>Variação: {costs.differencePercent === null ? "Dados insuficientes" : `${costs.differencePercent.toFixed(1)}%`}</span></div>
+    <h4>Materiais</h4><div className="production-cost-list">{costs.materials.length ? costs.materials.map((item) => <article key={item.id}><div><strong>{item.material}</strong><small>Previsto {item.plannedQuantity} · consumido {item.consumedQuantity} {item.unidade}</small></div><span>{item.unitCost === null ? "Custo não informado" : `${money(item.unitCost)}/${item.unidade}`}</span><b>{money(item.actualCost)}</b></article>) : <p>Dados insuficientes: nenhum material planejado.</p>}</div>
+    <h4>Custos adicionais manuais</h4><div className="production-cost-list">{(order.ordem_producao_custos || []).length ? order.ordem_producao_custos.map((item) => <article key={item.id}><div><strong>{item.tipo} · {item.descricao}</strong><small>{item.data} · {item.observacoes || "Sem observação"}</small></div><b>{money(item.valor)}</b><button onClick={() => onEdit(item)}>Editar</button></article>) : <p>Nenhum custo adicional informado.</p>}</div>
+    <div className="production-cost-totals"><DataValue label="Materiais realizados" value={money(costs.actualMaterials)} /><DataValue label="Custos adicionais" value={money(costs.additional)} /><DataValue label="Custo total da OP" value={money(costs.totalActual)} /><DataValue label="Custo previsto/unidade" value={money(costs.plannedUnit)} /><DataValue label="Diferença unitária" value={money(costs.unitDifference)} /></div>
+    <h4>Origem comercial — somente leitura</h4><div className="production-cost-totals"><DataValue label="Valor comercial" value={money(costs.commercialValue)} /><DataValue label="Margem estimada" value={money(costs.estimatedMargin)} /><DataValue label="Margem operacional" value={money(costs.operationalMargin)} /></div>
+    <h4>Perdas e refugos</h4>{losses.length ? <div className="production-losses">{losses.map((item) => <p key={item.id}><strong>{item.motivo_perda || "Motivo não informado"}</strong><span>{item.quantidade} · {new Date(item.ocorrido_em || item.created_at).toLocaleString("pt-BR")}</span><small>{item.observacoes || "Sem observação"}</small></p>)}</div> : <p>Nenhuma perda ou refugo apontado.</p>}
+  </section>;
+}
+
+function AdditionalCostModal({ cost, setCost, busy, onClose, onSave }) {
+  const update = (key) => (event) => setCost((current) => ({ ...current, [key]: event.target.value }));
+  return <OperationModal title="Custo adicional manual" editing={Boolean(cost.id)} onClose={onClose} onSubmit={onSave} submitLabel="Confirmar custo" disabled={busy}>
+    <label className="ops-field"><span>Tipo</span><select value={cost.type} onChange={update("type")}>{["Mão de obra", "Energia", "Máquina/equipamento", "Terceiros", "Transporte interno", "Outros custos operacionais"].map((item) => <option key={item}>{item}</option>)}</select></label>
+    <label className="ops-field"><span>Descrição</span><input value={cost.description} onChange={update("description")} /></label>
+    <label className="ops-field"><span>Valor</span><input type="number" min="0.01" step="0.01" value={cost.value} onChange={update("value")} /></label>
+    <label className="ops-field"><span>Data</span><input type="date" value={cost.date} onChange={update("date")} /></label>
+    <label className="ops-field ops-field--wide"><span>Observação</span><textarea value={cost.notes} onChange={update("notes")} /></label>
+    <div className="ops-preview">Registro operacional manual. Não cria contas a pagar nem altera o Financeiro.</div>
+  </OperationModal>;
 }
 
 function MaterialRow({ item, order, manager, empresaId, userId, stock, run, onNavigate }) {

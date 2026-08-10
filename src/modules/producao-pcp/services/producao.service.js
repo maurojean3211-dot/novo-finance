@@ -7,11 +7,11 @@ const company = (value) => String(value);
 export async function loadProduction(empresaId) {
   const id = company(empresaId);
   const [orders, stock, movements, sales, budgets] = await Promise.all([
-    supabase.from("ordens_producao").select("*,ordem_producao_materiais(*),ordem_producao_apontamentos(*),ordem_producao_historico(*)").eq("empresa_id", id).order("created_at", { ascending: false }),
+    supabase.from("ordens_producao").select("*,ordem_producao_materiais(*),ordem_producao_apontamentos(*),ordem_producao_historico(*),ordem_producao_custos(*)").eq("empresa_id", id).order("created_at", { ascending: false }),
     supabase.from("estoque").select("*").eq("empresa_id", id).order("descricao"),
     supabase.from("estoque_movimentacoes").select("*").eq("empresa_id", id).eq("origem", "Produção").order("created_at", { ascending: false }).limit(300),
     supabase.from("vendas").select("id,cliente_nome,produto,kilos,valor,data_venda").eq("empresa_id", id).order("data_venda", { ascending: false }).limit(100),
-    supabase.from("orcamentos").select("id,numero,status,cliente_id,cliente_snapshot,validade,orcamento_itens(*)").eq("empresa_id", id).eq("status", "Aprovado").order("created_at", { ascending: false }).limit(100),
+    supabase.from("orcamentos").select("id,numero,status,cliente_id,cliente_snapshot,validade,valor_final,orcamento_itens(*)").eq("empresa_id", id).eq("status", "Aprovado").order("created_at", { ascending: false }).limit(100),
   ]);
   const coreError = [orders, stock, movements].find((item) => item.error)?.error;
   if (coreError) throw coreError;
@@ -88,6 +88,48 @@ export async function resolvePurchaseNeed({ empresaId, userId, orderId, material
   const { error } = await supabase.from("ordem_producao_materiais").update({ necessidade_compra: false, updated_at: new Date().toISOString() }).eq("id", materialId).eq("ordem_id", orderId).eq("empresa_id", company(empresaId)).select("id").single();
   if (error) throw error;
   await addHistory({ empresaId, userId, orderId, type: "Compra", description: "Necessidade de compra tratada após confirmação humana em Compras Inteligentes.", data: { materialId } });
+}
+
+export async function saveAdditionalCost({ empresaId, userId, orderId, cost }) {
+  const payload = { ordem_id: orderId, empresa_id: company(empresaId), user_id: userId, tipo: cost.type, descricao: String(cost.description || "").trim(), valor: n(cost.value), data: cost.date, observacoes: String(cost.notes || "").trim() || null, updated_at: new Date().toISOString() };
+  if (!payload.descricao || payload.valor <= 0 || !payload.data) throw new Error("Descrição, valor positivo e data são obrigatórios.");
+  const query = cost.id ? supabase.from("ordem_producao_custos").update(payload).eq("id", cost.id).eq("ordem_id", orderId).eq("empresa_id", company(empresaId)) : supabase.from("ordem_producao_custos").insert(payload);
+  const { data, error } = await query.select("id").single();
+  if (error) throw error;
+  await addHistory({ empresaId, userId, orderId, type: "Edição", description: cost.id ? `Custo adicional alterado: ${payload.descricao}.` : `Custo adicional incluído: ${payload.descricao}.`, data: { custoId: data.id, tipo: payload.tipo, valor: payload.valor } });
+  return data.id;
+}
+
+export function productionCosts(order, stockById, sale, budget) {
+  const materials = (order.ordem_producao_materiais || []).map((material) => {
+    const stock = stockById.get(material.estoque_id);
+    const unitCost = n(stock?.custo_unitario);
+    const plannedQuantity = n(material.quantidade_prevista);
+    const consumedQuantity = n(material.quantidade_consumida);
+    const hasCost = unitCost > 0;
+    return { ...material, unitCost: hasCost ? unitCost : null, plannedQuantity, consumedQuantity, plannedCost: hasCost ? plannedQuantity * unitCost : null, actualCost: hasCost ? consumedQuantity * unitCost : null };
+  });
+  const missingPlannedCosts = materials.filter((item) => item.plannedQuantity > 0 && item.unitCost === null);
+  const missingActualCosts = materials.filter((item) => item.consumedQuantity > 0 && item.unitCost === null);
+  const hasMaterials = materials.length > 0;
+  const plannedMaterials = !hasMaterials || missingPlannedCosts.length ? null : materials.reduce((sum, item) => sum + n(item.plannedCost), 0);
+  const actualMaterials = !hasMaterials || missingActualCosts.length ? null : materials.reduce((sum, item) => sum + n(item.actualCost), 0);
+  const additional = (order.ordem_producao_custos || []).reduce((sum, item) => sum + n(item.valor), 0);
+  const totalActual = actualMaterials === null ? null : actualMaterials + additional;
+  const plannedQuantity = n(order.quantidade_planejada);
+  const producedQuantity = n(order.quantidade_produzida);
+  const lostQuantity = n(order.quantidade_perdida);
+  const progress = plannedQuantity > 0 ? Math.min(100, producedQuantity / plannedQuantity * 100) : null;
+  const lossRate = producedQuantity + lostQuantity > 0 ? lostQuantity / (producedQuantity + lostQuantity) * 100 : null;
+  const plannedUnit = plannedMaterials !== null && plannedQuantity > 0 ? plannedMaterials / plannedQuantity : null;
+  const actualUnit = totalActual !== null && producedQuantity > 0 ? totalActual / producedQuantity : null;
+  const difference = plannedMaterials !== null && totalActual !== null ? totalActual - plannedMaterials : null;
+  const differencePercent = difference !== null && plannedMaterials > 0 ? difference / plannedMaterials * 100 : null;
+  const unitDifference = plannedUnit !== null && actualUnit !== null ? actualUnit - plannedUnit : null;
+  const commercialValue = sale ? n(sale.valor) || null : budget ? n(budget.valor_final) || null : null;
+  const estimatedMargin = commercialValue !== null && plannedMaterials !== null ? commercialValue - plannedMaterials : null;
+  const operationalMargin = commercialValue !== null && totalActual !== null ? commercialValue - totalActual : null;
+  return { materials, missingPlannedCosts, missingActualCosts, plannedMaterials, actualMaterials, additional, totalActual, plannedQuantity, producedQuantity, lostQuantity, progress, lossRate, plannedUnit, actualUnit, difference, differencePercent, unitDifference, commercialValue, estimatedMargin, operationalMargin };
 }
 
 export function materialAvailability(material, stock) {
