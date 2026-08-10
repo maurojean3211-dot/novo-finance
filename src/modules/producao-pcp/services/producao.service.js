@@ -17,7 +17,7 @@ export async function loadProduction(empresaId) {
     supabase.from("recursos_producao").select("*").eq("empresa_id", id).order("nome"),
     supabase.from("ordem_producao_recursos").select("*").eq("empresa_id", id).order("sequencia"),
     supabase.from("recurso_producao_indisponibilidades").select("*").eq("empresa_id", id).order("inicio"),
-    supabase.from("pedidos_compra").select("id,numero,status,pedido_compra_itens(estoque_id,dados_catalogo)").eq("empresa_id", id).order("created_at", { ascending: false }).limit(200),
+    supabase.from("pedidos_compra").select("id,numero,status,data,previsao,fornecedor_id,fornecedor_snapshot,observacoes,valor_total,pedido_compra_itens(id,estoque_id,quantidade,quantidade_recebida,unidade,valor_unitario,dados_catalogo),pedido_compra_cotacoes(id,fornecedor_id,fornecedor_snapshot,prazo_dias,created_at),pedido_compra_followups(*)").eq("empresa_id", id).order("created_at", { ascending: false }).limit(200),
   ]);
   const coreError = [orders, stock, movements, resources, allocations, unavailability].find((item) => item.error)?.error;
   if (coreError) throw coreError;
@@ -203,6 +203,11 @@ export function buildCapacityPlan({ orders, resources, allocations, unavailabili
 }
 
 const priorityWeight = { Baixa: 1, Média: 2, Alta: 3, Urgente: 4 };
+export function purchaseItemMatchesRequirement(catalogData = {}, requirementKey, relatedOrderIds) {
+  const linkedByLegacyFormat = relatedOrderIds.has(String(catalogData.pcpOrderId || ""));
+  const linkedByMrpFormat = catalogData.mrpKey === requirementKey && Array.isArray(catalogData.pcpOrderIds) && catalogData.pcpOrderIds.some((orderId) => relatedOrderIds.has(String(orderId)));
+  return linkedByLegacyFormat || linkedByMrpFormat;
+}
 export function buildMaterialRequirements({ orders, stock, plans = new Map(), purchaseOrders = [] }) {
   const openOrders = orders.filter((order) => !["Concluída","Cancelada"].includes(order.status)); const stockById = new Map(stock.map((item) => [item.id, item])); const grouped = new Map();
   openOrders.forEach((order) => {
@@ -210,12 +215,12 @@ export function buildMaterialRequirements({ orders, stock, plans = new Map(), pu
     (order.ordem_producao_materiais || []).forEach((material) => {
       const demand = Math.max(0, n(material.quantidade_prevista) - n(material.quantidade_consumida)); if (demand <= 0) return;
       const key = material.estoque_id || `material:${String(material.material).trim().toLowerCase()}`; const current = grouped.get(key) || { key, stockId: material.estoque_id || null, productId: material.produto_id || null, material: material.material, unit: material.unidade, demands: [] };
-      current.demands.push({ materialId: material.id, orderId: order.id, orderNumber: order.numero_op, client: order.cliente_nome || null, priority: order.prioridade, date: needDate, demand, reserved: n(material.quantidade_reservada), forwarded: Boolean(material.necessidade_compra), notes: material.observacoes || null }); grouped.set(key, current);
+      current.demands.push({ materialId: material.id, orderId: order.id, orderNumber: order.numero_op, orderStatus: order.status, client: order.cliente_nome || null, priority: order.prioridade, date: needDate, demand, reserved: n(material.quantidade_reservada), forwarded: Boolean(material.necessidade_compra), notes: material.observacoes || null }); grouped.set(key, current);
     });
   });
   return [...grouped.values()].map((item) => {
     const stockItem = item.stockId ? stockById.get(item.stockId) : null; const demand = item.demands.reduce((sum, row) => sum + row.demand, 0); const reserved = item.demands.reduce((sum, row) => sum + row.reserved, 0); const uncoveredDemand = Math.max(0, demand - reserved); const available = stockItem ? n(stockItem.estoque_disponivel) : null; const projected = available === null ? null : available - uncoveredDemand; const shortage = projected === null ? null : Math.max(0, -projected); const dates = item.demands.map((row) => row.date).filter(Boolean).sort(); const firstNeedDate = dates[0] || null; const today = dayKey(new Date()); const sevenDays = new Date(`${today}T12:00:00`); sevenDays.setDate(sevenDays.getDate() + 7); const criticalDate = dayKey(sevenDays); const risk = shortage === null ? "Dados insuficientes" : shortage <= 0 ? "Sem risco" : !firstNeedDate ? "Dados insuficientes" : firstNeedDate <= criticalDate ? "Crítico" : "Atenção"; const highestPriority = item.demands.reduce((highest, row) => priorityWeight[row.priority] > priorityWeight[highest] ? row.priority : highest, "Baixa"); const unitCost = stockItem && n(stockItem.custo_unitario) > 0 ? n(stockItem.custo_unitario) : null;
-    const relatedOrderIds = new Set(item.demands.map((row) => String(row.orderId))); const linkedOrder = purchaseOrders.find((order) => (order.pedido_compra_itens || []).some((row) => { const catalogData = row.dados_catalogo || {}; const linkedByLegacyFormat = relatedOrderIds.has(String(catalogData.pcpOrderId || "")); const linkedByMrpFormat = catalogData.mrpKey === item.key && Array.isArray(catalogData.pcpOrderIds) && catalogData.pcpOrderIds.some((orderId) => relatedOrderIds.has(String(orderId))); return linkedByLegacyFormat || linkedByMrpFormat; }));
+    const relatedOrderIds = new Set(item.demands.map((row) => String(row.orderId))); const linkedOrder = purchaseOrders.find((order) => (order.pedido_compra_itens || []).some((row) => purchaseItemMatchesRequirement(row.dados_catalogo, item.key, relatedOrderIds)));
     return { ...item, code: stockItem?.codigo || "", currentStock: stockItem ? n(stockItem.estoque_atual) : null, available, demand, reserved, uncoveredDemand, projected, shortage, firstNeedDate, risk, highestPriority, unitCost, estimatedValue: shortage !== null && unitCost !== null ? shortage * unitCost : null, forwarded: item.demands.some((row) => row.forwarded), purchaseStatus: linkedOrder ? `${linkedOrder.numero} · ${linkedOrder.status}` : null, orderNumbers: [...new Set(item.demands.map((row) => row.orderNumber))], clients: [...new Set(item.demands.map((row) => row.client).filter(Boolean))] };
   }).sort((a, b) => { const weight = { Crítico: 0, Atenção: 1, "Dados insuficientes": 2, "Sem risco": 3 }; return weight[a.risk] - weight[b.risk] || String(a.firstNeedDate || "9999").localeCompare(String(b.firstNeedDate || "9999")); });
 }
@@ -223,6 +228,34 @@ export function buildMaterialRequirements({ orders, stock, plans = new Map(), pu
 export function queueConsolidatedPurchaseNeed({ empresaId, requirement }) {
   const key = purchaseNeedKey(empresaId); const current = readPurchaseNeeds(empresaId); const existing = current.find((item) => item.key === requirement.key || (requirement.stockId && item.stockId === requirement.stockId)); const orderIds = [...new Set(requirement.demands.map((item) => item.orderId))]; const materialIds = requirement.demands.map((item) => item.materialId); const need = { key: requirement.key, empresaId: company(empresaId), materialId: materialIds[0], materialIds, orderId: orderIds[0], orderIds, orderNumber: requirement.orderNumbers.join(", "), orderNumbers: requirement.orderNumbers, client: requirement.clients.join(", "), clients: requirement.clients, priority: requirement.highestPriority, stockId: requirement.stockId, productId: requirement.productId, code: requirement.code, description: requirement.material, quantity: requirement.shortage, unit: requirement.unit, needDate: requirement.firstNeedDate, context: `MRP consolidado de ${requirement.orderNumbers.length} OP(s): ${requirement.orderNumbers.join(", ")}. Clientes: ${requirement.clients.join(", ") || "não informados"}. Prioridade ${requirement.highestPriority}. Necessidade em ${requirement.firstNeedDate || "data não definida"}.`, createdAt: existing?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
   sessionStorage.setItem(key, JSON.stringify([...current.filter((item) => item !== existing && item.key !== requirement.key && (!requirement.stockId || item.stockId !== requirement.stockId)), need])); return { need, updated: Boolean(existing) };
+}
+
+export async function saveSupplyFollowup({ empresaId, userId, orderId, followup }) {
+  const payload = { pedido_id: orderId, empresa_id: company(empresaId), user_id: userId, idempotency_key: followup.idempotencyKey, data_prometida: followup.promisedDate || null, prazo_informado: String(followup.informedTerm || "").trim() || null, responsavel_contato: String(followup.contact || "").trim() || null, observacoes: String(followup.notes || "").trim() || null, contatado_em: followup.contactedAt };
+  if (!payload.idempotency_key || !payload.contatado_em) throw new Error("Identificador e data do follow-up são obrigatórios.");
+  if (!payload.data_prometida && !payload.prazo_informado && !payload.responsavel_contato && !payload.observacoes) throw new Error("Informe ao menos um dado real do contato com o fornecedor.");
+  const { data, error } = await supabase.from("pedido_compra_followups").insert(payload).select("id").single(); if (error) throw error; return data.id;
+}
+
+const supplyStatus = (orders, forwarded, fulfillment) => {
+  if (!orders.length) return forwarded ? "Encaminhada para Compras" : "Identificada";
+  if (orders.every((order) => order.status === "Cancelado")) return "Cancelada";
+  const activeOrders = orders.filter((order) => order.status !== "Cancelado");
+  if (fulfillment === "Atendido") return "Atendida"; if (fulfillment === "Parcial") return "Parcialmente atendida";
+  if (activeOrders.some((order) => order.status === "Comprado" && (order.previsao || (order.pedido_compra_followups || []).length))) return "Aguardando recebimento";
+  if (activeOrders.some((order) => order.status === "Comprado")) return "Pedido realizado manualmente";
+  if (activeOrders.some((order) => order.status === "Aprovado")) return "Pedido preparado";
+  if (activeOrders.some((order) => order.status === "Em cotação")) return "Em cotação";
+  if (activeOrders.some((order) => order.status === "Solicitado")) return "Em análise";
+  return "Pedido preparado";
+};
+
+export function buildSupplyFollowup({ requirements, purchaseOrders }) {
+  return requirements.map((requirement) => {
+    const relatedOrderIds = new Set(requirement.demands.map((row) => String(row.orderId))); const linkedOrders = purchaseOrders.map((order) => { const items = (order.pedido_compra_itens || []).filter((item) => purchaseItemMatchesRequirement(item.dados_catalogo, requirement.key, relatedOrderIds)).map((item) => { const ordered = Math.max(0, n(item.quantidade)); const received = Math.min(ordered, Math.max(0, n(item.quantidade_recebida))); return { id: item.id, ordered, received, pending: Math.max(0, ordered - received), unitPrice: n(item.valor_unitario), unit: item.unidade }; }); return items.length ? { ...order, items } : null; }).filter(Boolean);
+    const activeOrders = linkedOrders.filter((order) => order.status !== "Cancelado"); const items = activeOrders.flatMap((order) => order.items); const ordered = items.reduce((sum, item) => sum + item.ordered, 0); const received = items.reduce((sum, item) => sum + item.received, 0); const pending = Math.max(0, ordered - received); const remainingNeed = requirement.shortage === null || requirement.shortage === undefined ? null : Math.max(0, n(requirement.shortage)); const neededQuantity = remainingNeed === null ? null : remainingNeed + received; const fulfillment = remainingNeed === null ? "Dados insuficientes" : received <= 0 ? "Não atendido" : remainingNeed > 0 ? "Parcial" : "Atendido"; const followups = activeOrders.flatMap((order) => (order.pedido_compra_followups || []).map((entry) => ({ ...entry, orderId: order.id }))).sort((a, b) => String(b.contatado_em).localeCompare(String(a.contatado_em))); const latestFollowup = followups[0] || null; const promisedDate = followups.find((entry) => entry.data_prometida)?.data_prometida || activeOrders.map((order) => order.previsao).filter(Boolean).sort()[0] || null; const suppliers = [...new Set(activeOrders.map((order) => order.fornecedor_snapshot?.nome).filter(Boolean))]; const status = supplyStatus(linkedOrders, requirement.forwarded, fulfillment); const needDate = requirement.firstNeedDate; const late = Boolean(needDate && promisedDate && promisedDate > needDate); const orderedAfterNeed = activeOrders.some((order) => needDate && order.data > needDate); const knownValueItems = items.filter((item) => item.unitPrice > 0); const pendingValue = knownValueItems.reduce((sum, item) => sum + item.pending * item.unitPrice, 0); const valuePartial = items.some((item) => item.pending > 0 && item.unitPrice <= 0) || remainingNeed === null || remainingNeed > ordered; const blockedOrderIds = [...new Set(requirement.demands.filter((row) => remainingNeed !== null && remainingNeed > 0 && row.orderStatus === "Aguardando material").map((row) => row.orderId))];
+    return { ...requirement, linkedOrders, activeOrderCount: activeOrders.length, neededQuantity, ordered, received, pending, remainingNeed, blockedOrderIds, status, latestFollowup, promisedDate, suppliers, late, orderedAfterNeed, pendingValue: knownValueItems.length ? pendingValue : null, valuePartial, fulfillment };
+  });
 }
 
 export function productionCosts(order, stockById, sale, budget) {
