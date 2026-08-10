@@ -1,21 +1,26 @@
 import { supabase } from "../../../supabase";
 
 export const PRODUCTION_STATUSES = ["Rascunho","Planejada","Aguardando material","Liberada","Em produção","Pausada","Concluída","Cancelada"];
+export const RESOURCE_TYPES = ["Máquina","Forno","Serra","Prensa","Linha","Equipe","Posto de trabalho","Outro recurso"];
+export const PLANNING_HORIZON_DAYS = 30;
 const n = (value) => Number(value || 0);
 const company = (value) => String(value);
 
 export async function loadProduction(empresaId) {
   const id = company(empresaId);
-  const [orders, stock, movements, sales, budgets] = await Promise.all([
+  const [orders, stock, movements, sales, budgets, resources, allocations, unavailability] = await Promise.all([
     supabase.from("ordens_producao").select("*,ordem_producao_materiais(*),ordem_producao_apontamentos(*),ordem_producao_historico(*),ordem_producao_custos(*)").eq("empresa_id", id).order("created_at", { ascending: false }),
     supabase.from("estoque").select("*").eq("empresa_id", id).order("descricao"),
     supabase.from("estoque_movimentacoes").select("*").eq("empresa_id", id).eq("origem", "Produção").order("created_at", { ascending: false }).limit(300),
     supabase.from("vendas").select("id,cliente_nome,produto,kilos,valor,data_venda").eq("empresa_id", id).order("data_venda", { ascending: false }).limit(100),
     supabase.from("orcamentos").select("id,numero,status,cliente_id,cliente_snapshot,validade,valor_final,orcamento_itens(*)").eq("empresa_id", id).eq("status", "Aprovado").order("created_at", { ascending: false }).limit(100),
+    supabase.from("recursos_producao").select("*").eq("empresa_id", id).order("nome"),
+    supabase.from("ordem_producao_recursos").select("*").eq("empresa_id", id).order("sequencia"),
+    supabase.from("recurso_producao_indisponibilidades").select("*").eq("empresa_id", id).order("inicio"),
   ]);
-  const coreError = [orders, stock, movements].find((item) => item.error)?.error;
+  const coreError = [orders, stock, movements, resources, allocations, unavailability].find((item) => item.error)?.error;
   if (coreError) throw coreError;
-  return { orders: orders.data || [], stock: stock.data || [], movements: movements.data || [], sales: sales.error ? [] : sales.data || [], budgets: budgets.error ? [] : budgets.data || [], unavailable: { sales: sales.error?.message, budgets: budgets.error?.message } };
+  return { orders: orders.data || [], stock: stock.data || [], movements: movements.data || [], sales: sales.error ? [] : sales.data || [], budgets: budgets.error ? [] : budgets.data || [], resources: resources.data || [], allocations: allocations.data || [], unavailability: unavailability.data || [], unavailable: { sales: sales.error?.message, budgets: budgets.error?.message } };
 }
 
 export async function createOrder({ empresaId, userId, order }) {
@@ -62,6 +67,12 @@ export async function changeOrderStatus({ empresaId, userId, order, status }) {
   await addHistory({ empresaId, userId, orderId: order.id, type, description: `Status alterado para ${status}.` });
 }
 
+export async function changeOrderPriority({ empresaId, userId, order, priority }) {
+  const { error } = await supabase.from("ordens_producao").update({ prioridade: priority, updated_at: new Date().toISOString() }).eq("id", order.id).eq("empresa_id", company(empresaId)).select("id").single();
+  if (error) throw error;
+  await addHistory({ empresaId, userId, orderId: order.id, type: "Edição", description: `Prioridade alterada manualmente de ${order.prioridade} para ${priority}.`, data: { anterior: order.prioridade, atual: priority } });
+}
+
 export async function recordProduction({ empresaId, userId, order, entry }) {
   const loss = entry.type === "Perda"; const quantity = n(entry.quantity); const weight = n(entry.weight);
   const patch = loss ? { quantidade_perdida: n(order.quantidade_perdida) + quantity, peso_perdido: n(order.peso_perdido) + weight } : { quantidade_produzida: n(order.quantidade_produzida) + quantity, peso_produzido: n(order.peso_produzido) + weight };
@@ -98,6 +109,66 @@ export async function saveAdditionalCost({ empresaId, userId, orderId, cost }) {
   if (error) throw error;
   await addHistory({ empresaId, userId, orderId, type: "Edição", description: cost.id ? `Custo adicional alterado: ${payload.descricao}.` : `Custo adicional incluído: ${payload.descricao}.`, data: { custoId: data.id, tipo: payload.tipo, valor: payload.valor } });
   return data.id;
+}
+
+export async function saveProductionResource({ empresaId, userId, resource }) {
+  const days = String(resource.workDays || "").split(",").map((item) => Number(item.trim())).filter((item) => item >= 0 && item <= 6);
+  const payload = { empresa_id: company(empresaId), user_id: userId, nome: String(resource.name || "").trim(), tipo: resource.type, descricao: String(resource.description || "").trim() || null, capacidade_nominal: resource.capacity === "" ? null : n(resource.capacity), unidade_capacidade: String(resource.capacityUnit || "").trim() || null, horas_disponiveis_dia: resource.hoursPerDay === "" ? null : n(resource.hoursPerDay), dias_trabalho: [...new Set(days)], ativo: resource.active !== false, observacoes: String(resource.notes || "").trim() || null, updated_at: new Date().toISOString() };
+  if (!payload.nome) throw new Error("Nome do recurso é obrigatório.");
+  if (payload.capacidade_nominal !== null && payload.capacidade_nominal <= 0) throw new Error("Capacidade nominal deve ser positiva quando informada.");
+  if (payload.horas_disponiveis_dia !== null && (payload.horas_disponiveis_dia <= 0 || payload.horas_disponiveis_dia > 24)) throw new Error("Horas disponíveis devem estar entre 0 e 24.");
+  const query = resource.id ? supabase.from("recursos_producao").update(payload).eq("id", resource.id).eq("empresa_id", company(empresaId)) : supabase.from("recursos_producao").insert(payload);
+  const { data, error } = await query.select("id").single(); if (error) throw error; return data.id;
+}
+
+export async function saveResourceAllocation({ empresaId, userId, orderId, allocation }) {
+  const payload = { ordem_id: orderId, recurso_id: allocation.resourceId, empresa_id: company(empresaId), user_id: userId, quantidade_planejada: n(allocation.quantity), tempo_unitario_horas: allocation.unitHours === "" ? null : n(allocation.unitHours), tempo_total_horas: allocation.totalHours === "" ? null : n(allocation.totalHours), sequencia: Math.max(1, Math.trunc(n(allocation.sequence) || 1)), observacoes: String(allocation.notes || "").trim() || null, updated_at: new Date().toISOString() };
+  if (!payload.recurso_id || payload.quantidade_planejada <= 0) throw new Error("Recurso e quantidade planejada são obrigatórios.");
+  if (payload.tempo_unitario_horas !== null && payload.tempo_unitario_horas <= 0) throw new Error("Tempo por unidade deve ser positivo.");
+  if (payload.tempo_total_horas !== null && payload.tempo_total_horas <= 0) throw new Error("Tempo total deve ser positivo.");
+  const query = allocation.id ? supabase.from("ordem_producao_recursos").update(payload).eq("id", allocation.id).eq("ordem_id", orderId).eq("empresa_id", company(empresaId)) : supabase.from("ordem_producao_recursos").insert(payload);
+  const { data, error } = await query.select("id").single(); if (error) throw error;
+  await addHistory({ empresaId, userId, orderId, type: "Planejamento", description: allocation.id ? "Planejamento de recurso alterado manualmente." : "Recurso produtivo alocado manualmente.", data: { alocacaoId: data.id, recursoId: payload.recurso_id, sequencia: payload.sequencia, tempoUnitario: payload.tempo_unitario_horas, tempoTotal: payload.tempo_total_horas } });
+  return data.id;
+}
+
+export async function saveResourceUnavailability({ empresaId, userId, entry }) {
+  const payload = { recurso_id: entry.resourceId, empresa_id: company(empresaId), user_id: userId, tipo: entry.type, inicio: entry.start, fim: entry.end, observacoes: String(entry.notes || "").trim() || null };
+  if (!payload.recurso_id || !payload.inicio || !payload.fim || payload.fim < payload.inicio) throw new Error("Recurso e período válido são obrigatórios.");
+  const { data, error } = await supabase.from("recurso_producao_indisponibilidades").insert(payload).select("id").single(); if (error) throw error; return data.id;
+}
+
+const dayKey = (date) => date.toISOString().slice(0, 10);
+const allocationHours = (item) => n(item.tempo_total_horas) > 0 ? n(item.tempo_total_horas) : n(item.tempo_unitario_horas) > 0 && n(item.quantidade_planejada) > 0 ? n(item.tempo_unitario_horas) * n(item.quantidade_planejada) : null;
+const isBlocked = (date, entries) => entries.some((item) => dayKey(date) >= String(item.inicio).slice(0, 10) && dayKey(date) <= String(item.fim).slice(0, 10));
+const plannedDate = (value) => /^\d{4}-\d{2}-\d{2}/.test(String(value || "")) ? String(value).slice(0, 10) : null;
+const horizonLoadStatus = (order, horizonStart, horizonEnd) => {
+  const start = plannedDate(order?.data_prevista_inicio); const end = plannedDate(order?.data_prevista_fim);
+  if ((start && start > horizonEnd) || (end && end < horizonStart)) return "outside";
+  if (start && end && start >= horizonStart && end <= horizonEnd) return "inside";
+  return start || end ? "partial" : "unknown";
+};
+export function projectWorkingHours(startValue, hours, resource, unavailable = []) {
+  const daily = n(resource?.horas_disponiveis_dia); const days = resource?.dias_trabalho || [];
+  if (!(hours >= 0) || daily <= 0 || !days.length) return null;
+  const date = new Date(`${startValue || dayKey(new Date())}T12:00:00`); let remaining = hours; let guard = 0;
+  while ((!days.includes(date.getDay()) || isBlocked(date, unavailable)) && guard < 730) { date.setDate(date.getDate() + 1); guard += 1; }
+  while (remaining > 0 && guard < 730) { if (days.includes(date.getDay()) && !isBlocked(date, unavailable)) remaining -= daily; if (remaining > 0) date.setDate(date.getDate() + 1); guard += 1; }
+  return remaining > 0 ? null : dayKey(date);
+}
+
+export function buildCapacityPlan({ orders, resources, allocations, unavailability, stock = [] }) {
+  const today = dayKey(new Date()); const horizonEndDate = new Date(`${today}T12:00:00`); horizonEndDate.setDate(horizonEndDate.getDate() + PLANNING_HORIZON_DAYS - 1); const horizonEnd = dayKey(horizonEndDate);
+  const activeResources = resources.filter((item) => item.ativo); const plans = new Map(); const resourcePlans = activeResources.map((resource) => {
+    const unavailable = unavailability.filter((item) => item.recurso_id === resource.id); const days = resource.dias_trabalho || []; let availableHours = 0;
+    for (let cursor = new Date(`${today}T12:00:00`); dayKey(cursor) <= horizonEnd; cursor.setDate(cursor.getDate() + 1)) if (days.includes(cursor.getDay()) && !isBlocked(cursor, unavailable)) availableHours += n(resource.horas_disponiveis_dia);
+    const queue = allocations.filter((item) => item.recurso_id === resource.id).map((item) => { const order = orders.find((candidate) => candidate.id === item.ordem_id); return { ...item, order, hours: allocationHours(item), horizonStatus: horizonLoadStatus(order, today, horizonEnd) }; }).filter((item) => item.order && !["Concluída","Cancelada"].includes(item.order.status)).sort((a, b) => n(a.sequencia) - n(b.sequencia) || String(a.order.data_prevista_inicio || "9999").localeCompare(String(b.order.data_prevista_inicio || "9999")));
+    let projectionHours = 0; let scheduleKnown = true; queue.forEach((item, index) => { const before = projectionHours; if (item.hours === null) scheduleKnown = false; else projectionHours += item.hours; const start = !scheduleKnown || item.hours === null ? null : projectWorkingHours(item.order.data_prevista_inicio || today, before, resource, unavailable); const end = item.hours === null || start === null ? null : projectWorkingHours(start, item.hours, resource, unavailable); const materials = item.order.ordem_producao_materiais || []; const materialBlocked = materials.some((material) => { const stockItem = stock.find((candidate) => candidate.id === material.estoque_id); return n(material.quantidade_prevista) - n(material.quantidade_reservada) - n(material.quantidade_consumida) > n(stockItem?.estoque_disponivel); }); const materialState = !materials.length ? null : materialBlocked ? "Faltante" : "Disponível"; const plannedEnd = item.order.data_prevista_fim; const differenceDays = end && plannedEnd ? Math.ceil((new Date(`${end}T12:00:00`) - new Date(`${plannedEnd}T12:00:00`)) / 86400000) : null; plans.set(item.order.id, [...(plans.get(item.order.id) || []), { ...item, position: index + 1, projectedStart: start, projectedEnd: end, differenceDays, materialState, risk: end === null ? null : materialBlocked || differenceDays > 2 ? "Alto" : differenceDays > 0 ? "Atenção" : "Baixo" }]); });
+    const horizonQueue = queue.filter((item) => item.horizonStatus !== "outside"); const knownCommittedHours = horizonQueue.filter((item) => item.horizonStatus === "inside" && item.hours !== null).reduce((sum, item) => sum + item.hours, 0); const unclassifiableLoad = horizonQueue.filter((item) => item.horizonStatus !== "inside" || item.hours === null).length; const committed = unclassifiableLoad ? null : knownCommittedHours; const utilization = availableHours > 0 && committed !== null ? committed / availableHours * 100 : null; const classification = utilization === null ? "Dados insuficientes" : utilization > 100 ? "Sobrecarregado" : utilization >= 80 ? "Alta carga" : utilization >= 30 ? "Normal" : "Livre";
+    return { resource, queue, availableHours: availableHours || null, committedHours: committed, knownCommittedHours, unclassifiableLoad, utilization, classification };
+  });
+  const loadPartial = resourcePlans.some((item) => item.committedHours === null); const totalKnownCommitted = resourcePlans.length ? resourcePlans.reduce((sum, item) => sum + item.knownCommittedHours, 0) : null;
+  return { plans, resourcePlans, loadPartial, totalKnownCommitted, totalAvailable: resourcePlans.every((item) => item.availableHours !== null) && resourcePlans.length ? resourcePlans.reduce((sum, item) => sum + item.availableHours, 0) : null, totalCommitted: !loadPartial ? totalKnownCommitted : null };
 }
 
 export function productionCosts(order, stockById, sale, budget) {
