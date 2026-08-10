@@ -1,6 +1,6 @@
 import { supabase } from "../../../supabase";
 
-export const PRODUCTION_STATUSES = ["Rascunho","Planejada","Programada","Em produção","Pausada","Concluída","Cancelada"];
+export const PRODUCTION_STATUSES = ["Rascunho","Planejada","Aguardando material","Liberada","Em produção","Pausada","Concluída","Cancelada"];
 const n = (value) => Number(value || 0);
 const company = (value) => String(value);
 
@@ -51,9 +51,9 @@ export async function changeOrderStatus({ empresaId, userId, order, status }) {
   const patch = { status, updated_at: new Date().toISOString() };
   if (status === "Em produção" && !order.data_inicio_real) patch.data_inicio_real = new Date().toISOString();
   if (status === "Concluída") patch.data_fim_real = new Date().toISOString();
-  const { error } = await supabase.from("ordens_producao").update(patch).eq("id", order.id).eq("empresa_id", company(empresaId));
+  const { error } = await supabase.from("ordens_producao").update(patch).eq("id", order.id).eq("empresa_id", company(empresaId)).select("id").single();
   if (error) throw error;
-  const types = { Planejada: "Planejamento", Programada: "Programação", "Em produção": order.status === "Pausada" ? "Retomada" : "Início", Pausada: "Pausa", Concluída: "Conclusão", Cancelada: "Cancelamento" };
+  const types = { Planejada: "Planejamento", "Aguardando material": "Planejamento", Liberada: "Programação", "Em produção": order.status === "Pausada" ? "Retomada" : "Início", Pausada: "Pausa", Concluída: "Conclusão", Cancelada: "Cancelamento" };
   const type = types[status] || "Edição";
   if (["Início","Pausa","Retomada","Conclusão"].includes(type)) {
     const { error: pointError } = await supabase.from("ordem_producao_apontamentos").insert({ ordem_id: order.id, empresa_id: company(empresaId), user_id: userId, tipo: type, observacoes: `Status alterado para ${status}.` });
@@ -66,8 +66,9 @@ export async function recordProduction({ empresaId, userId, order, entry }) {
   const loss = entry.type === "Perda"; const quantity = n(entry.quantity); const weight = n(entry.weight);
   const patch = loss ? { quantidade_perdida: n(order.quantidade_perdida) + quantity, peso_perdido: n(order.peso_perdido) + weight } : { quantidade_produzida: n(order.quantidade_produzida) + quantity, peso_produzido: n(order.peso_produzido) + weight };
   patch.updated_at = new Date().toISOString();
-  const { error } = await supabase.from("ordens_producao").update(patch).eq("id", order.id).eq("empresa_id", company(empresaId)); if (error) throw error;
-  const { error: pointError } = await supabase.from("ordem_producao_apontamentos").insert({ ordem_id: order.id, empresa_id: company(empresaId), user_id: userId, tipo: loss ? "Perda" : "Produção", quantidade: quantity, peso: weight, motivo_perda: loss ? entry.reason : null, observacoes: entry.notes || null }); if (pointError) throw pointError;
+  const { error: pointError } = await supabase.from("ordem_producao_apontamentos").insert({ ordem_id: order.id, empresa_id: company(empresaId), user_id: userId, tipo: loss ? "Perda" : "Produção", quantidade: quantity, peso: weight, motivo_perda: loss ? entry.reason : null, ocorrido_em: entry.occurredAt || new Date().toISOString(), observacoes: entry.notes || null }); if (pointError) throw pointError;
+  const { error } = await supabase.from("ordens_producao").update(patch).eq("id", order.id).eq("empresa_id", company(empresaId)).select("id").single();
+  if (error) throw new Error(`Apontamento registrado, mas não foi possível atualizar o progresso da OP: ${error.message}`);
   await addHistory({ empresaId, userId, orderId: order.id, type: loss ? "Perda" : "Edição", description: loss ? `Perda registrada: ${entry.reason}.` : "Produção realizada apontada.", data: { quantity, weight } });
 }
 
@@ -81,6 +82,29 @@ export const finishProduct = ({ empresaId, orderId, stockId, quantity }) => rpc(
 export async function preparePurchaseNeed({ empresaId, userId, orderId, materialId }) {
   const { error } = await supabase.from("ordem_producao_materiais").update({ necessidade_compra: true, updated_at: new Date().toISOString() }).eq("id", materialId).eq("empresa_id", company(empresaId)); if (error) throw error;
   await addHistory({ empresaId, userId, orderId, type: "Compra", description: "Necessidade de compra preparada para revisão em Compras Inteligentes.", data: { materialId } });
+}
+
+export async function resolvePurchaseNeed({ empresaId, userId, orderId, materialId }) {
+  const { error } = await supabase.from("ordem_producao_materiais").update({ necessidade_compra: false, updated_at: new Date().toISOString() }).eq("id", materialId).eq("ordem_id", orderId).eq("empresa_id", company(empresaId)).select("id").single();
+  if (error) throw error;
+  await addHistory({ empresaId, userId, orderId, type: "Compra", description: "Necessidade de compra tratada após confirmação humana em Compras Inteligentes.", data: { materialId } });
+}
+
+export function materialAvailability(material, stock) {
+  const required = Math.max(0, n(material.quantidade_prevista) - n(material.quantidade_consumida));
+  const reserved = n(material.quantidade_reservada);
+  const available = n(stock?.estoque_disponivel);
+  const shortage = Math.max(0, required - reserved - available);
+  return { required, reserved, available, shortage, situation: shortage <= 0 ? "Disponível" : reserved + available > 0 ? "Parcial" : "Indisponível" };
+}
+
+export function queuePurchaseNeed({ empresaId, order, material, stock }) {
+  const availability = materialAvailability(material, stock);
+  const key = `cunha:pcp:purchase-needs:${company(empresaId)}`;
+  const current = JSON.parse(sessionStorage.getItem(key) || "[]").filter((item) => item.materialId !== material.id);
+  current.push({ empresaId: company(empresaId), materialId: material.id, orderId: order.id, orderNumber: order.numero_op, client: order.cliente_nome || "", priority: order.prioridade, stockId: material.estoque_id, productId: material.produto_id, code: stock?.codigo || "", description: material.material, quantity: availability.shortage, unit: material.unidade, context: `Necessidade da ${order.numero_op}${order.cliente_nome ? ` para ${order.cliente_nome}` : ""}. Prioridade ${order.prioridade}.`, createdAt: new Date().toISOString() });
+  sessionStorage.setItem(key, JSON.stringify(current));
+  return availability;
 }
 
 export function saleDraft(sale) { return { client: sale.cliente_nome || "Cliente", saleId: sale.id, product: sale.produto || "Produto da venda", quantity: sale.kilos || 1, unit: "kg", weight: sale.kilos || 0, start: new Date().toISOString().slice(0,10), end: "", priority: "Média" }; }
