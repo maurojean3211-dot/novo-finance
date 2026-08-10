@@ -8,7 +8,7 @@ const company = (value) => String(value);
 
 export async function loadProduction(empresaId) {
   const id = company(empresaId);
-  const [orders, stock, movements, sales, budgets, resources, allocations, unavailability] = await Promise.all([
+  const [orders, stock, movements, sales, budgets, resources, allocations, unavailability, purchaseOrders] = await Promise.all([
     supabase.from("ordens_producao").select("*,ordem_producao_materiais(*),ordem_producao_apontamentos(*),ordem_producao_historico(*),ordem_producao_custos(*)").eq("empresa_id", id).order("created_at", { ascending: false }),
     supabase.from("estoque").select("*").eq("empresa_id", id).order("descricao"),
     supabase.from("estoque_movimentacoes").select("*").eq("empresa_id", id).eq("origem", "Produção").order("created_at", { ascending: false }).limit(300),
@@ -17,10 +17,11 @@ export async function loadProduction(empresaId) {
     supabase.from("recursos_producao").select("*").eq("empresa_id", id).order("nome"),
     supabase.from("ordem_producao_recursos").select("*").eq("empresa_id", id).order("sequencia"),
     supabase.from("recurso_producao_indisponibilidades").select("*").eq("empresa_id", id).order("inicio"),
+    supabase.from("pedidos_compra").select("id,numero,status,pedido_compra_itens(estoque_id,dados_catalogo)").eq("empresa_id", id).order("created_at", { ascending: false }).limit(200),
   ]);
   const coreError = [orders, stock, movements, resources, allocations, unavailability].find((item) => item.error)?.error;
   if (coreError) throw coreError;
-  return { orders: orders.data || [], stock: stock.data || [], movements: movements.data || [], sales: sales.error ? [] : sales.data || [], budgets: budgets.error ? [] : budgets.data || [], resources: resources.data || [], allocations: allocations.data || [], unavailability: unavailability.data || [], unavailable: { sales: sales.error?.message, budgets: budgets.error?.message } };
+  return { orders: orders.data || [], stock: stock.data || [], movements: movements.data || [], sales: sales.error ? [] : sales.data || [], budgets: budgets.error ? [] : budgets.data || [], resources: resources.data || [], allocations: allocations.data || [], unavailability: unavailability.data || [], purchaseOrders: purchaseOrders.error ? [] : purchaseOrders.data || [], unavailable: { sales: sales.error?.message, budgets: budgets.error?.message, purchaseOrders: purchaseOrders.error?.message } };
 }
 
 export async function createOrder({ empresaId, userId, order }) {
@@ -101,6 +102,36 @@ export async function resolvePurchaseNeed({ empresaId, userId, orderId, material
   await addHistory({ empresaId, userId, orderId, type: "Compra", description: "Necessidade de compra tratada após confirmação humana em Compras Inteligentes.", data: { materialId } });
 }
 
+const purchaseNeedKey = (empresaId) => `cunha:pcp:purchase-needs:${company(empresaId)}`;
+const readPurchaseNeeds = (empresaId) => { try { return JSON.parse(sessionStorage.getItem(purchaseNeedKey(empresaId)) || "[]").filter((item) => company(item.empresaId) === company(empresaId)); } catch { return []; } };
+
+async function addMrpHistoryOnce({ empresaId, userId, orderId, mrpKey, description }) {
+  const { data, error } = await supabase.from("ordem_producao_historico").select("id").eq("ordem_id", orderId).eq("empresa_id", company(empresaId)).contains("dados", { mrpKey, description }).limit(1);
+  if (error) throw error;
+  if (!data?.length) await addHistory({ empresaId, userId, orderId, type: "Compra", description, data: { mrpKey, description } });
+}
+
+export async function prepareConsolidatedPurchaseNeed({ empresaId, userId, requirement, updating = false }) {
+  const materialIds = requirement.demands.map((item) => item.materialId);
+  if (!materialIds.length || requirement.shortage <= 0) throw new Error("A necessidade consolidada não possui quantidade faltante válida.");
+  const { data, error } = await supabase.from("ordem_producao_materiais").update({ necessidade_compra: true, updated_at: new Date().toISOString() }).eq("empresa_id", company(empresaId)).in("id", materialIds).select("id,ordem_id");
+  if (error) throw error;
+  if ((data || []).length !== materialIds.length) throw new Error("Nem todos os materiais da necessidade foram atualizados. Revise o isolamento da empresa e tente novamente.");
+  const orderIds = [...new Set(requirement.demands.map((item) => item.orderId))];
+  for (const orderId of orderIds) {
+    await addMrpHistoryOnce({ empresaId, userId, orderId, mrpKey: requirement.key, description: "Necessidade consolidada de material identificada pelo MRP." });
+    await addMrpHistoryOnce({ empresaId, userId, orderId, mrpKey: requirement.key, description: updating ? "Contexto da necessidade de material atualizado manualmente para Compras Inteligentes." : "Necessidade consolidada encaminhada manualmente para Compras Inteligentes." });
+  }
+}
+
+export async function resolveConsolidatedPurchaseNeed({ empresaId, userId, need }) {
+  const materialIds = need.materialIds?.length ? need.materialIds : [need.materialId];
+  const { data, error } = await supabase.from("ordem_producao_materiais").update({ necessidade_compra: false, updated_at: new Date().toISOString() }).eq("empresa_id", company(empresaId)).in("id", materialIds).select("id,ordem_id");
+  if (error) throw error;
+  if ((data || []).length !== materialIds.length) throw new Error("A necessidade não foi sincronizada integralmente com as OPs.");
+  for (const orderId of [...new Set((data || []).map((item) => item.ordem_id))]) await addMrpHistoryOnce({ empresaId, userId, orderId, mrpKey: need.key || need.materialId, description: "Necessidade consolidada tratada após confirmação humana em Compras Inteligentes." });
+}
+
 export async function saveAdditionalCost({ empresaId, userId, orderId, cost }) {
   const payload = { ordem_id: orderId, empresa_id: company(empresaId), user_id: userId, tipo: cost.type, descricao: String(cost.description || "").trim(), valor: n(cost.value), data: cost.date, observacoes: String(cost.notes || "").trim() || null, updated_at: new Date().toISOString() };
   if (!payload.descricao || payload.valor <= 0 || !payload.data) throw new Error("Descrição, valor positivo e data são obrigatórios.");
@@ -169,6 +200,29 @@ export function buildCapacityPlan({ orders, resources, allocations, unavailabili
   });
   const loadPartial = resourcePlans.some((item) => item.committedHours === null); const totalKnownCommitted = resourcePlans.length ? resourcePlans.reduce((sum, item) => sum + item.knownCommittedHours, 0) : null;
   return { plans, resourcePlans, loadPartial, totalKnownCommitted, totalAvailable: resourcePlans.every((item) => item.availableHours !== null) && resourcePlans.length ? resourcePlans.reduce((sum, item) => sum + item.availableHours, 0) : null, totalCommitted: !loadPartial ? totalKnownCommitted : null };
+}
+
+const priorityWeight = { Baixa: 1, Média: 2, Alta: 3, Urgente: 4 };
+export function buildMaterialRequirements({ orders, stock, plans = new Map(), purchaseOrders = [] }) {
+  const openOrders = orders.filter((order) => !["Concluída","Cancelada"].includes(order.status)); const stockById = new Map(stock.map((item) => [item.id, item])); const grouped = new Map();
+  openOrders.forEach((order) => {
+    const orderPlans = plans.get(order.id) || []; const projectedDates = orderPlans.map((item) => item.projectedStart).filter(Boolean).sort(); const reliableProjectedDate = orderPlans.length > 0 && projectedDates.length === orderPlans.length ? projectedDates[0] : null; const needDate = reliableProjectedDate || plannedDate(order.data_prevista_inicio);
+    (order.ordem_producao_materiais || []).forEach((material) => {
+      const demand = Math.max(0, n(material.quantidade_prevista) - n(material.quantidade_consumida)); if (demand <= 0) return;
+      const key = material.estoque_id || `material:${String(material.material).trim().toLowerCase()}`; const current = grouped.get(key) || { key, stockId: material.estoque_id || null, productId: material.produto_id || null, material: material.material, unit: material.unidade, demands: [] };
+      current.demands.push({ materialId: material.id, orderId: order.id, orderNumber: order.numero_op, client: order.cliente_nome || null, priority: order.prioridade, date: needDate, demand, reserved: n(material.quantidade_reservada), forwarded: Boolean(material.necessidade_compra), notes: material.observacoes || null }); grouped.set(key, current);
+    });
+  });
+  return [...grouped.values()].map((item) => {
+    const stockItem = item.stockId ? stockById.get(item.stockId) : null; const demand = item.demands.reduce((sum, row) => sum + row.demand, 0); const reserved = item.demands.reduce((sum, row) => sum + row.reserved, 0); const uncoveredDemand = Math.max(0, demand - reserved); const available = stockItem ? n(stockItem.estoque_disponivel) : null; const projected = available === null ? null : available - uncoveredDemand; const shortage = projected === null ? null : Math.max(0, -projected); const dates = item.demands.map((row) => row.date).filter(Boolean).sort(); const firstNeedDate = dates[0] || null; const today = dayKey(new Date()); const sevenDays = new Date(`${today}T12:00:00`); sevenDays.setDate(sevenDays.getDate() + 7); const criticalDate = dayKey(sevenDays); const risk = shortage === null ? "Dados insuficientes" : shortage <= 0 ? "Sem risco" : !firstNeedDate ? "Dados insuficientes" : firstNeedDate <= criticalDate ? "Crítico" : "Atenção"; const highestPriority = item.demands.reduce((highest, row) => priorityWeight[row.priority] > priorityWeight[highest] ? row.priority : highest, "Baixa"); const unitCost = stockItem && n(stockItem.custo_unitario) > 0 ? n(stockItem.custo_unitario) : null;
+    const relatedOrderIds = new Set(item.demands.map((row) => String(row.orderId))); const linkedOrder = purchaseOrders.find((order) => (order.pedido_compra_itens || []).some((row) => { const catalogData = row.dados_catalogo || {}; const linkedByLegacyFormat = relatedOrderIds.has(String(catalogData.pcpOrderId || "")); const linkedByMrpFormat = catalogData.mrpKey === item.key && Array.isArray(catalogData.pcpOrderIds) && catalogData.pcpOrderIds.some((orderId) => relatedOrderIds.has(String(orderId))); return linkedByLegacyFormat || linkedByMrpFormat; }));
+    return { ...item, code: stockItem?.codigo || "", currentStock: stockItem ? n(stockItem.estoque_atual) : null, available, demand, reserved, uncoveredDemand, projected, shortage, firstNeedDate, risk, highestPriority, unitCost, estimatedValue: shortage !== null && unitCost !== null ? shortage * unitCost : null, forwarded: item.demands.some((row) => row.forwarded), purchaseStatus: linkedOrder ? `${linkedOrder.numero} · ${linkedOrder.status}` : null, orderNumbers: [...new Set(item.demands.map((row) => row.orderNumber))], clients: [...new Set(item.demands.map((row) => row.client).filter(Boolean))] };
+  }).sort((a, b) => { const weight = { Crítico: 0, Atenção: 1, "Dados insuficientes": 2, "Sem risco": 3 }; return weight[a.risk] - weight[b.risk] || String(a.firstNeedDate || "9999").localeCompare(String(b.firstNeedDate || "9999")); });
+}
+
+export function queueConsolidatedPurchaseNeed({ empresaId, requirement }) {
+  const key = purchaseNeedKey(empresaId); const current = readPurchaseNeeds(empresaId); const existing = current.find((item) => item.key === requirement.key || (requirement.stockId && item.stockId === requirement.stockId)); const orderIds = [...new Set(requirement.demands.map((item) => item.orderId))]; const materialIds = requirement.demands.map((item) => item.materialId); const need = { key: requirement.key, empresaId: company(empresaId), materialId: materialIds[0], materialIds, orderId: orderIds[0], orderIds, orderNumber: requirement.orderNumbers.join(", "), orderNumbers: requirement.orderNumbers, client: requirement.clients.join(", "), clients: requirement.clients, priority: requirement.highestPriority, stockId: requirement.stockId, productId: requirement.productId, code: requirement.code, description: requirement.material, quantity: requirement.shortage, unit: requirement.unit, needDate: requirement.firstNeedDate, context: `MRP consolidado de ${requirement.orderNumbers.length} OP(s): ${requirement.orderNumbers.join(", ")}. Clientes: ${requirement.clients.join(", ") || "não informados"}. Prioridade ${requirement.highestPriority}. Necessidade em ${requirement.firstNeedDate || "data não definida"}.`, createdAt: existing?.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+  sessionStorage.setItem(key, JSON.stringify([...current.filter((item) => item !== existing && item.key !== requirement.key && (!requirement.stockId || item.stockId !== requirement.stockId)), need])); return { need, updated: Boolean(existing) };
 }
 
 export function productionCosts(order, stockById, sale, budget) {

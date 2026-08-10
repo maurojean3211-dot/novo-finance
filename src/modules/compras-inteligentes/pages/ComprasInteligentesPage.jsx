@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { MetricGrid, ModuleHeader, OperationModal } from "../../../components/operations/OperationsUI";
 import { listImportDrafts } from "../../catalogo-inteligente/services/catalogoImportDraft.service";
 import { listStock } from "../../estoque-inteligente/services/estoque.service";
-import { resolvePurchaseNeed } from "../../producao-pcp/services/producao.service";
+import { resolveConsolidatedPurchaseNeed } from "../../producao-pcp/services/producao.service";
 import useComprasInteligentes from "../hooks/useComprasInteligentes";
 import { PURCHASE_STATUSES } from "../services/compras.service";
 import "../compras-inteligentes.css";
@@ -27,8 +27,8 @@ function ComprasWorkspace({ empresaId, userId }) {
   const catalog = useMemo(() => listImportDrafts(empresaId, userId).flatMap((draft) => draft.products || []).filter((product) => product.selected), [empresaId, userId]);
 
   async function removeResolvedNeed(need) {
-    await resolvePurchaseNeed({ empresaId, userId, orderId: need.orderId, materialId: need.materialId });
-    const next = readNeeds(empresaId).filter((item) => item.materialId !== need.materialId);
+    await resolveConsolidatedPurchaseNeed({ empresaId, userId, need });
+    const next = readNeeds(empresaId).filter((item) => (item.key || item.materialId) !== (need.key || need.materialId));
     sessionStorage.setItem(needKey(empresaId), JSON.stringify(next));
     setNeeds(next);
   }
@@ -39,7 +39,7 @@ function ComprasWorkspace({ empresaId, userId }) {
     setOrder((current) => ({ ...current, items: [...current.items, { id: crypto.randomUUID(), produtoId: product.id, estoqueId: stockItem?.id || null, codigo: product.supplierCode || product.marketCode || product.id, descricao: product.name || product.description, liga: product.technical?.alloy || "", tempera: product.technical?.temper || "", dimensao: product.technical?.dimensions?.originalText || "", peso: product.technical?.weightPerPiece || 0, quantidade: 1, unidade: product.commercial?.salesUnit || "kg", valorUnitario: product.commercial?.costPerKg || product.commercial?.pricePerPiece || 0, dadosCatalogo: product }] }));
   }
   function reviewNeed(need) {
-    setOrder({ ...empty(), observacoes: need.context, pcpNeedId: need.materialId, items: [{ id: crypto.randomUUID(), produtoId: need.productId || need.materialId, estoqueId: need.stockId || null, codigo: need.code || need.materialId, descricao: need.description, liga: "", tempera: "", dimensao: "", peso: 0, quantidade: need.quantity, unidade: need.unit || "kg", valorUnitario: 0, dadosCatalogo: { pcpOrderId: need.orderId, pcpOrderNumber: need.orderNumber, client: need.client, priority: need.priority } }] });
+    setOrder({ ...empty(), observacoes: need.context, pcpNeedId: need.key || need.materialId, items: [{ id: crypto.randomUUID(), produtoId: need.productId || need.materialId, estoqueId: need.stockId || null, codigo: need.code || need.materialId, descricao: need.description, liga: "", tempera: "", dimensao: "", peso: 0, quantidade: need.quantity, unidade: need.unit || "kg", valorUnitario: 0, dadosCatalogo: { mrpKey: need.key || null, pcpOrderIds: need.orderIds || [need.orderId], pcpOrderNumbers: need.orderNumbers || [need.orderNumber], clients: need.clients || [need.client].filter(Boolean), priority: need.priority, needDate: need.needDate || null } }] });
     setModal(true);
   }
   async function save() {
@@ -48,7 +48,7 @@ function ComprasWorkspace({ empresaId, userId }) {
     try {
       await manager.save(order);
       if (order.pcpNeedId) {
-        const need = needs.find((item) => item.materialId === order.pcpNeedId);
+        const need = needs.find((item) => (item.key || item.materialId) === order.pcpNeedId);
         if (need) await removeResolvedNeed(need);
       }
       setModal(false); setOrder(empty()); setFeedback("Pedido salvo após confirmação humana.");
@@ -78,7 +78,7 @@ function ComprasWorkspace({ empresaId, userId }) {
 }
 
 function PurchaseNeeds({ needs, onReview, onDismiss }) {
-  return <section className="ops-panel purchase-needs"><div className="ops-panel__header"><div><h2>Necessidades recebidas do PCP</h2><small>O encaminhamento não cria pedido automaticamente.</small></div><span>{needs.length} pendente(s)</span></div>{!needs.length ? <p>Integração sem pendências: nenhuma necessidade de material aguarda revisão.</p> : needs.map((need) => <article key={need.materialId}><div><small>{need.orderNumber} · prioridade {need.priority}</small><strong>{need.description}</strong><span>Faltante {need.quantity} {need.unit} · cliente {need.client || "não informado"}</span><p>{need.context}</p></div><div><button onClick={() => onReview(need)}>Revisar e preparar pedido</button><button className="secondary" onClick={() => onDismiss(need)}>Remover da fila</button></div></article>)}</section>;
+  return <section className="ops-panel purchase-needs"><div className="ops-panel__header"><div><h2>Necessidades recebidas do PCP</h2><small>O encaminhamento não cria pedido automaticamente.</small></div><span>{needs.length} pendente(s)</span></div>{!needs.length ? <p>Integração sem pendências: nenhuma necessidade de material aguarda revisão.</p> : needs.map((need) => <article key={need.key || need.materialId}><div><small>{need.orderNumber} · prioridade {need.priority}</small><strong>{need.description}</strong><span>Faltante {need.quantity} {need.unit} · necessidade {need.needDate || "Data não definida"} · cliente {need.client || "não informado"}</span><p>{need.context}</p></div><div><button onClick={() => onReview(need)}>Revisar e preparar pedido</button><button className="secondary" onClick={() => onDismiss(need)}>Remover da fila</button></div></article>)}</section>;
 }
 
 function OrderModal({ order, setOrder, suppliers, catalog, addProduct, onClose, onSave }) {
