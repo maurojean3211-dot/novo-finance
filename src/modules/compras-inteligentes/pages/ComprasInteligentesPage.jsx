@@ -23,6 +23,7 @@ function ComprasWorkspace({ empresaId, userId }) {
   const [order, setOrder] = useState(empty);
   const [selected, setSelected] = useState(null);
   const [selectedHistorical, setSelectedHistorical] = useState(null);
+  const [editingHistorical, setEditingHistorical] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [needs, setNeeds] = useState(() => readNeeds(empresaId));
   const catalog = useMemo(() => listImportDrafts(empresaId, userId).flatMap((draft) => draft.products || []).filter((product) => product.selected), [empresaId, userId]);
@@ -76,20 +77,40 @@ function ComprasWorkspace({ empresaId, userId }) {
     <MetricGrid items={metrics} />
     <PurchaseNeeds needs={needs} onReview={reviewNeed} onDismiss={async (need) => { if (!window.confirm("Confirmar que esta necessidade foi tratada e removê-la da fila?")) return; try { await removeResolvedNeed(need); setFeedback("Necessidade tratada e sincronizada com a OP."); } catch (error) { setFeedback(`A necessidade não foi removida: ${error.message}`); } }} />
     <section className="ops-panel"><div className="ops-panel__header"><h2>Pedidos de compra</h2><span>{manager.orders.length} pedido(s)</span></div><div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Número</th><th>Fornecedor</th><th>Status</th><th>Data</th><th>Previsão</th><th>Itens</th><th>Total</th><th>Ações</th></tr></thead><tbody>{manager.orders.map((row) => <tr key={row.id}><td><strong>{row.numero}</strong></td><td>{row.fornecedor.nome}</td><td><select value={row.status} onChange={(event) => { const status = event.target.value; if (window.confirm(`Confirmar mudança para ${status}?`)) manager.status(row, status); }}>{PURCHASE_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td><td>{row.data}</td><td>{row.previsao || "—"}</td><td>{row.items.length}</td><td>{money(row.valorTotal)}</td><td><button onClick={() => setSelected(row)}>Detalhes</button></td></tr>)}</tbody></table></div></section>
-    <HistoricalPurchases rows={manager.historicalPurchases} onSelect={setSelectedHistorical} />
+    <HistoricalPurchases rows={manager.historicalPurchases} onSelect={setSelectedHistorical} onEdit={setEditingHistorical} />
     {modal && <OrderModal order={order} setOrder={setOrder} suppliers={manager.suppliers} catalog={catalog} addProduct={addProduct} onClose={() => setModal(false)} onSave={save} />}
     {selected && <OrderDetails order={selected} manager={manager} suppliers={manager.suppliers} onClose={() => setSelected(null)} onFeedback={setFeedback} />}
     {selectedHistorical && <HistoricalPurchaseDetails purchase={selectedHistorical} onClose={() => setSelectedHistorical(null)} />}
+    {editingHistorical && <HistoricalPurchaseEditor purchase={editingHistorical} manager={manager} onClose={() => setEditingHistorical(null)} onFeedback={setFeedback} />}
   </main>;
 }
 
-function HistoricalPurchases({ rows, onSelect }) {
-  return <section className="ops-panel"><div className="ops-panel__header"><div><h2>Compras históricas</h2><small>Fonte legada somente leitura. Nenhuma ação operacional é executada.</small></div><span>{rows.length} registro(s)</span></div>{!rows.length ? <p>Nenhuma compra histórica visível para esta empresa.</p> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Origem</th><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Valor disponível</th><th>Ação</th></tr></thead><tbody>{rows.map((row) => <tr key={`legacy:${row.id}`}><td><strong>Compra histórica</strong></td><td>{String(row.data_compra || row.created_at || "—").slice(0, 10)}</td><td>{row.fornecedor || "—"}</td><td>{row.produto || row.material || "—"}</td><td>{Number(row.kilos || row.quantidade || 0).toLocaleString("pt-BR")}</td><td>{money(row.valor ?? row.valor_total ?? row.preco_compra ?? 0)}</td><td><button onClick={() => onSelect(row)}>Consultar</button></td></tr>)}</tbody></table></div>}</section>;
+function HistoricalPurchases({ rows, onSelect, onEdit }) {
+  return <section className="ops-panel"><div className="ops-panel__header"><div><h2>Compras históricas</h2><small>Fonte legada. Correções exigem confirmação e não executam ações operacionais.</small></div><span>{rows.length} registro(s)</span></div>{!rows.length ? <p>Nenhuma compra histórica visível para esta empresa.</p> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Origem</th><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Valor disponível</th><th>Ações</th></tr></thead><tbody>{rows.map((row) => <tr key={`legacy:${row.id}`}><td><strong>Compra histórica</strong></td><td>{String(row.data_compra || row.created_at || "—").slice(0, 10)}</td><td>{row.fornecedor || "—"}</td><td>{row.produto || row.material || "—"}</td><td>{Number(row.kilos || row.quantidade || 0).toLocaleString("pt-BR")}</td><td>{money(row.valor ?? row.valor_total ?? row.preco_compra ?? 0)}</td><td><button onClick={() => onSelect(row)}>Consultar</button><button onClick={() => onEdit(row)}>Editar</button></td></tr>)}</tbody></table></div>}</section>;
 }
 
 function HistoricalPurchaseDetails({ purchase, onClose }) {
   const fields = [["Origem", "Compra histórica · estrutura legada"], ["Data", String(purchase.data_compra || purchase.created_at || "—").slice(0, 10)], ["Fornecedor", purchase.fornecedor || "—"], ["Produto", purchase.produto || purchase.material || "—"], ["Quantidade", Number(purchase.kilos || purchase.quantidade || 0).toLocaleString("pt-BR")], ["Valor disponível", money(purchase.valor ?? purchase.valor_total ?? purchase.preco_compra ?? 0)]];
   return <OperationModal title="Consulta de compra histórica" onClose={onClose} onSubmit={onClose} submitLabel="Fechar"><div className="ops-preview ops-field--wide"><strong>Registro somente leitura.</strong> Não é permitido editar, receber, movimentar estoque ou gerar financeiro a partir desta visualização.</div>{fields.map(([label, value]) => <div className="ops-field" key={label}><span>{label}</span><strong>{value}</strong></div>)}</OperationModal>;
+}
+
+function HistoricalPurchaseEditor({ purchase, manager, onClose, onFeedback }) {
+  const [draft, setDraft] = useState(() => ({ dataCompra: String(purchase.data_compra || "").slice(0, 10), fornecedor: purchase.fornecedor || "", produto: purchase.produto || "", kilos: purchase.kilos ?? "", valor: purchase.valor ?? "" }));
+  const [saving, setSaving] = useState(false);
+  const change = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
+  async function saveHistorical() {
+    if (!draft.dataCompra) return onFeedback("Informe a data da compra histórica.");
+    if (!draft.fornecedor.trim()) return onFeedback("Informe o fornecedor da compra histórica.");
+    if (!draft.produto.trim()) return onFeedback("Informe o produto da compra histórica.");
+    if (!Number.isFinite(Number(draft.kilos)) || Number(draft.kilos) <= 0) return onFeedback("Informe uma quantidade maior que zero.");
+    if (!Number.isFinite(Number(draft.valor)) || Number(draft.valor) < 0) return onFeedback("Informe um valor válido, maior ou igual a zero.");
+    if (!window.confirm("Confirmar correção desta compra histórica? Nenhuma movimentação operacional será executada.")) return;
+    setSaving(true);
+    try { await manager.editHistorical(purchase, draft); onFeedback("Compra histórica atualizada com segurança."); onClose(); }
+    catch (error) { onFeedback(`Não foi possível atualizar a compra histórica: ${error.message}`); }
+    finally { setSaving(false); }
+  }
+  return <OperationModal title="Editar compra histórica" editing onClose={onClose} onSubmit={saveHistorical} submitLabel="Salvar correção" disabled={saving}><div className="ops-preview ops-field--wide"><strong>Esta alteração corrige somente o registro histórico.</strong> Nenhuma movimentação operacional será executada.</div><label className="ops-field"><span>Data</span><input type="date" value={draft.dataCompra} onChange={change("dataCompra")} /></label><label className="ops-field"><span>Fornecedor</span><input value={draft.fornecedor} onChange={change("fornecedor")} /></label><label className="ops-field"><span>Produto</span><input value={draft.produto} onChange={change("produto")} /></label><label className="ops-field"><span>Quantidade/peso</span><input type="number" min="0.0001" step="any" value={draft.kilos} onChange={change("kilos")} /></label><label className="ops-field"><span>Valor</span><input type="number" min="0" step="0.01" value={draft.valor} onChange={change("valor")} /></label><div className="ops-preview ops-field--wide">Comissão, empresa, autoria e identificador permanecem inalterados.</div></OperationModal>;
 }
 
 function PurchaseNeeds({ needs, onReview, onDismiss }) {
