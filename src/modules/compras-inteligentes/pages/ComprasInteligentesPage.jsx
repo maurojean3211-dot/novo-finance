@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ActionButtons, MetricGrid, ModuleHeader, OperationModal } from "../../../components/operations/OperationsUI";
 import { formatPurchaseCommissionRate, getPurchaseCommissionData, getPurchaseItemCommissionData, getPurchaseOrderCommissionData } from "../../../services/commissionEngine";
+import { countPurchasesWithoutOriginalDate, formatOriginalPurchaseDate, getOriginalPurchaseDate } from "../../../services/purchaseDate";
 import { listImportDrafts } from "../../catalogo-inteligente/services/catalogoImportDraft.service";
 import { listStock } from "../../estoque-inteligente/services/estoque.service";
 import { resolveConsolidatedPurchaseNeed } from "../../producao-pcp/services/producao.service";
@@ -60,7 +61,7 @@ function ComprasWorkspace({ empresaId, userId }) {
     } catch (error) { setFeedback(order.pcpNeedId ? `Não foi possível concluir o tratamento da necessidade. Ela foi mantida na fila: ${error.message}` : `Não foi possível salvar o pedido: ${error.message}`); }
   }
   async function removeHistorical(purchase) {
-    const date = String(purchase.data_compra || purchase.created_at || "—").slice(0, 10);
+    const date = formatOriginalPurchaseDate(purchase);
     const quantity = Number(purchase.kilos || purchase.quantidade || 0).toLocaleString("pt-BR");
     const message = `Excluir a compra histórica?\n\nFornecedor: ${purchase.fornecedor || "—"}\nProduto: ${purchase.produto || purchase.material || "—"}\nData: ${date}\nQuantidade: ${quantity}\n\nEsta ação excluirá somente o registro histórico de compra.`;
     if (!window.confirm(message)) return;
@@ -98,17 +99,18 @@ function ComprasWorkspace({ empresaId, userId }) {
 }
 
 function HistoricalPurchases({ rows, onSelect, onEdit, onDelete }) {
-  return <section className="ops-panel"><div className="ops-panel__header"><div><h2>Compras históricas</h2><small>Fonte legada. Correções exigem confirmação e não executam ações operacionais.</small></div><span>{rows.length} registro(s)</span></div>{!rows.length ? <p>Nenhuma compra histórica visível para esta empresa.</p> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Origem</th><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Valor disponível</th><th>Comissão</th><th>Ações</th></tr></thead><tbody>{rows.map((row) => { const data = getPurchaseCommissionData(row); return <tr key={`legacy:${row.id}`}><td><strong>Compra histórica</strong></td><td>{String(row.data_compra || row.created_at || "—").slice(0, 10)}</td><td>{row.fornecedor || "—"}</td><td>{row.produto || row.material || "—"}</td><td>{Number(row.kilos || row.quantidade || 0).toLocaleString("pt-BR")}</td><td>{money(row.valor ?? row.valor_total ?? row.preco_compra ?? 0)}</td><td>{data.rate > 0 ? <><strong>{money(data.commission)}</strong><small>{commissionRule(data)}</small></> : "—"}</td><td><ActionButtons onView={() => onSelect(row)} onEdit={() => onEdit(row)} onDelete={() => onDelete(row)} /></td></tr>; })}</tbody></table></div>}</section>;
+  const withoutDate = countPurchasesWithoutOriginalDate(rows);
+  return <section className="ops-panel"><div className="ops-panel__header"><div><h2>Compras históricas</h2><small>Fonte legada. Correções exigem confirmação e não executam ações operacionais.</small></div><span>{rows.length} registro(s){withoutDate ? ` · ${withoutDate} sem data` : ""}</span></div>{!rows.length ? <p>Nenhuma compra histórica visível para esta empresa.</p> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Origem</th><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Valor disponível</th><th>Comissão</th><th>Ações</th></tr></thead><tbody>{rows.map((row) => { const data = getPurchaseCommissionData(row); return <tr key={`legacy:${row.id}`}><td><strong>Compra histórica</strong></td><td>{formatOriginalPurchaseDate(row)}</td><td>{row.fornecedor || "—"}</td><td>{row.produto || row.material || "—"}</td><td>{Number(row.kilos || row.quantidade || 0).toLocaleString("pt-BR")}</td><td>{money(row.valor ?? row.valor_total ?? row.preco_compra ?? 0)}</td><td>{data.rate > 0 ? <><strong>{money(data.commission)}</strong><small>{commissionRule(data)}</small></> : "—"}</td><td><ActionButtons onView={() => onSelect(row)} onEdit={() => onEdit(row)} onDelete={() => onDelete(row)} /></td></tr>; })}</tbody></table></div>}</section>;
 }
 
 function HistoricalPurchaseDetails({ purchase, onClose }) {
   const commission = getPurchaseCommissionData(purchase);
-  const fields = [["Origem", "Compra histórica · estrutura legada"], ["Data", String(purchase.data_compra || purchase.created_at || "—").slice(0, 10)], ["Fornecedor", purchase.fornecedor || "—"], ["Produto", purchase.produto || purchase.material || "—"], ["Quantidade", `${Number(purchase.kilos || purchase.quantidade || 0).toLocaleString("pt-BR")} kg`], ["Valor disponível", money(purchase.valor ?? purchase.valor_total ?? purchase.preco_compra ?? 0)], ["Comissão", commission.rate > 0 ? `${commissionRule(commission)} = ${money(commission.commission)}` : "Sem comissão automática"]];
+  const fields = [["Origem", "Compra histórica · estrutura legada"], ["Data", formatOriginalPurchaseDate(purchase)], ["Fornecedor", purchase.fornecedor || "—"], ["Produto", purchase.produto || purchase.material || "—"], ["Quantidade", `${Number(purchase.kilos || purchase.quantidade || 0).toLocaleString("pt-BR")} kg`], ["Valor disponível", money(purchase.valor ?? purchase.valor_total ?? purchase.preco_compra ?? 0)], ["Comissão", commission.rate > 0 ? `${commissionRule(commission)} = ${money(commission.commission)}` : "Sem comissão automática"]];
   return <OperationModal title="Consulta de compra histórica" onClose={onClose} onSubmit={onClose} submitLabel="Fechar"><div className="ops-preview ops-field--wide"><strong>Registro somente leitura.</strong> Não é permitido editar, receber, movimentar estoque ou gerar financeiro a partir desta visualização.</div>{fields.map(([label, value]) => <div className="ops-field" key={label}><span>{label}</span><strong>{value}</strong></div>)}</OperationModal>;
 }
 
 function HistoricalPurchaseEditor({ purchase, manager, onClose, onFeedback }) {
-  const [draft, setDraft] = useState(() => ({ dataCompra: String(purchase.data_compra || "").slice(0, 10), fornecedor: purchase.fornecedor || "", produto: purchase.produto || "", kilos: purchase.kilos ?? "", valor: purchase.valor ?? "" }));
+  const [draft, setDraft] = useState(() => ({ dataCompra: getOriginalPurchaseDate(purchase), fornecedor: purchase.fornecedor || "", produto: purchase.produto || "", kilos: purchase.kilos ?? "", valor: purchase.valor ?? "" }));
   const [saving, setSaving] = useState(false);
   const change = (field) => (event) => setDraft((current) => ({ ...current, [field]: event.target.value }));
   async function saveHistorical() {

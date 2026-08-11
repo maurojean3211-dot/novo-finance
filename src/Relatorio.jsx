@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { FilterBar, MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
 import { getPurchaseCommissionData, getStoredOrCalculatedCommission } from "./services/commissionEngine";
+import { getOriginalPurchaseDate } from "./services/purchaseDate";
 
 export default function Relatorio({ empresaId }) {
   const [dados, setDados] = useState([]);
@@ -203,9 +204,7 @@ export default function Relatorio({ empresaId }) {
 
       totalCom += com;
 
-      const dataCompra = String(
-        item.created_at || ""
-      ).slice(0, 10);
+      const dataCompra = getOriginalPurchaseDate(item);
 
       if (dataCompra === dataHoje) {
         hojeCom += com;

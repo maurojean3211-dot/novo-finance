@@ -1,4 +1,5 @@
 import { COMMISSION_TYPES, formatPercentage, getCommissionRule, getPurchaseCommissionData, getSaleCommissionPercentage } from "./commissionEngine.js";
+import { formatOriginalPurchaseDate } from "./purchaseDate.js";
 
 const PAGE = { width: 841.89, height: 595.28, margin: 28 };
 
@@ -269,7 +270,7 @@ export function buildPurchasesReportData({ records, companyName, issuedBy, perio
     const total = Number(item.valor || item.valor_total || 0);
     const commissionData = getPurchaseCommissionData(item);
     return {
-      date: formatDate(item.data_compra), supplier: item.fornecedor || "-", material: item.produto || "Outros", alloy: item.liga || "Não informada",
+      date: formatOriginalPurchaseDate(item), supplier: item.fornecedor || "-", material: item.produto || "Outros", alloy: item.liga || "Não informada",
       quantity: formatNumber(item.quantidade_original || kg), unit: item.unidade_original || "kg", kg: formatNumber(kg), price: formatMoney(kg ? total / kg : 0),
       total: formatMoney(total), freight: item.frete != null ? formatMoney(item.frete) : "Não informado",
       finalCost: item.custo_final_kg != null ? formatMoney(item.custo_final_kg) : "Não informado", status: item.status || "Não informado",
