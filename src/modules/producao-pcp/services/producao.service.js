@@ -16,7 +16,7 @@ export async function loadProduction(empresaId) {
     supabase.from("vendas").select("id,cliente_nome,produto,kilos,valor,data_venda").eq("empresa_id", id).order("data_venda", { ascending: false }).limit(100),
     supabase.from("orcamentos").select("id,numero,status,cliente_id,cliente_snapshot,validade,valor_final,orcamento_itens(*)").eq("empresa_id", id).eq("status", "Aprovado").order("created_at", { ascending: false }).limit(100),
     supabase.from("recursos_producao").select("*").eq("empresa_id", id).order("nome"),
-    supabase.from("ordem_producao_recursos").select("*,ordem_producao_operacao_apontamentos(*)").eq("empresa_id", id).order("sequencia"),
+    supabase.from("ordem_producao_recursos").select("*,ordem_producao_operacao_apontamentos(*),ordem_producao_operacao_resultados(*)").eq("empresa_id", id).order("sequencia"),
     supabase.from("recurso_producao_indisponibilidades").select("*").eq("empresa_id", id).order("inicio"),
     supabase.from("pedidos_compra").select("id,numero,status,data,previsao,fornecedor_id,fornecedor_snapshot,observacoes,valor_total,pedido_compra_itens(id,estoque_id,quantidade,quantidade_recebida,unidade,valor_unitario,dados_catalogo),pedido_compra_cotacoes(id,fornecedor_id,fornecedor_snapshot,prazo_dias,created_at),pedido_compra_followups(*)").eq("empresa_id", id).order("created_at", { ascending: false }).limit(200),
   ]);
@@ -188,8 +188,26 @@ export async function recordProductionOperationEvent({ empresaId, allocationId, 
   if (error) throw error;
 }
 
+export async function recordProductionOperationResult({ empresaId, allocationId, result }) {
+  const good = n(result.good); const rejected = n(result.rejected); const operator = String(result.operator || "").trim();
+  if (!allocationId || !result.idempotencyKey || !result.occurredAt || good < 0 || rejected < 0 || good + rejected <= 0 || !operator) throw new Error("Operação, operador, data e quantidade positiva são obrigatórios.");
+  if (rejected > 0 && !result.lossReason) throw new Error("Informe o motivo do refugo.");
+  const { error } = await supabase.rpc("apontar_resultado_operacao_producao", {
+    p_empresa_id: company(empresaId), p_alocacao_id: allocationId, p_quantidade_boa: good,
+    p_quantidade_refugada: rejected, p_operador: operator, p_motivo_refugo: result.lossReason || null,
+    p_ocorrido_em: result.occurredAt, p_observacoes: String(result.notes || "").trim() || null,
+    p_idempotency_key: result.idempotencyKey,
+  });
+  if (error) throw error;
+}
+
 const dayKey = (date) => date.toISOString().slice(0, 10);
 const allocationHours = (item) => n(item.tempo_total_horas) > 0 ? n(item.tempo_total_horas) : n(item.tempo_unitario_horas) > 0 && n(item.quantidade_planejada) > 0 ? n(item.tempo_unitario_horas) * n(item.quantidade_planejada) : null;
+export function operationPerformance(allocation, currentTime = new Date()) {
+  const results = allocation.ordem_producao_operacao_resultados || []; const good = results.reduce((sum, item) => sum + n(item.quantidade_boa), 0); const rejected = results.reduce((sum, item) => sum + n(item.quantidade_refugada), 0); const planned = n(allocation.quantidade_planejada); const events = [...(allocation.ordem_producao_operacao_apontamentos || [])].sort((a, b) => String(a.ocorrido_em).localeCompare(String(b.ocorrido_em)));
+  let activeStart = null; let workedMilliseconds = 0; events.forEach((event) => { const occurred = new Date(event.ocorrido_em).getTime(); if (["Início","Retomada"].includes(event.tipo) && activeStart === null) activeStart = occurred; if (["Pausa","Conclusão","Cancelamento"].includes(event.tipo) && activeStart !== null) { workedMilliseconds += Math.max(0, occurred - activeStart); activeStart = null; } }); if (activeStart !== null) workedMilliseconds += Math.max(0, currentTime.getTime() - activeStart);
+  const actualHours = workedMilliseconds / 3600000; const plannedHours = allocationHours(allocation); return { good, rejected, pending: Math.max(0, planned - good - rejected), total: good + rejected, actualHours, plannedHours, timeDifference: plannedHours === null ? null : actualHours - plannedHours };
+}
 const isBlocked = (date, entries) => entries.some((item) => dayKey(date) >= String(item.inicio).slice(0, 10) && dayKey(date) <= String(item.fim).slice(0, 10));
 const plannedDate = (value) => /^\d{4}-\d{2}-\d{2}/.test(String(value || "")) ? String(value).slice(0, 10) : null;
 const horizonLoadStatus = (order, horizonStart, horizonEnd) => {
