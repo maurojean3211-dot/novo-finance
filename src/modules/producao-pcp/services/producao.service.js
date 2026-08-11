@@ -2,6 +2,7 @@ import { supabase } from "../../../supabase";
 
 export const PRODUCTION_STATUSES = ["Rascunho","Planejada","Aguardando material","Liberada","Em produção","Pausada","Concluída","Cancelada"];
 export const RESOURCE_TYPES = ["Máquina","Forno","Serra","Prensa","Linha","Equipe","Posto de trabalho","Outro recurso"];
+export const OPERATION_EVENT_TRANSITIONS = { Pendente: ["Liberação","Cancelamento"], Liberada: ["Início","Cancelamento"], "Em execução": ["Pausa","Conclusão"], Pausada: ["Retomada","Conclusão","Cancelamento"], Concluída: [], Cancelada: [] };
 export const PLANNING_HORIZON_DAYS = 30;
 const n = (value) => Number(value || 0);
 const company = (value) => String(value);
@@ -15,7 +16,7 @@ export async function loadProduction(empresaId) {
     supabase.from("vendas").select("id,cliente_nome,produto,kilos,valor,data_venda").eq("empresa_id", id).order("data_venda", { ascending: false }).limit(100),
     supabase.from("orcamentos").select("id,numero,status,cliente_id,cliente_snapshot,validade,valor_final,orcamento_itens(*)").eq("empresa_id", id).eq("status", "Aprovado").order("created_at", { ascending: false }).limit(100),
     supabase.from("recursos_producao").select("*").eq("empresa_id", id).order("nome"),
-    supabase.from("ordem_producao_recursos").select("*").eq("empresa_id", id).order("sequencia"),
+    supabase.from("ordem_producao_recursos").select("*,ordem_producao_operacao_apontamentos(*)").eq("empresa_id", id).order("sequencia"),
     supabase.from("recurso_producao_indisponibilidades").select("*").eq("empresa_id", id).order("inicio"),
     supabase.from("pedidos_compra").select("id,numero,status,data,previsao,fornecedor_id,fornecedor_snapshot,observacoes,valor_total,pedido_compra_itens(id,estoque_id,quantidade,quantidade_recebida,unidade,valor_unitario,dados_catalogo),pedido_compra_cotacoes(id,fornecedor_id,fornecedor_snapshot,prazo_dias,created_at),pedido_compra_followups(*)").eq("empresa_id", id).order("created_at", { ascending: false }).limit(200),
   ]);
@@ -173,6 +174,16 @@ export async function saveProductionQueue({ empresaId, resourceId, allocationIds
   if (!resourceId || !allocationIds.length || new Set(allocationIds).size !== allocationIds.length) throw new Error("A fila informada é inválida.");
   const { error } = await supabase.rpc("reordenar_fila_producao", {
     p_empresa_id: company(empresaId), p_recurso_id: resourceId, p_alocacoes: allocationIds,
+  });
+  if (error) throw error;
+}
+
+export async function recordProductionOperationEvent({ empresaId, allocationId, event }) {
+  if (!allocationId || !event.idempotencyKey || !event.type || !event.occurredAt) throw new Error("Operação, evento e data são obrigatórios.");
+  const { error } = await supabase.rpc("registrar_evento_operacao_producao", {
+    p_empresa_id: company(empresaId), p_alocacao_id: allocationId, p_evento: event.type,
+    p_ocorrido_em: event.occurredAt, p_observacoes: String(event.notes || "").trim() || null,
+    p_idempotency_key: event.idempotencyKey,
   });
   if (error) throw error;
 }
