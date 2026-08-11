@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { FilterBar, MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
-import { getStoredOrCalculatedCommission } from "./services/commissionEngine";
+import { getPurchaseCommissionData, getStoredOrCalculatedCommission } from "./services/commissionEngine";
 
 export default function Relatorio({ empresaId }) {
   const [dados, setDados] = useState([]);
@@ -17,11 +17,7 @@ export default function Relatorio({ empresaId }) {
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
 
-  useEffect(() => {
-    if (empresaId) buscar();
-  }, [empresaId]);
-
-  async function buscar() {
+  const buscar = useCallback(async () => {
     if (!empresaId) return;
 
     const hoje = new Date();
@@ -201,11 +197,7 @@ export default function Relatorio({ empresaId }) {
 
       resumo[fornecedor].compras += kg;
 
-      let com =
-        nomeProduto.includes("LIMALHA") ||
-        nomeProduto.includes("CAVACO")
-          ? kg * 0.07
-          : kg * 0.05;
+      const com = getPurchaseCommissionData(item).commission;
 
       resumo[fornecedor].comissao += com;
 
@@ -246,7 +238,12 @@ export default function Relatorio({ empresaId }) {
 
     setRecebidoMes(mesRecebido);
     setComissaoMes(mesCom);
-  }
+  }, [dataFim, dataInicio, empresaId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { if (empresaId) void buscar(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [buscar, empresaId]);
 
   function dinheiro(valor) {
     return Number(valor || 0).toLocaleString(

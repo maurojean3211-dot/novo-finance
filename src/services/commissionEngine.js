@@ -86,18 +86,30 @@ export function formatPercentage(value) {
   return `${parseDecimal(value).toLocaleString("pt-BR", { maximumFractionDigits: 4 })}%`;
 }
 
+export function normalizePurchaseProductName(product) {
+  return String(product || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+}
+
 export function getDefaultPurchaseCommissionRate(product) {
-  const name = String(product || "").trim().toUpperCase();
+  const name = normalizePurchaseProductName(product);
   if (name.includes("CAVACO") || name.includes("LIMALHA")) return 0.07;
-  if (name.includes("SUCATA")) return 0.05;
+  if (name.includes("SUCATA DE ALUMINIO")) return 0.05;
   return 0;
+}
+
+export function roundPurchaseCommission(value) {
+  return Math.round((parseDecimal(value) + Number.EPSILON) * 100) / 100;
 }
 
 export function calculatePurchaseCommission({ product, quantity, unit = "KG", rate = "" }) {
   const kilograms = toKilograms(quantity, unit);
   const manualRate = String(rate ?? "").trim();
   const commissionRate = manualRate === "" ? getDefaultPurchaseCommissionRate(product) : parseDecimal(rate);
-  return { kilograms, rate: commissionRate, commission: kilograms * commissionRate };
+  return { kilograms, rate: commissionRate, commission: roundPurchaseCommission(kilograms * commissionRate) };
 }
 
 export function getPurchaseCommissionData(purchase) {
@@ -108,9 +120,24 @@ export function getPurchaseCommissionData(purchase) {
     ? parseDecimal(explicitRate)
     : persistedCommission > 0 && kilograms > 0
       ? persistedCommission / kilograms
-      : getDefaultPurchaseCommissionRate(purchase.produto);
-  const commission = persistedCommission > 0 ? persistedCommission : kilograms * rate;
+      : getDefaultPurchaseCommissionRate(purchase.produto || purchase.material || purchase.descricao);
+  const commission = persistedCommission > 0 ? persistedCommission : roundPurchaseCommission(kilograms * rate);
   return { kilograms, rate, commission };
+}
+
+export function getPurchaseItemCommissionData(item) {
+  return getPurchaseCommissionData({
+    produto: item.descricao || item.produto || item.codigo,
+    kilos: item.quantidade,
+    unidade_original: item.unidade || "KG",
+    comissao: item.comissao,
+    comissao_por_kg: item.comissaoPorKg ?? item.comissao_por_kg,
+  });
+}
+
+export function getPurchaseOrderCommissionData(order) {
+  const items = (order.items || []).map(getPurchaseItemCommissionData);
+  return { items, commission: roundPurchaseCommission(items.reduce((total, item) => total + item.commission, 0)) };
 }
 
 export function formatPurchaseCommissionRate(rate) {
