@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import MobileNavigation from "./MobileNavigation";
 import Sidebar from "./Sidebar";
 
-export default function Layout({ children, pagina, permissoes, loginMaster, onNavigate, onLogout }) {
+export default function Layout({ children, pagina, permissoes, loginMaster, nomeEmpresa, onNavigate, onLogout }) {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   useEffect(() => {
@@ -13,7 +13,7 @@ export default function Layout({ children, pagina, permissoes, loginMaster, onNa
 
   return (
     <div className={`app-shell${isMobile ? " app-shell--mobile" : ""}`}>
-      {!isMobile && <Sidebar key={`desktop-${pagina}`} pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} onNavigate={onNavigate} onLogout={onLogout} />}
+      {!isMobile && <Sidebar key={`desktop-${pagina}`} pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} nomeEmpresa={nomeEmpresa} onNavigate={onNavigate} onLogout={onLogout} />}
       <div className="app-content">{children}</div>
       {isMobile && <MobileNavigation key={`mobile-${pagina}`} pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} onNavigate={onNavigate} onLogout={onLogout} />}
     </div>

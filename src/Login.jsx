@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { authErrorMessage } from "./app/auth/authMessages";
 import { supabase } from "./supabase";
 import "./Login.css";
 
@@ -17,7 +18,6 @@ export default function Login({ onLogin }) {
   const [cpf, setCpf] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [lembrar, setLembrar] = useState(false);
   const [mensagem, setMensagem] = useState(null);
 
   function exibirMensagem(tipo, texto) {
@@ -33,26 +33,17 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    if (loading) return;
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password: senha,
-    });
-    setLoading(false);
-
-    if (error) {
-      exibirMensagem(
-        "erro",
-        error.message.includes("Invalid login credentials")
-          ? "E-mail ou senha incorretos. Confira os dados informados."
-          : error.message,
-      );
-      return;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password: senha });
+      if (error) throw error;
+      if (typeof onLogin === "function") onLogin(data.user);
+    } catch (error) {
+      exibirMensagem("erro", authErrorMessage(error, "Não foi possível entrar. Tente novamente."));
+    } finally {
+      setLoading(false);
     }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (typeof onLogin === "function") onLogin(user);
-    else window.location.reload();
   }
 
   async function cadastrar(event) {
@@ -75,7 +66,7 @@ export default function Login({ onLogin }) {
         setModo("login");
         return;
       }
-      exibirMensagem("erro", error.message);
+      exibirMensagem("erro", authErrorMessage(error, "Não foi possível criar a conta."));
       return;
     }
 
@@ -112,17 +103,17 @@ export default function Login({ onLogin }) {
       return;
     }
 
+    if (loading) return;
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim().toLowerCase(),
-      { redirectTo: window.location.origin + "/reset" },
-    );
-    setLoading(false);
-
-    exibirMensagem(
-      error ? "erro" : "sucesso",
-      error ? "Não foi possível enviar o e-mail de recuperação." : "E-mail de recuperação enviado.",
-    );
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/reset` });
+      if (error) throw error;
+      exibirMensagem("sucesso", "Se o e-mail estiver cadastrado, enviaremos um link de recuperação.");
+    } catch (error) {
+      exibirMensagem("erro", authErrorMessage(error, "Não foi possível enviar a recuperação agora."));
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -169,7 +160,7 @@ export default function Login({ onLogin }) {
               <label className="login-field"><span>WhatsApp</span><div><b>◉</b><input inputMode="tel" autoComplete="tel" placeholder="Informe seu WhatsApp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} disabled={loading} /></div></label>
             </div>}
 
-            {modo === "login" && <div className="login-options"><label><input type="checkbox" checked={lembrar} onChange={(e) => setLembrar(e.target.checked)} /> <span>Lembrar acesso</span></label><button type="button" onClick={recuperarSenha} disabled={loading}>Esqueci minha senha</button></div>}
+            {modo === "login" && <div className="login-options"><span>Sessão protegida neste dispositivo</span><button type="button" onClick={recuperarSenha} disabled={loading}>Esqueci minha senha</button></div>}
 
             <button className="login-submit" type="submit" disabled={loading}>{loading ? <><span className="login-spinner" /> Aguarde...</> : modo === "login" ? "Entrar na plataforma →" : "Criar conta →"}</button>
             <button className="login-secondary" type="button" onClick={() => { setModo(modo === "login" ? "cadastro" : "login"); setMensagem(null); }} disabled={loading}>{modo === "login" ? "Criar uma nova conta" : "Voltar para o login"}</button>

@@ -7,6 +7,7 @@ import Dashboard from "./Dashboard";
 import PainelExecutivo from "./PainelExecutivo";
 import Fornecedores from "./Fornecedores.jsx";
 import Login from "./Login";
+import ResetPassword from "./ResetPassword";
 import MasterAdmin from "./MasterAdmin";
 import Produtos from "./Produtos.jsx";
 import Relatorio from "./Relatorio.jsx";
@@ -15,6 +16,7 @@ import Vendas from "./Vendas.jsx";
 import VendasUsuario from "./VendasUsuario.jsx";
 import useAppNavigation from "./app/navigation/useAppNavigation";
 import { findMenuItem } from "./app/navigation/menuConfig";
+import { canAccessPage, isMasterUser } from "./app/auth/accessPolicy";
 import useAuth from "./app/providers/useAuth";
 import Layout from "./components/layout/Layout";
 import ModulePlanning from "./components/ModulePlanning";
@@ -32,7 +34,7 @@ import ProspeccaoComercial from "./modules/prospeccao-comercial";
 import { ContasFixasPessoaisPage, FinanceiroPessoalDashboard, ReceitasPessoaisPage, RelatoriosPessoaisPage } from "./modules/financeiro-pessoal";
 
 export default function App() {
-  const { session, loadingSession, empresaId, permissoes, nomeUsuario, sair } = useAuth();
+  const { session, loadingSession, empresaId, permissoes, nomeUsuario, nomeEmpresa, role, authIssue, sair } = useAuth();
   const { pagina, navigate } = useAppNavigation();
   const [enteredUserId, setEnteredUserId] = useState(null);
   const [isExiting, setIsExiting] = useState(false);
@@ -61,6 +63,8 @@ export default function App() {
     }
   }
 
+  if (window.location.pathname === "/reset") return <ResetPassword />;
+
   if (isExiting) {
     return (
       <BrandTransition
@@ -78,6 +82,10 @@ export default function App() {
 
   if (!session) return <Login />;
 
+  if (authIssue || !empresaId) {
+    return <main className="access-state"><section><span>ACESSO PROTEGIDO</span><h1>Não foi possível abrir sua empresa.</h1><p>{authIssue || "Nenhuma empresa foi vinculada a este usuário."}</p><button type="button" onClick={startLogout}>Voltar para o login</button></section></main>;
+  }
+
   if (enteredUserId !== session.user.id) {
     return (
       <BrandTransition
@@ -89,10 +97,9 @@ export default function App() {
     );
   }
 
-  const emailLogado = session?.user?.email || "";
-  const nomeEmpresa = session?.user?.user_metadata?.empresa_nome || "Cunha Finance";
-  const loginMaster = emailLogado === "maurojean3211@gmail.com";
+  const loginMaster = isMasterUser(session.user, role);
   const menuItem = findMenuItem(pagina);
+  const acessoPermitido = canAccessPage(pagina, permissoes, loginMaster);
   const paginaRelatorio = ["relatorio", "relatorio_comercial", "relatorio_financeiro", "relatorio_compras", "relatorio_vendas"].includes(pagina);
 
   return (
@@ -100,11 +107,14 @@ export default function App() {
       pagina={pagina}
       permissoes={permissoes}
       loginMaster={loginMaster}
+      nomeEmpresa={nomeEmpresa}
       onNavigate={navigate}
       onLogout={startLogout}
     >
-      {pagina === "dashboard" && <Dashboard empresaId={empresaId} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />}
-      {pagina === "painel_executivo" && <PainelExecutivo empresaId={empresaId} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />}
+      {!acessoPermitido && <section className="access-denied" role="alert"><span>ACESSO RESTRITO</span><h2>Módulo não autorizado</h2><p>Seu perfil não possui permissão para acessar esta área.</p><button type="button" onClick={() => navigate("dashboard")}>Voltar ao Dashboard</button></section>}
+      {acessoPermitido && pagina === "dashboard" && <Dashboard empresaId={empresaId} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />}
+      {acessoPermitido && pagina === "painel_executivo" && <PainelExecutivo empresaId={empresaId} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />}
+      {acessoPermitido && <>
       {pagina === "recebimentos" && <FinanceiroCorporativo empresaId={empresaId} userId={session.user.id} initialTab="receivable" />}
       {["crm", "clientes"].includes(pagina) && <CrmComercial empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
       {pagina === "prospeccao" && <ProspeccaoComercial />}
@@ -128,6 +138,7 @@ export default function App() {
       {pagina === "master" && loginMaster && <MasterAdmin />}
       {pagina === "admin" && <Admin />}
       {menuItem?.planned && <ModulePlanning title={menuItem.label} />}
+      </>}
     </Layout>
   );
 }

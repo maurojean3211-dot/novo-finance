@@ -239,3 +239,4 @@ border-radius:4px;
   .app-content{padding:12px 10px 90px}
   .mobile-nav-menu{scrollbar-width:thin;overscroll-behavior:contain}
 }
+.access-state{display:grid;min-height:100dvh;place-items:center;padding:24px;background:#07101d;color:#f4f7fb}.access-state section,.access-denied{width:min(520px,100%);padding:28px;border:1px solid #293a51;border-radius:16px;background:#0d1827}.access-state span,.access-denied span{color:#6596eb;font-size:10px;font-weight:800;letter-spacing:.12em}.access-state h1,.access-denied h2{margin:9px 0}.access-state p,.access-denied p{color:#9aa8ba;line-height:1.5}.access-state button,.access-denied button{margin-top:12px;padding:11px 16px;border-radius:9px;background:#285fbf;color:#fff}.access-denied{margin:32px auto}

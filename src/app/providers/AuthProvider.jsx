@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "../../supabase";
 import AuthContext from "./AuthContext";
 
@@ -8,25 +8,60 @@ export function AuthProvider({ children }) {
   const [empresaId, setEmpresaId] = useState(null);
   const [permissoes, setPermissoes] = useState({});
   const [nomeUsuario, setNomeUsuario] = useState("");
+  const [nomeEmpresa, setNomeEmpresa] = useState("");
+  const [role, setRole] = useState("");
+  const [authIssue, setAuthIssue] = useState(null);
+  const requestIdRef = useRef(0);
 
-  async function carregarSessao() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  const clearProfile = useCallback(() => {
+    setEmpresaId(null);
+    setPermissoes({});
+    setNomeUsuario("");
+    setNomeEmpresa("");
+    setRole("");
+  }, []);
+
+  const carregarSessao = useCallback(async (eventUser) => {
+    const requestId = ++requestIdRef.current;
+    setLoadingSession(true);
+    setAuthIssue(null);
+    let user = eventUser;
+
+    if (typeof eventUser === "undefined") {
+      const { data, error } = await supabase.auth.getUser();
+      if (requestId !== requestIdRef.current) return;
+      if (error) {
+        setSession(null);
+        clearProfile();
+        setAuthIssue("Não foi possível validar a sessão. Entre novamente.");
+        setLoadingSession(false);
+        return;
+      }
+      user = data.user;
+    }
 
     if (!user) {
       setSession(null);
+      clearProfile();
       setLoadingSession(false);
       return;
     }
 
     setSession({ user });
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("usuarios")
-      .select("empresa_id, permissoes, nome")
-      .eq("email", user.email)
+      .select("empresa_id, permissoes, nome, role")
+      .eq("id", user.id)
       .maybeSingle();
+
+    if (requestId !== requestIdRef.current) return;
+    if (error || !data?.empresa_id) {
+      clearProfile();
+      setAuthIssue(error ? "Não foi possível carregar seu perfil e suas permissões." : "Nenhuma empresa foi vinculada a este usuário.");
+      setLoadingSession(false);
+      return;
+    }
 
     let perms = {};
 
@@ -42,27 +77,40 @@ export function AuthProvider({ children }) {
     setEmpresaId(data?.empresa_id || null);
     setPermissoes(perms);
     setNomeUsuario(data?.nome || user.email);
+    setRole(data?.role || "");
+
+    const { data: company } = await supabase.from("empresas").select("name").eq("id", data.empresa_id).maybeSingle();
+    if (requestId !== requestIdRef.current) return;
+    setNomeEmpresa(company?.name || user.user_metadata?.empresa_nome || "Empresa vinculada");
     setLoadingSession(false);
-  }
+  }, [clearProfile]);
 
   useEffect(() => {
-    void Promise.resolve().then(carregarSessao);
+    void Promise.resolve().then(() => carregarSessao());
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      carregarSessao();
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      window.setTimeout(() => void carregarSessao(currentSession?.user || null), 0);
     });
 
-    return () => subscription?.unsubscribe();
-  }, []);
+    return () => {
+      requestIdRef.current += 1;
+      subscription?.unsubscribe();
+    };
+  }, [carregarSessao]);
 
   async function sair() {
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    requestIdRef.current += 1;
+    setSession(null);
+    clearProfile();
+    sessionStorage.removeItem("cunha-finance:quote-draft");
+    localStorage.removeItem("empresaId");
+    await supabase.auth.signOut({ scope: "local" });
+    window.location.replace("/");
   }
 
-  const value = { session, loadingSession, empresaId, permissoes, nomeUsuario, sair };
+  const value = { session, loadingSession, empresaId, permissoes, nomeUsuario, nomeEmpresa, role, authIssue, sair };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

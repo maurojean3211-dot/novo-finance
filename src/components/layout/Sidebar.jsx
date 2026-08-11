@@ -14,7 +14,7 @@ function MenuItem({ item, pagina, onNavigate }) {
   );
 }
 
-export default function Sidebar({ pagina, permissoes, loginMaster, onNavigate, onLogout }) {
+export default function Sidebar({ pagina, permissoes, loginMaster, nomeEmpresa, onNavigate, onLogout }) {
   const activeGroupId = findMenuGroupByPage(pagina)?.id || "visao-geral";
   const [openGroupId, setOpenGroupId] = useState(activeGroupId);
 
@@ -27,7 +27,7 @@ export default function Sidebar({ pagina, permissoes, loginMaster, onNavigate, o
 
       <div className="app-company-card">
         <span>Empresa ativa</span>
-        <strong>Cunha Empreendimentos</strong>
+        <strong>{nomeEmpresa || "Empresa vinculada"}</strong>
         <small>Plano completo</small>
       </div>
 

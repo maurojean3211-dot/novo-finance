@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { canAccessPage } from "../../app/auth/accessPolicy";
 import { canAccessMenuItem, findMenuGroupByPage, menuGroups } from "../../app/navigation/menuConfig";
 
 const mobileBar = { position: "fixed", bottom: 0, left: 0, right: 0, height: 65, background: "#111827", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #333", zIndex: 999 };
@@ -42,9 +43,9 @@ export default function MobileNavigation({ pagina, permissoes, loginMaster, onNa
 
       <div style={mobileBar}>
         <button onClick={() => onNavigate("dashboard")} style={mobileBtn} aria-label="Dashboard">📊</button>
-        <button onClick={() => onNavigate("recebimentos")} style={mobileBtn} aria-label="Contas a Receber">💵</button>
-        <button onClick={() => onNavigate("clientes")} style={mobileBtn} aria-label="Empresas e Clientes">👥</button>
-        <button onClick={() => onNavigate("vendas")} style={mobileBtn} aria-label="Vendas">📦</button>
+        {canAccessPage("recebimentos", permissoes, loginMaster) && <button onClick={() => onNavigate("recebimentos")} style={mobileBtn} aria-label="Contas a Receber">💵</button>}
+        {canAccessPage("clientes", permissoes, loginMaster) && <button onClick={() => onNavigate("clientes")} style={mobileBtn} aria-label="Empresas e Clientes">👥</button>}
+        {canAccessPage("vendas", permissoes, loginMaster) && <button onClick={() => onNavigate("vendas")} style={mobileBtn} aria-label="Vendas">📦</button>}
         <button onClick={() => setMenuMais(!menuMais)} style={mobileBtn} aria-label="Abrir módulos">☰</button>
       </div>
     </>
