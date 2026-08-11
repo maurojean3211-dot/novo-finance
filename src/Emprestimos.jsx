@@ -4,7 +4,7 @@ import { supabase } from "./supabase";
 export default function EmprestimosLista() {
   const [dados, setDados] = useState([]);
   const [empresaRealId, setEmpresaRealId] = useState(null);
-  const [carregandoId, setCarregandoId] = useState(null);
+  const [, setCarregandoId] = useState(null);
 
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -21,10 +21,6 @@ export default function EmprestimosLista() {
   const [pixEdit, setPixEdit] = useState(
     () => localStorage.getItem("chave_pix") || "11963068079"
   );
-
-  useEffect(() => {
-    carregarEmpresa();
-  }, []);
 
   async function carregarEmpresa() {
     const {
@@ -54,6 +50,11 @@ export default function EmprestimosLista() {
 
     setDados(data || []);
   }
+
+  useEffect(() => {
+    const timer = window.setTimeout(carregarEmpresa, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function salvarPix() {
     setPixChave(pixEdit);

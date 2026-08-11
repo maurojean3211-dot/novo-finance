@@ -14,12 +14,6 @@ const [dataLancamento,setDataLancamento] = useState(
 new Date().toISOString().split("T")[0]
 );
 
-// ================= CARREGAR EMPRESA
-
-useEffect(()=>{
-carregarEmpresa();
-},[]);
-
 async function carregarEmpresa(){
 
 const { data:{user} } = await supabase.auth.getUser();
@@ -61,6 +55,13 @@ return;
 setLancamentos(data || []);
 
 }
+
+// ================= CARREGAR EMPRESA
+
+useEffect(()=>{
+const timer = window.setTimeout(carregarEmpresa, 0);
+return () => window.clearTimeout(timer);
+},[]);
 
 // ================= SALVAR
 
@@ -199,8 +200,6 @@ descricao:l.descricao
 });
 
 const data = await response.json();
-
-console.log("PIX:",data);
 
 if(data.invoiceUrl){
 window.open(data.invoiceUrl);

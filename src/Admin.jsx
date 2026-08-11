@@ -245,28 +245,6 @@ alert("Compra registrada");
 
 }
 
-// ================= ENVIAR WHATSAPP
-
-function enviarWhatsapp(){
-
-if(!whatsapp){
-alert("Informe o WhatsApp");
-return;
-}
-
-const mensagem =
-`Olá ${cliente}
-Sua compra de ${descricao}
-Total: R$ ${totalVenda}
-Parcelas: ${parcelas}`;
-
-const url =
-`https://wa.me/55${whatsapp}?text=${encodeURIComponent(mensagem)}`;
-
-window.open(url);
-
-}
-
 // ================= TELA
 
 const input={
