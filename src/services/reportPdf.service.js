@@ -1,4 +1,4 @@
-import { COMMISSION_TYPES, formatPercentage, getCommissionRule, getPurchaseCommissionData, getSaleCommissionPercentage } from "./commissionEngine.js";
+import { COMMISSION_TYPES, formatPercentage, getCommissionRule, getPurchaseCommissionData, getSaleCommissionPercentage, getStoredOrCalculatedCommission } from "./commissionEngine.js";
 import { formatOriginalPurchaseDate } from "./purchaseDate.js";
 
 const PAGE = { width: 841.89, height: 595.28, margin: 28 };
@@ -226,7 +226,7 @@ export function filterPurchaseRecords(records, filters) {
 export function generateSalesReport({ records, companyName, issuedBy, period }) {
   const weight = records.reduce((sum, item) => sum + Number(item.kilos || 0), 0);
   const value = records.reduce((sum, item) => sum + Number(item.valor || item.valor_total || 0), 0);
-  const commission = records.reduce((sum, item) => sum + Number(item.comissao || 0), 0);
+  const commission = records.reduce((sum, item) => sum + getStoredOrCalculatedCommission(item), 0);
   const rows = records.map((item) => {
     const kg = Number(item.kilos || 0);
     const total = Number(item.valor || item.valor_total || 0);
@@ -236,7 +236,7 @@ export function generateSalesReport({ records, companyName, issuedBy, period }) 
       kg: formatNumber(kg), unit: item.unidade_original || "kg", price: formatMoney(kg ? total / kg : 0), total: formatMoney(total),
       type: rule.type === COMMISSION_TYPES.PERCENT_SALE ? "Percentual" : "Por kg",
       base: rule.type === COMMISSION_TYPES.PERCENT_SALE ? `${formatPercentage(getSaleCommissionPercentage(item))} sobre o total` : `${formatMoney(rule.rate)}/kg`,
-      commission: formatMoney(item.comissao), seller: item.vendedor_nome || item.vendedor || item.user_id || "Não informado",
+      commission: formatMoney(getStoredOrCalculatedCommission(item)), seller: item.vendedor_nome || item.vendedor || item.user_id || "Não informado",
     };
   });
   const bytes = generateReportPdfBytes({

@@ -144,9 +144,7 @@ export default function Relatorio({ empresaId }) {
       totalKg += kg;
       totalCom += com;
 
-      const dataVenda = String(
-        item.created_at || ""
-      ).slice(0, 10);
+      const dataVenda = String(item.data_venda || "").slice(0, 10);
 
       if (dataVenda === dataHoje) {
         hojeRecebido += valor;

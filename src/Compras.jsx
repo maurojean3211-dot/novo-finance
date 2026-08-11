@@ -55,6 +55,7 @@ export default function Compras({ empresaId, userId, userEmail, companyName = "C
       .from("compras")
       .select("*")
       .eq("empresa_id", empId)
+      .order("data_compra", { ascending: false })
       .order("id", { ascending: false });
 
     if (error) {
