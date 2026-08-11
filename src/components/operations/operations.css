@@ -38,3 +38,22 @@
   .ops-overlay{align-items:stretch;padding:10px}
   .ops-modal{max-height:calc(100dvh - 20px)}
 }
+
+/* Padrão compartilhado das tabelas operacionais de Vendas e Compras. */
+.ops-table{border-collapse:collapse}
+.ops-table th,.ops-table td{height:38px;vertical-align:middle;text-align:left}
+.ops-table th:last-child,.ops-table td:last-child{width:1%;min-width:116px;text-align:right;white-space:nowrap}
+.ops-actions{display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;min-width:max-content}
+.ops-actions button{display:inline-flex;align-items:center;justify-content:center;width:auto;height:26px;min-width:48px;margin:0;padding:0 8px;border:1px solid #315078;border-radius:6px;background:#1b3151;color:#8fb3f5;font:600 8px/1 inherit;white-space:nowrap}
+.ops-actions button:hover{border-color:#4b73a8;background:#244267;color:#b7cef6}
+.ops-actions button:focus-visible{outline:2px solid #78a4f6;outline-offset:2px}
+.ops-actions button.neutral{border-color:#344257;background:#172332;color:#9aa9bd}
+.ops-actions button.neutral:hover{border-color:#52637a;background:#202e40;color:#c6d0dd}
+.ops-actions button.danger{border-color:rgba(198,76,89,.42);background:rgba(155,45,58,.24);color:#e98b93}
+.ops-actions button.danger:hover{border-color:rgba(226,104,116,.68);background:rgba(170,49,64,.38);color:#ffc0c5}
+
+@media(max-width:767px){
+  .ops-table-wrap{-webkit-overflow-scrolling:touch}
+  .ops-table th:last-child,.ops-table td:last-child{min-width:116px}
+  .ops-actions{flex-wrap:nowrap}
+}

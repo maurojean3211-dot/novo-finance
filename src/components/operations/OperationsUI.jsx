@@ -20,8 +20,8 @@ export function OperationModal({ title, editing, onClose, children, onSubmit, su
   return <div className="ops-overlay" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="ops-modal" role="dialog" aria-modal="true" aria-label={title}><header><div><p>{editing ? "Edição de registro" : "Novo registro"}</p><h2>{title}</h2></div><button onClick={onClose} aria-label="Fechar">×</button></header><div className="ops-form">{children}</div><footer><button onClick={onClose}>Cancelar</button><button onClick={onSubmit} disabled={disabled}>{submitLabel}</button></footer></section></div>;
 }
 
-export function ActionButtons({ onEdit, onDelete }) {
-  return <div className="ops-actions">{onEdit && <button onClick={onEdit}>Editar</button>}{onDelete && <button className="danger" onClick={onDelete}>Excluir</button>}</div>;
+export function ActionButtons({ onView, onEdit, onDelete }) {
+  return <div className="ops-actions">{onView && <button type="button" className="neutral" onClick={onView}>Consultar</button>}{onEdit && <button type="button" onClick={onEdit}>Editar</button>}{onDelete && <button type="button" className="danger" onClick={onDelete}>Excluir</button>}</div>;
 }
 
 export function StatusPanel({ children }) {
