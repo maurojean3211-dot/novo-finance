@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabase";
 import { calculateDashboardMetrics, resolvePeriod } from "../components/dashboard/dashboardMetrics";
 
@@ -27,24 +27,36 @@ export default function useExecutiveDashboard(empresaId, initialPeriod = "month"
   const [period, setPeriod] = useState(initialPeriod);
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const loadedCompany = useRef(null);
+  const refreshVersion = useRef(0);
 
   const refresh = useCallback(async () => {
-    if (!empresaId) { setData(emptyData); setErrors({}); setLoading(false); return; }
+    const requestVersion = ++refreshVersion.current;
+    if (!empresaId) { loadedCompany.current = null; setData(emptyData); setErrors({}); setLoading(false); return; }
     setLoading(true);
     const entries = Object.entries(TABLES);
-    const results = await Promise.all(entries.map(([table, fields]) => supabase.from(table).select(fields).eq("empresa_id", empresaId)));
-    const nextData = {};
-    const nextErrors = {};
-    entries.forEach(([table], index) => {
-      const result = results[index];
-      if (result.error) {
-        nextData[table] = [];
-        nextErrors[table] = result.error.message || "Falha na consulta";
-      } else nextData[table] = result.data || [];
-    });
-    setData(nextData);
-    setErrors(nextErrors);
-    setLoading(false);
+    const sameCompany = String(loadedCompany.current) === String(empresaId);
+    try {
+      const results = await Promise.allSettled(entries.map(([table, fields]) => supabase.from(table).select(fields).eq("empresa_id", empresaId)));
+      if (requestVersion !== refreshVersion.current) return;
+      const nextErrors = {};
+      setData((current) => {
+        const nextData = {};
+        entries.forEach(([table], index) => {
+          const settled = results[index];
+          const result = settled.status === "fulfilled" ? settled.value : null;
+          if (!result || result.error) {
+            nextData[table] = sameCompany ? current[table] || [] : [];
+            nextErrors[table] = result?.error?.message || settled.reason?.message || "Falha na consulta";
+          } else nextData[table] = result.data || [];
+        });
+        return nextData;
+      });
+      loadedCompany.current = empresaId;
+      setErrors(nextErrors);
+    } finally {
+      if (requestVersion === refreshVersion.current) setLoading(false);
+    }
   }, [empresaId]);
 
   useEffect(() => { const timer = window.setTimeout(refresh, 0); return () => window.clearTimeout(timer); }, [refresh]);

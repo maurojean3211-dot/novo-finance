@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadCorporateFinance } from "../services/financeiro.service";
 
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; };
 const dateValue = (value) => new Date(`${value}T12:00:00`);
+const number = (value) => { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; };
 
 function rangeFor(period, customStart, customEnd) {
   const now = dateValue(today());
@@ -23,17 +24,18 @@ export default function useFinanceiroCorporativo(empresaId) {
   useEffect(() => { refresh(); }, [refresh]);
   return useMemo(() => {
     const now = today(); const range = rangeFor(period, customStart, customEnd);
-    const inRange = (value) => { const date = dateValue(String(value).slice(0, 10)); return date >= range.start && date <= range.end; };
+    const inRange = (value) => { if (!value) return false; const date = dateValue(String(value).slice(0, 10)); return !Number.isNaN(date.getTime()) && date >= range.start && date <= range.end; };
     const active = data.titles.filter((item) => item.status !== "Cancelado");
     const payable = active.filter((item) => item.tipo === "Pagar"); const receivable = active.filter((item) => item.tipo === "Receber");
     const settled = data.settlements.filter((item) => inRange(item.data_movimento));
-    const signed = (item) => item.tipo === "Estorno" ? -Number(item.valor || 0) : Number(item.valor || 0);
+    const signed = (item) => item.tipo === "Estorno" ? -number(item.valor) : number(item.valor);
     const titleType = new Map(data.titles.map((item) => [item.id, item.tipo]));
     const received = settled.filter((item) => titleType.get(item.titulo_id) === "Receber").reduce((sum, item) => sum + signed(item), 0);
     const paid = settled.filter((item) => titleType.get(item.titulo_id) === "Pagar").reduce((sum, item) => sum + signed(item), 0);
-    const sumBalance = (items) => items.reduce((sum, item) => sum + Number(item.saldo || 0), 0);
-    const overdue = active.filter((item) => item.saldo > 0 && item.vencimento < now);
-    const dueSoon = active.filter((item) => item.saldo > 0 && item.vencimento >= now && dateValue(item.vencimento) <= new Date(Date.now() + 7 * 86400000));
+    const sumBalance = (items) => items.reduce((sum, item) => sum + number(item.saldo), 0);
+    const overdue = active.filter((item) => number(item.saldo) > 0 && item.vencimento && item.vencimento < now);
+    const dueLimit = dateValue(now); dueLimit.setDate(dueLimit.getDate() + 7);
+    const dueSoon = active.filter((item) => number(item.saldo) > 0 && item.vencimento >= now && dateValue(item.vencimento) <= dueLimit);
     return { ...data, loading, error, refresh, period, setPeriod, customStart, setCustomStart, customEnd, setCustomEnd,
       payable, receivable, overdue, dueSoon, paid, received, realized: received - paid,
       payableBalance: sumBalance(payable), receivableBalance: sumBalance(receivable),

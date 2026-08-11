@@ -1,4 +1,4 @@
-import { getPurchaseCommissionData, getStoredOrCalculatedCommission } from "../../services/commissionEngine";
+import { getPurchaseCommissionData, getStoredOrCalculatedCommission } from "../../services/commissionEngine.js";
 
 export const PERIOD_OPTIONS = [
   ["today", "Hoje"],
@@ -10,7 +10,14 @@ export const PERIOD_OPTIONS = [
 ];
 
 const DAY = 86400000;
-export const moneyValue = (item) => Number(item?.valor ?? item?.valor_total ?? 0) || 0;
+export const safeNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+export const moneyValue = (item) => safeNumber(item?.valor ?? item?.valor_total);
+export function localIsoDate(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 export const dateValue = (item, fields) => fields.map((field) => item?.[field]).find(Boolean) || null;
 
 function localDate(value) {
@@ -72,16 +79,16 @@ export function buildMonthlyFlow(lancamentos, range) {
 
 export function buildRecentActivities({ vendas, compras, lancamentos, clientes }) {
   return [
-    ...vendas.map((item) => ({ id: `v-${item.id}`, type: "Venda", description: item.cliente_nome || item.produto || "Venda registrada", date: dateValue(item, ["data_venda", "created_at"]), value: moneyValue(item), icon: "↗" })),
-    ...compras.map((item) => ({ id: `c-${item.id}`, type: "Compra", description: item.fornecedor || item.produto || "Compra registrada", date: dateValue(item, ["data_compra", "created_at"]), value: moneyValue(item), icon: "▧" })),
+    ...vendas.map((item) => ({ id: `v-${item.id}`, type: "Venda", description: item.cliente_nome || item.produto || "Venda registrada", date: dateValue(item, ["data_venda"]), value: moneyValue(item), icon: "↗" })),
+    ...compras.map((item) => ({ id: `c-${item.id}`, type: "Compra", description: item.fornecedor || item.produto || "Compra registrada", date: dateValue(item, ["data_compra"]), value: moneyValue(item), icon: "▧" })),
     ...lancamentos.map((item) => ({ id: `l-${item.id}`, type: item.tipo === "receita" ? "Receita" : item.tipo === "despesa" ? "Despesa" : "Lançamento", description: item.descricao || "Lançamento financeiro", date: dateValue(item, ["data_lancamento", "data", "created_at"]), value: moneyValue(item), icon: "$" })),
     ...clientes.map((item) => ({ id: `cl-${item.id}`, type: "Cliente", description: item.nome || "Cliente cadastrado", date: item.created_at, value: null, icon: "◎" })),
   ].filter((item) => item.date).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 8);
 }
 
 export function calculateDashboardMetrics(data, range) {
-  const vendas = data.vendas.filter((item) => inPeriod(item, ["data_venda", "created_at"], range));
-  const compras = data.compras.filter((item) => inPeriod(item, ["data_compra", "created_at"], range));
+  const vendas = data.vendas.filter((item) => inPeriod(item, ["data_venda"], range));
+  const compras = data.compras.filter((item) => inPeriod(item, ["data_compra"], range));
   const lancamentos = data.lancamentos.filter((item) => inPeriod(item, ["data_lancamento", "data", "created_at"], range));
   const recebimentos = data.recebimentos.filter((item) => inPeriod(item, ["data_vencimento", "created_at"], range));
   const novosClientes = data.clientes.filter((item) => inPeriod(item, ["created_at"], range));

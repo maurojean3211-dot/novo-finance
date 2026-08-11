@@ -4,21 +4,26 @@ import ExecutivePanel from "./components/dashboard/ExecutivePanel";
 import QuickActions from "./components/dashboard/QuickActions";
 import RecentActivities from "./components/dashboard/RecentActivities";
 import useExecutiveDashboard from "./hooks/useExecutiveDashboard";
+import { localIsoDate, safeNumber } from "./components/dashboard/dashboardMetrics";
 import "./Dashboard.css";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function Dashboard({ empresaId, nomeEmpresa, nomeUsuario, onNavigate }) {
   const dashboard = useExecutiveDashboard(empresaId, "today");
+  const today = localIsoDate();
   const source = (name, value) => dashboard.sourceAvailable(name) ? value : "—";
   const titles = dashboard.financeiro_titulos.filter((item) => item.status !== "Cancelado");
-  const receivable = titles.filter((item) => item.tipo === "Receber").reduce((sum, item) => sum + Number(item.saldo || 0), 0);
-  const payable = titles.filter((item) => item.tipo === "Pagar").reduce((sum, item) => sum + Number(item.saldo || 0), 0);
-  const criticalStock = dashboard.estoque.filter((item) => Number(item.estoque_disponivel || 0) <= Number(item.ponto_reposicao || item.estoque_minimo || 0));
+  const receivable = titles.filter((item) => item.tipo === "Receber").reduce((sum, item) => sum + safeNumber(item.saldo), 0);
+  const payable = titles.filter((item) => item.tipo === "Pagar").reduce((sum, item) => sum + safeNumber(item.saldo), 0);
+  const criticalStock = dashboard.estoque.filter((item) => {
+    const threshold = item.ponto_reposicao ?? item.estoque_minimo;
+    return threshold !== null && threshold !== undefined && safeNumber(item.estoque_disponivel) <= safeNumber(threshold);
+  });
   const openPurchases = dashboard.pedidos_compra.filter((item) => !["Recebido", "Cancelado"].includes(item.status));
-  const overdue = titles.filter((item) => Number(item.saldo || 0) > 0 && item.vencimento < new Date().toISOString().slice(0, 10));
-  const todayPurchases = dashboard.pedidos_compra.filter((item) => item.data === new Date().toISOString().slice(0, 10));
-  const delayedProduction = dashboard.ordens_producao.filter((item) => !["Concluída", "Cancelada"].includes(item.status) && item.data_prevista_fim && item.data_prevista_fim < new Date().toISOString().slice(0, 10));
+  const overdue = titles.filter((item) => safeNumber(item.saldo) > 0 && item.vencimento < today);
+  const todayPurchases = dashboard.pedidos_compra.filter((item) => item.data === today);
+  const delayedProduction = dashboard.ordens_producao.filter((item) => !["Concluída", "Cancelada"].includes(item.status) && item.data_prevista_fim && item.data_prevista_fim < today);
   const missingMaterials = dashboard.ordem_producao_materiais.filter((item) => item.necessidade_compra);
   const blockedProduction = new Set(missingMaterials.map((item) => item.ordem_id)).size;
   const metrics = [
@@ -26,11 +31,11 @@ export default function Dashboard({ empresaId, nomeEmpresa, nomeUsuario, onNavig
     { label: "Contas a receber", icon: "↗", value: source("financeiro_titulos", currency.format(receivable)), detail: titles.length ? "Saldo corporativo aberto" : "Aguardando movimentação" },
     { label: "Contas a pagar", icon: "↘", value: source("financeiro_titulos", currency.format(payable)), detail: titles.length ? "Compromissos em aberto" : "Aguardando movimentação" },
     { label: "Vendas de hoje", icon: "◇", value: source("vendas", currency.format(dashboard.totalVendas)), detail: dashboard.vendas.length ? `${dashboard.vendas.length} venda(s)` : "Aguardando movimentação" },
-    { label: "Compras de hoje", icon: "▧", value: source("pedidos_compra", currency.format(todayPurchases.reduce((sum, item) => sum + Number(item.valor_total || 0), 0))), detail: todayPurchases.length ? `${todayPurchases.length} pedido(s)` : "Aguardando movimentação" },
+    { label: "Compras de hoje", icon: "▧", value: source("pedidos_compra", currency.format(todayPurchases.reduce((sum, item) => sum + safeNumber(item.valor_total), 0))), detail: todayPurchases.length ? `${todayPurchases.length} pedido(s)` : "Sem dados no período" },
     { label: "Estoque crítico", icon: "!", value: source("estoque", criticalStock.length), detail: criticalStock.length ? "Itens no ponto de reposição" : "Nenhum alerta ativo" },
   ];
   const alerts = [
-    { label: "Títulos vencidos", value: overdue.length, detail: overdue.length ? currency.format(overdue.reduce((sum, item) => sum + Number(item.saldo || 0), 0)) : "Nenhuma pendência" },
+    { label: "Títulos vencidos", value: overdue.length, detail: overdue.length ? currency.format(overdue.reduce((sum, item) => sum + safeNumber(item.saldo), 0)) : "Nenhuma pendência" },
     { label: "Pedidos em aberto", value: openPurchases.length, detail: openPurchases.length ? "Acompanhar compras" : "Nenhuma pendência" },
     { label: "Estoque em atenção", value: criticalStock.length, detail: criticalStock.length ? "Revisar reposição" : "Operação regular" },
     { label: "OPs atrasadas", value: source("ordens_producao", delayedProduction.length), detail: delayedProduction.length ? "Revisar programação" : "Nenhuma OP atrasada" },

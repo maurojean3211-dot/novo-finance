@@ -3,34 +3,36 @@ import ExecutiveControlCenter from "./components/dashboard/ExecutiveControlCente
 import ExecutiveMetrics from "./components/dashboard/ExecutiveMetrics";
 import ExecutiveHeader from "./components/layout/ExecutiveHeader";
 import useExecutiveDashboard from "./hooks/useExecutiveDashboard";
+import { localIsoDate, safeNumber } from "./components/dashboard/dashboardMetrics";
 import "./Dashboard.css";
 
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function PainelExecutivo({ empresaId, nomeEmpresa, nomeUsuario, onNavigate }) {
   const dashboard = useExecutiveDashboard(empresaId, "month");
+  const today = localIsoDate();
   const valid = (table, value) => dashboard.sourceAvailable(table) ? value : "—";
   const movement = (table, count, value) => valid(table, count ? value : typeof value === "number" ? 0 : value);
   const titles = dashboard.financeiro_titulos.filter((item) => item.status !== "Cancelado");
-  const payable = titles.filter((item) => item.tipo === "Pagar").reduce((sum, item) => sum + Number(item.saldo || 0), 0);
-  const receivable = titles.filter((item) => item.tipo === "Receber").reduce((sum, item) => sum + Number(item.saldo || 0), 0);
-  const overdueReceivables = titles.filter((item) => item.tipo === "Receber" && Number(item.saldo || 0) > 0 && item.vencimento < new Date().toISOString().slice(0, 10)).reduce((sum, item) => sum + Number(item.saldo || 0), 0);
-  const pipeline = dashboard.crm_oportunidades.filter((item) => !["Fechado — ganho", "Fechado — perdido"].includes(item.etapa)).reduce((sum, item) => sum + Number(item.valor_estimado || 0), 0);
+  const payable = titles.filter((item) => item.tipo === "Pagar").reduce((sum, item) => sum + safeNumber(item.saldo), 0);
+  const receivable = titles.filter((item) => item.tipo === "Receber").reduce((sum, item) => sum + safeNumber(item.saldo), 0);
+  const overdueReceivables = titles.filter((item) => item.tipo === "Receber" && safeNumber(item.saldo) > 0 && item.vencimento < today).reduce((sum, item) => sum + safeNumber(item.saldo), 0);
+  const pipeline = dashboard.crm_oportunidades.filter((item) => !["Fechado — ganho", "Fechado — perdido"].includes(item.etapa)).reduce((sum, item) => sum + safeNumber(item.valor_estimado), 0);
   const budgets = dashboard.orcamentos.filter((item) => !["Cancelado", "Rejeitado"].includes(item.status));
-  const purchases = dashboard.pedidos_compra.reduce((sum, item) => sum + Number(item.valor_total || 0), 0);
-  const stockValue = dashboard.estoque.reduce((sum, item) => sum + Number(item.estoque_atual || 0) * Number(item.custo_unitario || 0), 0);
+  const purchases = dashboard.pedidos_compra.reduce((sum, item) => sum + safeNumber(item.valor_total), 0);
+  const stockValue = dashboard.estoque.reduce((sum, item) => sum + safeNumber(item.estoque_atual) * safeNumber(item.custo_unitario), 0);
   const productionOpen = dashboard.ordens_producao.filter((item) => !["Concluída", "Cancelada"].includes(item.status));
   const productionRunning = dashboard.ordens_producao.filter((item) => item.status === "Em produção");
-  const productionDelayed = productionOpen.filter((item) => item.data_prevista_fim && item.data_prevista_fim < new Date().toISOString().slice(0, 10));
-  const productionAmount = dashboard.ordem_producao_apontamentos.filter((item) => item.tipo === "Produção").reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
-  const productionLosses = dashboard.ordem_producao_apontamentos.filter((item) => item.tipo === "Perda").reduce((sum, item) => sum + Number(item.quantidade || 0), 0);
+  const productionDelayed = productionOpen.filter((item) => item.data_prevista_fim && item.data_prevista_fim < today);
+  const productionAmount = dashboard.ordem_producao_apontamentos.filter((item) => item.tipo === "Produção").reduce((sum, item) => sum + safeNumber(item.quantidade), 0);
+  const productionLosses = dashboard.ordem_producao_apontamentos.filter((item) => item.tipo === "Perda").reduce((sum, item) => sum + safeNumber(item.quantidade), 0);
   const missingMaterials = dashboard.ordem_producao_materiais.filter((item) => item.necessidade_compra).length;
   const metrics = [
     { label: "Faturamento", icon: "↗", value: movement("vendas", dashboard.vendas.length, currency.format(dashboard.totalVendas)), detail: dashboard.vendas.length ? `${dashboard.vendas.length} venda(s) no período` : "Aguardando movimentação", featured: true },
-    { label: "Margem", icon: "%", value: "—", detail: "Aguardando integração" },
+    { label: "Margem", icon: "%", value: "—", detail: "Dados insuficientes" },
     { label: "Ticket médio", icon: "◇", value: movement("vendas", dashboard.vendas.length, currency.format(dashboard.ticketMedio)), detail: dashboard.vendas.length ? "Média por venda" : "Aguardando movimentação" },
     { label: "Pipeline CRM", icon: "◎", value: valid("crm_oportunidades", currency.format(pipeline)), detail: dashboard.crm_oportunidades.length ? `${dashboard.crm_oportunidades.length} oportunidade(s)` : "Aguardando movimentação" },
-    { label: "Orçamentos", icon: "▤", value: valid("orcamentos", currency.format(budgets.reduce((sum, item) => sum + Number(item.valor_final || 0), 0))), detail: budgets.length ? `${budgets.length} ativo(s)` : "Aguardando movimentação" },
+    { label: "Orçamentos", icon: "▤", value: valid("orcamentos", currency.format(budgets.reduce((sum, item) => sum + safeNumber(item.valor_final), 0))), detail: budgets.length ? `${budgets.length} ativo(s)` : "Sem dados no período" },
     { label: "Compras", icon: "▧", value: valid("pedidos_compra", currency.format(purchases)), detail: dashboard.pedidos_compra.length ? `${dashboard.pedidos_compra.length} pedido(s)` : "Aguardando movimentação" },
     { label: "Valor do estoque", icon: "▥", value: valid("estoque", currency.format(stockValue)), detail: dashboard.estoque.length ? "Custo persistido" : "Aguardando movimentação" },
     { label: "Fluxo de caixa", icon: "$", value: valid("lancamentos", currency.format(dashboard.resultado)), detail: dashboard.lancamentos.length ? "Resultado do período" : "Aguardando movimentação" },
