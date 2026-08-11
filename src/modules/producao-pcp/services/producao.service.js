@@ -169,6 +169,14 @@ export async function saveResourceUnavailability({ empresaId, userId, entry }) {
   const { data, error } = await supabase.from("recurso_producao_indisponibilidades").insert(payload).select("id").single(); if (error) throw error; return data.id;
 }
 
+export async function saveProductionQueue({ empresaId, resourceId, allocationIds }) {
+  if (!resourceId || !allocationIds.length || new Set(allocationIds).size !== allocationIds.length) throw new Error("A fila informada é inválida.");
+  const { error } = await supabase.rpc("reordenar_fila_producao", {
+    p_empresa_id: company(empresaId), p_recurso_id: resourceId, p_alocacoes: allocationIds,
+  });
+  if (error) throw error;
+}
+
 const dayKey = (date) => date.toISOString().slice(0, 10);
 const allocationHours = (item) => n(item.tempo_total_horas) > 0 ? n(item.tempo_total_horas) : n(item.tempo_unitario_horas) > 0 && n(item.quantidade_planejada) > 0 ? n(item.tempo_unitario_horas) * n(item.quantidade_planejada) : null;
 const isBlocked = (date, entries) => entries.some((item) => dayKey(date) >= String(item.inicio).slice(0, 10) && dayKey(date) <= String(item.fim).slice(0, 10));
