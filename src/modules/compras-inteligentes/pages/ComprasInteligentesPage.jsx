@@ -22,6 +22,7 @@ function ComprasWorkspace({ empresaId, userId }) {
   const [modal, setModal] = useState(false);
   const [order, setOrder] = useState(empty);
   const [selected, setSelected] = useState(null);
+  const [selectedHistorical, setSelectedHistorical] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [needs, setNeeds] = useState(() => readNeeds(empresaId));
   const catalog = useMemo(() => listImportDrafts(empresaId, userId).flatMap((draft) => draft.products || []).filter((product) => product.selected), [empresaId, userId]);
@@ -67,14 +68,28 @@ function ComprasWorkspace({ empresaId, userId }) {
   return <main className="ops-page smart-purchases">
     <ModuleHeader eyebrow="Suprimentos" title="Compras Inteligentes" description="Pedidos, cotações, aprovações, recebimentos e financeiro em um fluxo persistente." actionLabel="Novo pedido" onAction={() => { setOrder(empty()); setModal(true); }} />
     {feedback && <div className="ops-status-panel">{feedback}<button onClick={() => setFeedback("")}>×</button></div>}
-    {manager.error && <div className="ops-status-panel">{manager.error} Dados insuficientes: a migration local de Compras precisa estar disponível no ambiente.</div>}
-    {manager.loading && <div className="ops-status-panel">Carregando pedidos...</div>}
+    {manager.errors.orders && <div className="ops-status-panel">Pedidos de compra indisponíveis: {manager.errors.orders}</div>}
+    {manager.errors.history && <div className="ops-status-panel">Compras históricas indisponíveis: {manager.errors.history}</div>}
+    {manager.errors.suppliers && <div className="ops-status-panel">Fornecedores indisponíveis: {manager.errors.suppliers}. Os pedidos permanecem visíveis.</div>}
+    {manager.loading.orders && <div className="ops-status-panel">Carregando pedidos de compra...</div>}
+    {manager.loading.history && <div className="ops-status-panel">Carregando compras históricas...</div>}
     <MetricGrid items={metrics} />
     <PurchaseNeeds needs={needs} onReview={reviewNeed} onDismiss={async (need) => { if (!window.confirm("Confirmar que esta necessidade foi tratada e removê-la da fila?")) return; try { await removeResolvedNeed(need); setFeedback("Necessidade tratada e sincronizada com a OP."); } catch (error) { setFeedback(`A necessidade não foi removida: ${error.message}`); } }} />
     <section className="ops-panel"><div className="ops-panel__header"><h2>Pedidos de compra</h2><span>{manager.orders.length} pedido(s)</span></div><div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Número</th><th>Fornecedor</th><th>Status</th><th>Data</th><th>Previsão</th><th>Itens</th><th>Total</th><th>Ações</th></tr></thead><tbody>{manager.orders.map((row) => <tr key={row.id}><td><strong>{row.numero}</strong></td><td>{row.fornecedor.nome}</td><td><select value={row.status} onChange={(event) => { const status = event.target.value; if (window.confirm(`Confirmar mudança para ${status}?`)) manager.status(row, status); }}>{PURCHASE_STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td><td>{row.data}</td><td>{row.previsao || "—"}</td><td>{row.items.length}</td><td>{money(row.valorTotal)}</td><td><button onClick={() => setSelected(row)}>Detalhes</button></td></tr>)}</tbody></table></div></section>
+    <HistoricalPurchases rows={manager.historicalPurchases} onSelect={setSelectedHistorical} />
     {modal && <OrderModal order={order} setOrder={setOrder} suppliers={manager.suppliers} catalog={catalog} addProduct={addProduct} onClose={() => setModal(false)} onSave={save} />}
     {selected && <OrderDetails order={selected} manager={manager} suppliers={manager.suppliers} onClose={() => setSelected(null)} onFeedback={setFeedback} />}
+    {selectedHistorical && <HistoricalPurchaseDetails purchase={selectedHistorical} onClose={() => setSelectedHistorical(null)} />}
   </main>;
+}
+
+function HistoricalPurchases({ rows, onSelect }) {
+  return <section className="ops-panel"><div className="ops-panel__header"><div><h2>Compras históricas</h2><small>Fonte legada somente leitura. Nenhuma ação operacional é executada.</small></div><span>{rows.length} registro(s)</span></div>{!rows.length ? <p>Nenhuma compra histórica visível para esta empresa.</p> : <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Origem</th><th>Data</th><th>Fornecedor</th><th>Produto</th><th>Quantidade</th><th>Valor disponível</th><th>Ação</th></tr></thead><tbody>{rows.map((row) => <tr key={`legacy:${row.id}`}><td><strong>Compra histórica</strong></td><td>{String(row.data_compra || row.created_at || "—").slice(0, 10)}</td><td>{row.fornecedor || "—"}</td><td>{row.produto || row.material || "—"}</td><td>{Number(row.kilos || row.quantidade || 0).toLocaleString("pt-BR")}</td><td>{money(row.valor ?? row.valor_total ?? row.preco_compra ?? 0)}</td><td><button onClick={() => onSelect(row)}>Consultar</button></td></tr>)}</tbody></table></div>}</section>;
+}
+
+function HistoricalPurchaseDetails({ purchase, onClose }) {
+  const fields = [["Origem", "Compra histórica · estrutura legada"], ["Data", String(purchase.data_compra || purchase.created_at || "—").slice(0, 10)], ["Fornecedor", purchase.fornecedor || "—"], ["Produto", purchase.produto || purchase.material || "—"], ["Quantidade", Number(purchase.kilos || purchase.quantidade || 0).toLocaleString("pt-BR")], ["Valor disponível", money(purchase.valor ?? purchase.valor_total ?? purchase.preco_compra ?? 0)]];
+  return <OperationModal title="Consulta de compra histórica" onClose={onClose} onSubmit={onClose} submitLabel="Fechar"><div className="ops-preview ops-field--wide"><strong>Registro somente leitura.</strong> Não é permitido editar, receber, movimentar estoque ou gerar financeiro a partir desta visualização.</div>{fields.map(([label, value]) => <div className="ops-field" key={label}><span>{label}</span><strong>{value}</strong></div>)}</OperationModal>;
 }
 
 function PurchaseNeeds({ needs, onReview, onDismiss }) {
