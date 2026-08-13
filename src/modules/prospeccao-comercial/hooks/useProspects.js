@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { EMPTY_FILTERS } from "../types/prospeccao";
+import { EMPTY_FILTERS, EMPTY_PROSPECT } from "../types/prospeccao";
 import { latestInteraction, loadProspects, matchesProspect, persistProspects } from "../services/prospeccao.service";
 
 export default function useProspects({ empresaId, userId }) {
@@ -41,8 +41,24 @@ export default function useProspects({ empresaId, userId }) {
 
   function save(data) {
     const now = new Date().toISOString();
-    const item = data.id ? { ...data, updatedAt: now } : { ...data, id: crypto.randomUUID(), empresaId, userId, createdAt: now, updatedAt: now };
-    commit((current) => data.id ? current.map((entry) => entry.id === data.id ? item : entry) : [item, ...current]);
+    const existing = data.id ? prospects.find((entry) => entry.id === data.id) : null;
+    if (data.id && !existing) throw new Error("A empresa prospectada não existe mais. Atualize a página e tente novamente.");
+    const editable = Object.fromEntries(
+      Object.keys(EMPTY_PROSPECT)
+        .filter((key) => Object.hasOwn(data, key))
+        .map((key) => [key, data[key]]),
+    );
+    const item = existing
+      ? {
+          ...existing,
+          ...editable,
+          id: existing.id,
+          updatedAt: now,
+        }
+      : { ...EMPTY_PROSPECT, ...editable, id: crypto.randomUUID(), empresaId, userId, createdAt: now, updatedAt: now };
+    commit((current) => existing
+      ? current.map((entry) => entry.id === existing.id ? item : entry)
+      : [item, ...current]);
     return item;
   }
   function remove(id) { commit((current) => current.filter((item) => item.id !== id)); }

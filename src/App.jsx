@@ -25,6 +25,7 @@ import CatalogoInteligente from "./modules/catalogo-inteligente";
 import AgendaComercial from "./modules/agenda-comercial";
 import IAComercial from "./modules/ia-comercial";
 import CrmComercial from "./modules/crm-comercial";
+import ClientesPage from "./modules/crm-comercial/pages/ClientesPage";
 import OrcamentoInteligente from "./modules/orcamento-inteligente";
 import EstoqueInteligente from "./modules/estoque-inteligente";
 import ComprasInteligentes from "./modules/compras-inteligentes";
@@ -116,8 +117,9 @@ export default function App() {
       {acessoPermitido && pagina === "painel_executivo" && <PainelExecutivo empresaId={empresaId} nomeEmpresa={nomeEmpresa} nomeUsuario={nomeUsuario} onNavigate={navigate} />}
       {acessoPermitido && <>
       {pagina === "recebimentos" && <FinanceiroCorporativo empresaId={empresaId} userId={session.user.id} initialTab="receivable" />}
-      {["crm", "clientes"].includes(pagina) && <CrmComercial empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
-      {pagina === "prospeccao" && <ProspeccaoComercial />}
+      {pagina === "crm" && <CrmComercial empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
+      {pagina === "clientes" && <ClientesPage empresaId={empresaId} onNavigate={navigate} />}
+      {pagina === "prospeccao" && <ProspeccaoComercial onNavigate={navigate} />}
       {pagina === "agenda_comercial" && <AgendaComercial empresaId={empresaId} userId={session.user.id} />}
       {pagina === "ia_comercial" && <IAComercial empresaId={empresaId} userId={session.user.id} nomeEmpresa={nomeEmpresa} onNavigate={navigate} />}
       {pagina === "orcamentos" && <OrcamentoInteligente empresaId={empresaId} userId={session.user.id} onNavigate={navigate} />}
