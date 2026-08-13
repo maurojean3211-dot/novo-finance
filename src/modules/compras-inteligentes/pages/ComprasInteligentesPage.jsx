@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { ActionButtons, MetricGrid, ModuleHeader, OperationModal } from "../../../components/operations/OperationsUI";
+import PurchaseReportControls from "../../../components/operations/PurchaseReportControls";
 import { formatPurchaseCommissionRate, getPurchaseCommissionData, getPurchaseItemCommissionData, getPurchaseOrderCommissionData } from "../../../services/commissionEngine";
 import { countPurchasesWithoutOriginalDate, formatOriginalPurchaseDate, getOriginalPurchaseDate } from "../../../services/purchaseDate";
+import { describePeriod, EMPTY_PURCHASE_FILTERS, filterPurchaseRecords, generatePurchasesReport } from "../../../services/reportPdf.service";
 import { listImportDrafts } from "../../catalogo-inteligente/services/catalogoImportDraft.service";
 import { listStock } from "../../estoque-inteligente/services/estoque.service";
 import { resolveConsolidatedPurchaseNeed } from "../../producao-pcp/services/producao.service";
@@ -16,11 +18,11 @@ const empty = () => ({ supplier: null, data: new Date().toISOString().slice(0, 1
 const needKey = (empresaId) => `cunha:pcp:purchase-needs:${String(empresaId)}`;
 const readNeeds = (empresaId) => { try { return JSON.parse(sessionStorage.getItem(needKey(empresaId)) || "[]").filter((need) => String(need.empresaId) === String(empresaId)); } catch { return []; } };
 
-export default function ComprasInteligentesPage({ empresaId, userId }) {
-  return <ComprasWorkspace key={String(empresaId)} empresaId={empresaId} userId={userId} />;
+export default function ComprasInteligentesPage({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
+  return <ComprasWorkspace key={String(empresaId)} empresaId={empresaId} userId={userId} companyName={companyName} issuedBy={issuedBy} />;
 }
 
-function ComprasWorkspace({ empresaId, userId }) {
+function ComprasWorkspace({ empresaId, userId, companyName, issuedBy }) {
   const manager = useComprasInteligentes({ empresaId, userId });
   const [modal, setModal] = useState(false);
   const [order, setOrder] = useState(empty);
@@ -28,6 +30,9 @@ function ComprasWorkspace({ empresaId, userId }) {
   const [selectedHistorical, setSelectedHistorical] = useState(null);
   const [editingHistorical, setEditingHistorical] = useState(null);
   const [feedback, setFeedback] = useState("");
+  const [reportFilters, setReportFilters] = useState(EMPTY_PURCHASE_FILTERS);
+  const [appliedReportFilters, setAppliedReportFilters] = useState(EMPTY_PURCHASE_FILTERS);
+  const [reportMessage, setReportMessage] = useState("");
   const [needs, setNeeds] = useState(() => readNeeds(empresaId));
   const catalog = useMemo(() => listImportDrafts(empresaId, userId).flatMap((draft) => draft.products || []).filter((product) => product.selected), [empresaId, userId]);
 
@@ -79,8 +84,49 @@ function ComprasWorkspace({ empresaId, userId }) {
     { label: "Recebimentos pendentes", value: manager.metrics.pending, detail: "comprados e parciais", icon: "!", tone: "rose" },
     { label: "Comissões", value: money(manager.orders.reduce((total, item) => total + getPurchaseOrderCommissionData(item).commission, 0)), detail: "regras automáticas e valores preservados", icon: "%", tone: "green" },
   ];
+  const reportRecords = useMemo(() => {
+    const orderItems = manager.orders.flatMap((purchaseOrder) => purchaseOrder.items.map((item) => {
+      const commission = getPurchaseItemCommissionData(item);
+      return {
+        id: `order:${purchaseOrder.id}:${item.id}`,
+        data_compra: purchaseOrder.data,
+        fornecedor: purchaseOrder.fornecedor?.nome || "Não informado",
+        produto: item.descricao || item.codigo || "Outros",
+        liga: item.liga || "",
+        quantidade_original: item.quantidade,
+        unidade_original: item.unidade || "kg",
+        kilos: commission.kilograms,
+        valor: Number(item.subtotal || Number(item.quantidade || 0) * Number(item.valorUnitario || 0)),
+        frete: purchaseOrder.items.length ? Number(purchaseOrder.frete || 0) / purchaseOrder.items.length : 0,
+        status: purchaseOrder.status,
+        comissao: commission.commission,
+        comissao_por_kg: commission.rate,
+        responsavel: userId,
+      };
+    }));
+    return [...orderItems, ...manager.historicalPurchases];
+  }, [manager.historicalPurchases, manager.orders, userId]);
+  const filteredReportRecords = useMemo(
+    () => filterPurchaseRecords(reportRecords, appliedReportFilters),
+    [appliedReportFilters, reportRecords],
+  );
+  function generateReport() {
+    if (!filteredReportRecords.length) {
+      setReportMessage("Nenhuma compra encontrada para os filtros aplicados.");
+      return;
+    }
+    setReportMessage("");
+    generatePurchasesReport({
+      records: filteredReportRecords,
+      companyName,
+      issuedBy,
+      period: describePeriod(appliedReportFilters.startDate, appliedReportFilters.endDate),
+    });
+  }
   return <main className="ops-page smart-purchases">
     <ModuleHeader eyebrow="Suprimentos" title="Compras Inteligentes" description="Pedidos, cotações, aprovações, recebimentos e financeiro em um fluxo persistente." actionLabel="Novo pedido" onAction={() => { setOrder(empty()); setModal(true); }} />
+    <PurchaseReportControls filters={reportFilters} onChange={setReportFilters} onDateChange={setReportFilters} onApply={() => { setAppliedReportFilters(reportFilters); setReportMessage(""); }} onClear={() => { setReportFilters(EMPTY_PURCHASE_FILTERS); setAppliedReportFilters(EMPTY_PURCHASE_FILTERS); setReportMessage(""); }} onGenerate={generateReport} />
+    {reportMessage && <div className="ops-status-panel">{reportMessage}</div>}
     {feedback && <div className="ops-status-panel">{feedback}<button onClick={() => setFeedback("")}>×</button></div>}
     {manager.errors.orders && <div className="ops-status-panel">Pedidos de compra indisponíveis: {manager.errors.orders}</div>}
     {manager.errors.history && <div className="ops-status-panel">Compras históricas indisponíveis: {manager.errors.history}</div>}

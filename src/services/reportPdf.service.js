@@ -24,6 +24,14 @@ function formatNumber(value, digits = 2) {
   return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
+function getPurchaseTotalValue(item) {
+  if (item.valor_total !== null && item.valor_total !== undefined && item.valor_total !== "") return Number(item.valor_total) || 0;
+  if (item.valor !== null && item.valor !== undefined && item.valor !== "") return Number(item.valor) || 0;
+  const unitPrice = Number(item.preco_compra || item.valor_unitario || 0);
+  const quantity = Number(item.kilos || item.quantidade || 0);
+  return unitPrice * quantity;
+}
+
 function formatDate(value) {
   if (!value) return "Não informado";
   const dateOnly = String(value).slice(0, 10);
@@ -260,14 +268,14 @@ export function generateSalesReport({ records, companyName, issuedBy, period }) 
 
 export function buildPurchasesReportData({ records, companyName, issuedBy, period }) {
   const weight = records.reduce((sum, item) => sum + Number(item.kilos || 0), 0);
-  const value = records.reduce((sum, item) => sum + Number(item.valor || item.valor_total || 0), 0);
+  const value = records.reduce((sum, item) => sum + getPurchaseTotalValue(item), 0);
   const suppliers = new Set(records.map((item) => item.fornecedor).filter(Boolean));
   const materialWeights = records.reduce((acc, item) => ({ ...acc, [item.produto || "Outros"]: (acc[item.produto || "Outros"] || 0) + Number(item.kilos || 0) }), {});
   const topMaterial = Object.entries(materialWeights).sort((a, b) => b[1] - a[1])[0]?.[0] || "Sem dados";
   const commission = records.reduce((sum, item) => sum + getPurchaseCommissionData(item).commission, 0);
   const rows = records.map((item) => {
     const kg = Number(item.kilos || 0);
-    const total = Number(item.valor || item.valor_total || 0);
+    const total = getPurchaseTotalValue(item);
     const commissionData = getPurchaseCommissionData(item);
     return {
       date: formatOriginalPurchaseDate(item), supplier: item.fornecedor || "-", material: item.produto || "Outros", alloy: item.liga || "Não informada",
