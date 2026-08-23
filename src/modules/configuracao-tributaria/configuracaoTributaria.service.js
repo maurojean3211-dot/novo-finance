@@ -47,8 +47,7 @@ export async function listTaxConfigurations(empresaId) {
   return data ?? [];
 }
 
-export async function saveTaxConfiguration({ empresaId, userId, configuration }) {
-  void userId;
+export async function saveTaxConfiguration({ empresaId, configuration }) {
   const { data, error } = await supabase.rpc("registrar_configuracao_tributaria", {
     p_empresa_id: String(empresaId),
     p_regime_base: configuration.regimeBase,
@@ -61,12 +60,15 @@ export async function saveTaxConfiguration({ empresaId, userId, configuration })
   return data;
 }
 
-export async function loadTaxSituation(empresaId, records) {
-  const [{ data: rules, error: rulesError }, { data: storedAlerts, error: alertsError }] = await Promise.all([
+export async function loadTaxSituation(empresaId, records, { canManage = false } = {}) {
+  const [{ data: rules, error: rulesError }, { data: storedAlerts, error: alertsError }, { data: verification, error: verificationError }] = await Promise.all([
     supabase.from("empresa_regras_tributarias").select("*").eq("empresa_id", String(empresaId)).order("data_publicacao", { ascending: false }),
     supabase.from("empresa_alertas_tributarios").select("*").eq("empresa_id", String(empresaId)).order("created_at", { ascending: false }),
+    supabase.from("empresa_verificacoes_tributarias").select("ultima_verificacao").eq("empresa_id", String(empresaId)).maybeSingle(),
   ]);
-  if (rulesError || alertsError) throw new Error("Não foi possível verificar as regras tributárias desta empresa.");
+  if (rulesError || alertsError || verificationError) throw new Error("Não foi possível verificar as regras tributárias desta empresa.");
+
+  if (!canManage) return { rules: rules ?? [], alerts: storedAlerts ?? [], checkedAt: verification?.ultima_verificacao ?? null };
 
   const evaluated = evaluateTaxRules({ empresaId: String(empresaId), configurations: records, normativeRules: rules ?? [] });
   const existingByKey = new Map((storedAlerts ?? []).map((alert) => [alert.chave_alerta, alert]));
@@ -90,5 +92,7 @@ export async function loadTaxSituation(empresaId, records) {
     ...evaluated.map((alert) => ({ ...existingByKey.get(alert.chave_alerta), ...alert, resolvido: false })),
     ...(storedAlerts ?? []).filter((alert) => alert.resolvido || !activeKeys.includes(alert.chave_alerta)).map((alert) => ({ ...alert, resolvido: true })),
   ];
-  return { rules: rules ?? [], alerts: merged, checkedAt: new Date().toISOString() };
+  const { data: checkedAt, error: verificationWriteError } = await supabase.rpc("registrar_verificacao_tributaria", { p_empresa_id: String(empresaId) });
+  if (verificationWriteError) throw new Error("As regras foram verificadas, mas não foi possível registrar a verificação.");
+  return { rules: rules ?? [], alerts: merged, checkedAt };
 }

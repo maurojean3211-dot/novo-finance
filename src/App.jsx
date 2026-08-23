@@ -511,8 +511,9 @@ export default function App() {
 
           {pagina === "configuracoes" && (
             <ConfiguracaoTributariaPage
+              key={empresaId || "sem-empresa"}
               empresaId={empresaId}
-              userId={session.user.id}
+              canManageTaxes={["cliente", "master"].includes(String(role || "").toLowerCase())}
             />
           )}
 
