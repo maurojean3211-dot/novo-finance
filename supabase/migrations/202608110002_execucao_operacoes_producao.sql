@@ -9,19 +9,25 @@ alter table public.ordem_producao_recursos drop constraint if exists ordem_produ
 alter table public.ordem_producao_recursos add constraint ordem_producao_recursos_status_operacao_check
   check(status_operacao in ('Pendente','Liberada','Em execução','Pausada','Concluída','Cancelada'));
 
-create table if not exists public.ordem_producao_operacao_apontamentos (
+alter table public.ordem_producao_recursos
+  add constraint ordem_producao_recursos_id_empresa_key unique(id,empresa_id);
+
+create table public.ordem_producao_operacao_apontamentos (
   id uuid primary key default gen_random_uuid(),
-  alocacao_id uuid not null references public.ordem_producao_recursos(id) on update cascade on delete restrict,
-  ordem_id uuid not null references public.ordens_producao(id) on update cascade on delete restrict,
-  recurso_id uuid not null references public.recursos_producao(id) on update cascade on delete restrict,
-  empresa_id text not null,
+  alocacao_id uuid not null,
+  ordem_id uuid not null,
+  recurso_id uuid not null,
+  empresa_id uuid not null references public.empresas(id) on update cascade on delete restrict,
   user_id uuid not null references auth.users(id) on update cascade on delete restrict,
   idempotency_key uuid not null,
   tipo text not null check(tipo in ('Liberação','Início','Pausa','Retomada','Conclusão','Cancelamento')),
   ocorrido_em timestamptz not null,
   observacoes text,
   created_at timestamptz not null default now(),
-  unique(empresa_id,idempotency_key)
+  unique(empresa_id,idempotency_key),
+  foreign key(alocacao_id,empresa_id) references public.ordem_producao_recursos(id,empresa_id) on update cascade on delete restrict,
+  foreign key(ordem_id,empresa_id) references public.ordens_producao(id,empresa_id) on update cascade on delete restrict,
+  foreign key(recurso_id,empresa_id) references public.recursos_producao(id,empresa_id) on update cascade on delete restrict
 );
 
 create index if not exists operacao_apontamentos_alocacao_idx
@@ -32,7 +38,7 @@ alter table public.ordem_producao_operacao_apontamentos enable row level securit
 create policy "operacao_apontamentos_select_empresa" on public.ordem_producao_operacao_apontamentos
   for select to authenticated using(exists(
     select 1 from public.ordem_producao_recursos opr
-    join public.usuarios u on u.id=auth.uid() and u.empresa_id::text=opr.empresa_id
+    join public.usuarios u on u.id=auth.uid() and u.empresa_id=opr.empresa_id
     where opr.id=ordem_producao_operacao_apontamentos.alocacao_id
       and opr.ordem_id=ordem_producao_operacao_apontamentos.ordem_id
       and opr.recurso_id=ordem_producao_operacao_apontamentos.recurso_id
@@ -42,7 +48,7 @@ create policy "operacao_apontamentos_select_empresa" on public.ordem_producao_op
 create policy "operacao_apontamentos_insert_empresa" on public.ordem_producao_operacao_apontamentos
   for insert to authenticated with check(user_id=auth.uid() and exists(
     select 1 from public.ordem_producao_recursos opr
-    join public.usuarios u on u.id=auth.uid() and u.empresa_id::text=opr.empresa_id
+    join public.usuarios u on u.id=auth.uid() and u.empresa_id=opr.empresa_id
     where opr.id=ordem_producao_operacao_apontamentos.alocacao_id
       and opr.ordem_id=ordem_producao_operacao_apontamentos.ordem_id
       and opr.recurso_id=ordem_producao_operacao_apontamentos.recurso_id
@@ -50,7 +56,7 @@ create policy "operacao_apontamentos_insert_empresa" on public.ordem_producao_op
   ));
 
 create or replace function public.registrar_evento_operacao_producao(
-  p_empresa_id text,
+  p_empresa_id uuid,
   p_alocacao_id uuid,
   p_evento text,
   p_ocorrido_em timestamptz,
@@ -69,8 +75,13 @@ declare
   v_tipo_historico text;
   v_ultimo_evento timestamptz;
 begin
-  if auth.uid() is null or p_ocorrido_em is null or p_idempotency_key is null then
-    raise exception 'Usuário, data e identificador do evento são obrigatórios.';
+  if auth.uid() is null or not exists(
+    select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id=p_empresa_id
+  ) then
+    raise exception 'Operação fora do escopo da empresa.' using errcode='42501';
+  end if;
+  if p_ocorrido_em is null or p_idempotency_key is null then
+    raise exception 'Data e identificador do evento são obrigatórios.';
   end if;
 
   select * into v_alocacao from public.ordem_producao_recursos
@@ -81,9 +92,7 @@ begin
   where id=v_alocacao.ordem_id and empresa_id=p_empresa_id;
   select * into v_recurso from public.recursos_producao
   where id=v_alocacao.recurso_id and empresa_id=p_empresa_id;
-  if v_ordem.id is null or v_recurso.id is null or not exists(
-    select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id::text=p_empresa_id
-  ) then raise exception 'Operação fora do escopo da empresa.'; end if;
+  if v_ordem.id is null or v_recurso.id is null then raise exception 'Operação fora do escopo da empresa.'; end if;
 
   if v_ordem.status in ('Concluída','Cancelada') and p_evento<>'Cancelamento' then
     raise exception 'A OP não permite novos eventos de execução.';
@@ -135,8 +144,8 @@ end;
 $$;
 
 grant select,insert on public.ordem_producao_operacao_apontamentos to authenticated;
-revoke all on function public.registrar_evento_operacao_producao(text,uuid,text,timestamptz,text,uuid) from public;
-grant execute on function public.registrar_evento_operacao_producao(text,uuid,text,timestamptz,text,uuid) to authenticated;
+revoke all on function public.registrar_evento_operacao_producao(uuid,uuid,text,timestamptz,text,uuid) from public;
+grant execute on function public.registrar_evento_operacao_producao(uuid,uuid,text,timestamptz,text,uuid) to authenticated;
 
 comment on table public.ordem_producao_operacao_apontamentos is
   'Eventos imutáveis da execução manual por recurso; não alteram automaticamente OP, venda, estoque ou prazo comercial.';

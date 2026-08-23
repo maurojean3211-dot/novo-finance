@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { listQuotes, saveQuoteRecord, updateQuoteStatus } from "../services/orcamentoPersistence.service";
+import { listQuotes, registerQuoteDecision, saveQuoteRecord, updateQuoteStatus } from "../services/orcamentoPersistence.service";
 import { calculateQuoteTotals } from "../utils/money-calculations";
 import { OPEN_QUOTE_STATUSES } from "../types/orcamento";
 const initialFilters = { search: "", cliente: "", vendedor: "", status: "", inicio: "", fim: "", validade: "", origem: "" };
@@ -11,5 +11,6 @@ export default function useOrcamentos({ empresaId, userId }) {
   const metrics = useMemo(() => { const approved = quotes.filter((q) => q.status === "Aprovado"); return { abertos: quotes.filter((q) => OPEN_QUOTE_STATUSES.includes(q.status)).length, emitidos: quotes.length, enviados: quotes.filter((q) => q.status === "Enviado").length, aprovados: approved.length, rejeitados: quotes.filter((q) => q.status === "Rejeitado").length, valorOrcado: quotes.reduce((sum, q) => sum + q.valor, 0), valorAprovado: approved.reduce((sum, q) => sum + q.valor, 0), taxaAprovacao: quotes.length ? approved.length / quotes.length * 100 : 0 }; }, [quotes]);
   async function saveQuote(data) { if (!window.confirm("Confirmar gravação deste orçamento real?")) return null; const quote = { ...data, numero: data.numero || `ORC-${new Date().getFullYear()}-${crypto.randomUUID().slice(0, 8).toUpperCase()}` }; const totals = calculateQuoteTotals(quote.items, quote); const id = await saveQuoteRecord({ quote, empresaId, userId, totals }); await refresh(); return { ...quote, id, valor: totals.valorFinal }; }
   async function updateStatus(id, status) { if (!window.confirm(`Confirmar alteração do orçamento para ${status}?`)) return; await updateQuoteStatus({ quoteId: id, empresaId, userId, status }); await refresh(); }
-  return { quotes, filtered, filters, setFilters, clearFilters: () => setFilters(initialFilters), metrics, saveQuote, updateStatus, loading, error, refresh };
+  async function registerDecision(id, decision, observation) { await registerQuoteDecision({ quoteId: id, empresaId, decision, observation }); await refresh(); }
+  return { quotes, filtered, filters, setFilters, clearFilters: () => setFilters(initialFilters), metrics, saveQuote, updateStatus, registerDecision, loading, error, refresh };
 }

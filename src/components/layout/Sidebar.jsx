@@ -31,26 +31,28 @@ export default function Sidebar({ pagina, permissoes, loginMaster, nomeEmpresa, 
         <small>Plano completo</small>
       </div>
 
-      <nav className="app-nav-groups" aria-label="Navegação principal">
-        {menuGroups.map((group) => {
-          const items = group.items.filter((item) => canAccessMenuItem(item, permissoes, loginMaster));
-          if (items.length === 0) return null;
+      <div className="app-sidebar__navigation">
+        <nav className="app-nav-groups" aria-label="Navegação principal">
+          {menuGroups.map((group) => {
+            const items = group.items.filter((item) => !item.hidden && canAccessMenuItem(item, permissoes, loginMaster));
+            if (items.length === 0) return null;
 
-          const open = openGroupId === group.id;
-          return (
-            <section className={`app-nav-group${open ? " app-nav-group--open" : ""}`} key={group.id}>
-              <button
-                className="app-nav-group__toggle"
-                onClick={() => setOpenGroupId(open ? null : group.id)}
-                aria-expanded={open}
-              >
-                <span>{group.icon}</span><strong>{group.label}</strong><b>⌄</b>
-              </button>
-              {open && <div className="app-nav-group__items">{items.map((item) => <MenuItem key={item.page} item={item} pagina={pagina} onNavigate={onNavigate} />)}</div>}
-            </section>
-          );
-        })}
-      </nav>
+            const open = openGroupId === group.id;
+            return (
+              <section className={`app-nav-group${open ? " app-nav-group--open" : ""}`} key={group.id}>
+                <button
+                  className="app-nav-group__toggle"
+                  onClick={() => setOpenGroupId(open ? null : group.id)}
+                  aria-expanded={open}
+                >
+                  <span>{group.icon}</span><strong>{group.label}</strong><b>⌄</b>
+                </button>
+                {open && <div className="app-nav-group__items">{items.map((item) => <MenuItem key={item.page} item={item} pagina={pagina} onNavigate={onNavigate} />)}</div>}
+              </section>
+            );
+          })}
+        </nav>
+      </div>
 
       <button onClick={onLogout} className="app-logout"><span>↪</span>Sair</button>
     </aside>

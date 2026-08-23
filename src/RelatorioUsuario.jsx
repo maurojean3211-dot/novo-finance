@@ -16,10 +16,6 @@ export default function RelatorioUsuario({ empresaId }) {
   const [qtdVendas, setQtdVendas] = useState(0);
   const [qtdCompras, setQtdCompras] = useState(0);
 
-  useEffect(() => {
-    if (empresaId) carregarDados();
-  }, [empresaId]);
-
   async function carregarDados() {
     await Promise.all([
       carregarVendas(),
@@ -56,6 +52,10 @@ export default function RelatorioUsuario({ empresaId }) {
     setTotalCompras(total);
     setQtdCompras((data || []).length);
   }
+
+  useEffect(() => {
+    if (empresaId) carregarDados();
+  }, [empresaId]);
 
   const saldo = totalVendas - totalCompras;
 

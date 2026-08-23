@@ -32,7 +32,7 @@ export default function MaterialForm({ onCancel, onSave }) {
 
   return (
     <main className="catalog-page">
-      <header className="catalog-subheader"><button onClick={onCancel}>← Voltar</button><div><p className="catalog-eyebrow">Catálogo Inteligente</p><h1>Cadastrar material</h1><span>Estrutura local sem persistência em banco nesta fase.</span></div></header>
+      <header className="catalog-subheader"><button onClick={onCancel}>← Voltar</button><div><p className="catalog-eyebrow">Catálogo Inteligente</p><h1>Cadastrar material</h1><span>Produto persistido no catálogo da empresa ativa.</span></div></header>
       <form className="material-form" onSubmit={submit}>
         <section><h2>Identificação</h2><p>Informações principais para pesquisa e classificação.</p><div className="material-form__grid">
           <Field label="Código *" name="codigo" value={form.codigo} onChange={change} />
@@ -55,7 +55,7 @@ export default function MaterialForm({ onCancel, onSave }) {
           <Field label="Localização" name="localizacao" value={form.localizacao} onChange={change} />
           <Field label="Observações" name="observacoes" value={form.observacoes} onChange={change} wide><textarea name="observacoes" value={form.observacoes} onChange={change} rows="4" /></Field>
         </div></section>
-        <footer className="material-form__actions"><button type="button" onClick={onCancel}>Cancelar</button><button type="submit">Adicionar à sessão demonstrativa</button></footer>
+        <footer className="material-form__actions"><button type="button" onClick={onCancel}>Cancelar</button><button type="submit">Salvar produto</button></footer>
       </form>
     </main>
   );

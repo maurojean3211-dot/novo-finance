@@ -1,1 +1,5 @@
-export function getDemoExtraction() { return { source: "SOLICITAÇÃO: TARUGO AL 6063 Ø178 - 8 BARRAS / PERFIL U 2 POL ANODIZADO - 480 M", items: [{ original: "TARUGO AL 6063 Ø178 - 8 BARRAS", interpreted: "Tarugo de alumínio, liga 6063, diâmetro 178 mm", suggested: "TR-6063-178", match: "Correspondência exata", confidence: 98, alerts: [] }, { original: "PERFIL U 2 POL ANODIZADO - 480 M", interpreted: "Perfil U 2 polegadas, acabamento anodizado", suggested: "PF-U2-AN", match: "Correspondência semelhante", confidence: 84, alerts: ["Confirmar têmpera T6"] }, { original: "CHAPA ESPECIAL CONFORME DESENHO", interpreted: "Chapa especial sem dimensões suficientes", suggested: "Nenhum", match: "Item não encontrado", confidence: 38, alerts: ["Dimensões ausentes", "Revisão humana obrigatória"] }] }; }
+export const MATERIAL_DOCUMENT_PROCESSING_AVAILABLE = false;
+
+export function getMaterialExtraction() {
+  return null;
+}

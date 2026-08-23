@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { authErrorMessage } from "./app/auth/authMessages";
 import { supabase } from "./supabase";
+import { formatMarketValue, marketQuoteDetail, useMarketData } from "./marketData";
 import "./Login.css";
 
 const destaques = [
-  ["01", "Catálogo Inteligente", "Produtos técnicos organizados para vender melhor."],
-  ["02", "Orçamento Inteligente", "Propostas consistentes, rápidas e rastreáveis."],
-  ["03", "Painel Executivo", "Indicadores comerciais em uma visão objetiva."],
-  ["04", "IA Comercial", "Pendências e oportunidades em evidência."],
-  ["05", "Dólar e LME", "Indicadores de mercado para decisões responsáveis."],
+  ["01", "Gestão Comercial", "Vendas, CRM, estoque e operação integrados."],
+  ["02", "Financeiro Empresarial", "Contas e resultados em uma visão objetiva."],
+  ["03", "Controle Financeiro Pessoal", "Receitas, despesas, metas e investimentos."],
+  ["04", "Segurança dos Dados", "Acesso protegido para suas informações."],
+  ["05", "Multiempresa", "Empresas e contextos organizados na plataforma."],
 ];
 
 export default function Login({ onLogin }) {
@@ -17,8 +18,10 @@ export default function Login({ onLogin }) {
   const [senha, setSenha] = useState("");
   const [cpf, setCpf] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [empresaNome, setEmpresaNome] = useState("");
   const [loading, setLoading] = useState(false);
   const [mensagem, setMensagem] = useState(null);
+  const { quotes: indicadoresMercado } = useMarketData();
 
   function exibirMensagem(tipo, texto) {
     setMensagem({ tipo, texto });
@@ -50,50 +53,42 @@ export default function Login({ onLogin }) {
     event?.preventDefault();
     setMensagem(null);
 
-    if (!email || !senha || !cpf || !whatsapp) {
+    if (!email || !senha || !cpf || !whatsapp || !empresaNome.trim()) {
       exibirMensagem("erro", "Preencha todos os campos para criar a conta.");
       return;
     }
 
+    if (loading) return;
     setLoading(true);
     const emailLimpo = email.trim().toLowerCase();
-    const { data, error } = await supabase.auth.signUp({ email: emailLimpo, password: senha });
 
-    if (error) {
-      setLoading(false);
-      if (error.message.includes("User already registered")) {
-        exibirMensagem("erro", "Este e-mail já está cadastrado. Faça login para continuar.");
+    try {
+      const { data, error } = await supabase.auth.signUp({ email: emailLimpo, password: senha, options: { data: { nome: emailLimpo, empresa_nome: empresaNome.trim(), cpf: cpf.trim(), whatsapp: whatsapp.trim() } } });
+      if (error) throw error;
+
+      const authenticatedUser = data?.session?.user;
+      if (!authenticatedUser || authenticatedUser.id !== data?.user?.id) {
+        exibirMensagem(
+          "sucesso",
+          "Confirme seu e-mail. Depois, o cadastro permanecerá pendente até a aprovação administrativa."
+        );
         setModo("login");
         return;
       }
-      exibirMensagem("erro", authErrorMessage(error, "Não foi possível criar a conta."));
-      return;
+
+      await supabase.auth.signOut({ scope: "local" });
+      exibirMensagem("sucesso", "Cadastro recebido e pendente de aprovação administrativa.");
+      setModo("login");
+    } catch (error) {
+      if (error.message?.includes("User already registered")) {
+        exibirMensagem("erro", "Este e-mail já está cadastrado. Faça login para continuar.");
+        setModo("login");
+      } else {
+        exibirMensagem("erro", authErrorMessage(error, error.message || "Não foi possível concluir a criação da conta."));
+      }
+    } finally {
+      setLoading(false);
     }
-
-    if (data?.user) {
-      const userId = data.user.id;
-      const { data: empresa } = await supabase.from("empresas").insert([{
-        user_id: userId,
-        name: emailLimpo,
-        email: emailLimpo,
-        cpf,
-        whatsapp,
-        plano: "Básico",
-        status: "Ativo",
-      }]).select().single();
-
-      await supabase.from("usuarios").insert([{
-        id: userId,
-        email: emailLimpo,
-        nome: emailLimpo,
-        role: "cliente",
-        empresa_id: empresa?.id,
-      }]);
-    }
-
-    setLoading(false);
-    exibirMensagem("sucesso", "Conta criada. Agora você já pode fazer login.");
-    setModo("login");
   }
 
   async function recuperarSenha() {
@@ -123,15 +118,25 @@ export default function Login({ onLogin }) {
         <div className="login-brand"><span>CF</span><div><strong>Cunha Finance</strong><small>Gestão inteligente</small></div></div>
 
         <div className="login-presentation">
-          <p className="login-eyebrow">Plataforma inteligente de gestão comercial</p>
-          <h1>Decisões mais inteligentes para o mercado do alumínio.</h1>
-          <p className="login-description">Gerencie vendas, estoque, catálogo inteligente, orçamentos, CRM, financeiro e indicadores de mercado em uma única plataforma.</p>
+          <p className="login-eyebrow">Gestão empresarial e financeira pessoal</p>
+          <h1>Decisões mais inteligentes para empresas e para o seu controle financeiro pessoal.</h1>
+          <p className="login-description">Gerencie vendas, estoque, CRM e financeiro empresarial, ou organize receitas, despesas, contas, metas e investimentos pessoais em uma única plataforma.</p>
 
           <div className="industry-visual" aria-hidden="true">
             <div className="industry-visual__grid" />
             <div className="aluminum-profile aluminum-profile--one" />
             <div className="aluminum-profile aluminum-profile--two" />
             <div className="industry-visual__metric"><span>Visão integrada</span><strong>Comercial + Operação</strong><small>Dados seguros para decisões melhores</small></div>
+          </div>
+
+          <div className="login-market" aria-label="Indicadores de mercado">
+            {indicadoresMercado.map((indicador) => (
+              <article key={indicador.pair}>
+                <span aria-hidden="true">{indicador.icon}</span>
+                <p><strong>{indicador.name}</strong><small>{indicador.pair}</small></p>
+                <em title={indicador.source ?? indicador.error ?? undefined}>{formatMarketValue(indicador) ?? marketQuoteDetail(indicador)}{indicador.status === "available" && ` · ${marketQuoteDetail(indicador)}`}</em>
+              </article>
+            ))}
           </div>
 
           <div className="login-features">
@@ -141,7 +146,7 @@ export default function Login({ onLogin }) {
           </div>
         </div>
 
-        <footer><span>Feito para empresas que transformam alumínio em resultado.</span><b>Seguro · Modular · Multiempresa</b></footer>
+        <footer><span>Feito para empresas — inclusive do mercado do alumínio — e para suas finanças pessoais.</span><b>Seguro · Modular · Multiempresa</b></footer>
       </section>
 
       <section className="login-access">
@@ -156,6 +161,7 @@ export default function Login({ onLogin }) {
             <label className="login-field"><span>Senha</span><div><b>●</b><input type="password" autoComplete={modo === "login" ? "current-password" : "new-password"} placeholder="Digite sua senha" value={senha} onChange={(e) => setSenha(e.target.value)} disabled={loading} /></div></label>
 
             {modo === "cadastro" && <div className="register-fields">
+              <label className="login-field"><span>Empresa</span><div><b>◆</b><input autoComplete="organization" placeholder="Nome da empresa" value={empresaNome} onChange={(e) => setEmpresaNome(e.target.value)} disabled={loading} /></div></label>
               <label className="login-field"><span>CPF</span><div><b>▣</b><input inputMode="numeric" autoComplete="off" placeholder="Informe seu CPF" value={cpf} onChange={(e) => setCpf(e.target.value)} disabled={loading} /></div></label>
               <label className="login-field"><span>WhatsApp</span><div><b>◉</b><input inputMode="tel" autoComplete="tel" placeholder="Informe seu WhatsApp" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} disabled={loading} /></div></label>
             </div>}

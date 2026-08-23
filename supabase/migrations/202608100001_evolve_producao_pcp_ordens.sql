@@ -18,10 +18,11 @@ alter table public.ordens_producao add constraint ordens_producao_status_check
 alter table public.ordem_producao_apontamentos
   add column if not exists ocorrido_em timestamptz not null default now();
 
-create or replace function public.consumir_material_producao(p_material_id uuid,p_empresa_id text,p_quantidade numeric)
+create or replace function public.consumir_material_producao(p_material_id uuid,p_empresa_id uuid,p_quantidade numeric)
 returns void language plpgsql security invoker set search_path=public as $$
 declare v_material public.ordem_producao_materiais;v_ordem public.ordens_producao;v_usar_reserva numeric;v_sem_reserva numeric;v_novo numeric;
 begin
+ if auth.uid() is null or not exists(select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id=p_empresa_id) then raise exception 'Acesso negado à empresa.' using errcode='42501';end if;
  if p_quantidade<=0 then raise exception 'Quantidade inválida.';end if;
  select * into v_material from public.ordem_producao_materiais where id=p_material_id and empresa_id=p_empresa_id for update;
  if not found then raise exception 'Material não encontrado.';end if;
@@ -36,9 +37,10 @@ begin
  end if;
  -- Após liberar a reserva, todo o consumo fica disponível e pode ser baixado pelo serviço central.
  perform public.movimentar_estoque(v_material.estoque_id,p_empresa_id,'Saída',p_quantidade,'Produção','consumo:'||v_material.id::text||':'||v_novo::text,'Consumo real confirmado da '||v_ordem.numero_op,null,null);
- update public.ordem_producao_materiais set quantidade_reservada=quantidade_reservada-v_usar_reserva,quantidade_consumida=v_novo,updated_at=now() where id=v_material.id;
+ update public.ordem_producao_materiais set quantidade_reservada=quantidade_reservada-v_usar_reserva,quantidade_consumida=v_novo,updated_at=now() where id=v_material.id and empresa_id=p_empresa_id;
  insert into public.ordem_producao_historico(ordem_id,empresa_id,user_id,tipo,descricao,dados)
  values(v_ordem.id,p_empresa_id,auth.uid(),'Consumo','Consumo real enviado ao estoque após confirmação.',jsonb_build_object('material_id',v_material.id,'quantidade',p_quantidade,'usou_reserva',v_usar_reserva,'sem_reserva',v_sem_reserva));
 end $$;
 
-grant execute on function public.consumir_material_producao(uuid,text,numeric) to authenticated;
+revoke execute on function public.consumir_material_producao(uuid,uuid,numeric) from public;
+grant execute on function public.consumir_material_producao(uuid,uuid,numeric) to authenticated;

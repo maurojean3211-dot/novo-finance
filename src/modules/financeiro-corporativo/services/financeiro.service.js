@@ -1,4 +1,5 @@
 import { supabase } from "../../../supabase";
+import { clearOperationKey, getOperationKey } from "../../../utils";
 
 const company = (empresaId) => String(empresaId);
 
@@ -38,12 +39,15 @@ export async function registerTitle({ empresaId, title }) {
 }
 
 export async function settleTitle({ empresaId, titleId, settlement }) {
+  const operationScope = `baixa:${empresaId}:${titleId}`;
   const { data, error } = await supabase.rpc("baixar_titulo_financeiro", {
     p_titulo_id: titleId, p_empresa_id: company(empresaId), p_valor: Number(settlement.value),
     p_data: settlement.date, p_forma: settlement.method || null, p_conta: settlement.account || null,
     p_observacoes: settlement.notes || null,
+    p_idempotency_key: getOperationKey(operationScope),
   });
   if (error) throw error;
+  clearOperationKey(operationScope);
   return data;
 }
 
@@ -63,10 +67,13 @@ export async function reverseSettlement({ empresaId, settlementId, notes }) {
 }
 
 export async function saveReconciliation({ empresaId, reconciliation }) {
+  const operationScope = `conciliacao:${empresaId}:${reconciliation.titleId}`;
   const { error } = await supabase.rpc("conciliar_titulo_financeiro", { p_titulo_id: reconciliation.titleId,
     p_empresa_id: company(empresaId), p_conta: reconciliation.account, p_data: reconciliation.date,
-    p_valor: Number(reconciliation.value), p_status: reconciliation.status, p_observacoes: reconciliation.notes || null });
+    p_valor: Number(reconciliation.value), p_status: reconciliation.status, p_observacoes: reconciliation.notes || null,
+    p_idempotency_key: getOperationKey(operationScope) });
   if (error) throw error;
+  clearOperationKey(operationScope);
 }
 
 export function purchaseToTitle(installment) {

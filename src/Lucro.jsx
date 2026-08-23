@@ -3,26 +3,21 @@ import { supabase } from "./supabase";
 
 export default function Lucro(){
 
-const [empresaId,setEmpresaId] = useState(null);
+const [,setEmpresaId] = useState(null);
 
-const [kilosComprados,setKilosComprados] = useState(0);
-const [kilosVendidos,setKilosVendidos] = useState(0);
+const [,setKilosComprados] = useState(0);
+const [,setKilosVendidos] = useState(0);
 
 const [totalCompras,setTotalCompras] = useState(0);
 const [totalVendas,setTotalVendas] = useState(0);
 
 const [lucro,setLucro] = useState(0);
-const [estoque,setEstoque] = useState(0);
+const [,setEstoque] = useState(0);
 
 const [precoMedioVenda,setPrecoMedioVenda] = useState(0);
 const [custoMedioCompra,setCustoMedioCompra] = useState(0);
 
 const [comissaoTotal,setComissaoTotal] = useState(0);
-
-useEffect(()=>{
-carregarUsuario();
-},[]);
-
 
 // ================= USUARIO
 
@@ -138,6 +133,10 @@ kc > 0 ? tc / kc : 0
 setComissaoTotal(comissao);
 
 }
+
+useEffect(()=>{
+void Promise.resolve().then(() => carregarUsuario());
+},[]);
 
 
 // ================= TELA

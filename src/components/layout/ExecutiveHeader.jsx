@@ -23,7 +23,6 @@ export default function ExecutiveHeader({ nomeEmpresa, nomeUsuario, loading, onR
         <p className="executive-header__company">{nomeEmpresa || "Empresa não informada"}</p>
       </div>
       <div className="executive-header__user">
-        <button className="executive-header__notifications" type="button" disabled aria-label="Notificações em breve">◌</button>
         <span className="executive-header__avatar">{firstName.slice(0, 2).toUpperCase()}</span>
         <div><strong>{nomeUsuario || "Usuário"}</strong><small>{nomeEmpresa || "Empresa não informada"}</small></div>
         <button type="button" onClick={onRefresh} disabled={loading}>{loading ? "Atualizando…" : "↻ Atualizar"}</button>

@@ -1,11 +1,7 @@
 import { CATALOGO_IMPORT_STATUS, CATALOGO_IMPORT_TYPES, DEFAULT_IMPORT_SETTINGS, DUPLICATE_ACTIONS, EXTRACTION_CONFIDENCE, PRODUCT_STATUS, PRODUCT_TYPES } from "../constants/catalogo.constants";
 import { createId, createProductFingerprint, nowIso } from "../utils/catalogo-normalizers";
 import { validateExtractedProduct, validateImportDraft } from "../validators/catalogo.validators";
-
-const STORAGE_PREFIX = "cunha-finance:catalog-imports";
-function getStorageKey(companyId, userId) { if (!companyId || !userId) throw new Error("Empresa e usuário são obrigatórios para acessar as importações."); return `${STORAGE_PREFIX}:${companyId}:${userId}`; }
-function readStorage(companyId, userId) { const raw = localStorage.getItem(getStorageKey(companyId, userId)); if (!raw) return []; try { const parsed = JSON.parse(raw); return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
-function writeStorage(companyId, userId, drafts) { localStorage.setItem(getStorageKey(companyId, userId), JSON.stringify(drafts)); }
+import { supabase } from "../../../supabase";
 
 export function createEmptyDimensions() { return { a: null, b: null, c: null, width: null, height: null, thickness: null, externalDiameter: null, internalDiameter: null, length: null, unit: "mm", originalText: null }; }
 export function createEmptyTechnicalData() { return { weightPerMeter: null, weightPerPiece: null, weightUnit: null, dimensions: createEmptyDimensions(), alloy: null, temper: null, finish: null, color: null, standard: null, application: null }; }
@@ -33,15 +29,13 @@ export function createImportDraft({ companyId, userId, supplierName = "", suppli
   return { id: createId("import"), type, status: CATALOGO_IMPORT_STATUS.DRAFT, supplierName, supplierId, catalogName, catalogVersion, originalFileName, totalPages, processedPages: 0, products: [], errors: [], warnings: [], settings: { ...DEFAULT_IMPORT_SETTINGS }, companyId, userId, createdAt: timestamp, updatedAt: timestamp };
 }
 
-export function listImportDrafts(companyId, userId) { return readStorage(companyId, userId); }
-export function getImportDraft(companyId, userId, importId) { return readStorage(companyId, userId).find((draft) => draft.id === importId) ?? null; }
-export function saveImportDraft(draft) {
+export async function listImportDrafts(companyId) { if(!companyId)return[];const{data,error}=await supabase.from("catalogo_importacoes").select("*").eq("empresa_id",String(companyId)).order("created_at",{ascending:false});if(error)throw error;return(data||[]).map((row)=>({...row.dados,id:row.id,companyId:row.empresa_id,userId:row.user_id,status:row.status,createdAt:row.created_at,updatedAt:row.updated_at})); }
+export async function getImportDraft(companyId, importId) { const{data,error}=await supabase.from("catalogo_importacoes").select("*").eq("id",importId).eq("empresa_id",String(companyId)).maybeSingle();if(error)throw error;return data?{...data.dados,id:data.id,companyId:data.empresa_id,userId:data.user_id,status:data.status,createdAt:data.created_at,updatedAt:data.updated_at}:null; }
+export async function saveImportDraft(draft) {
   const validation = validateImportDraft(draft); if (!validation.valid) throw new Error(validation.errors.join(" "));
-  const drafts = readStorage(draft.companyId, draft.userId); const nextDraft = { ...draft, updatedAt: nowIso() }; const existingIndex = drafts.findIndex((item) => item.id === nextDraft.id);
-  if (existingIndex >= 0) drafts[existingIndex] = nextDraft; else drafts.unshift(nextDraft);
-  writeStorage(nextDraft.companyId, nextDraft.userId, drafts); return nextDraft;
+  const nextDraft={...draft,updatedAt:nowIso()};const{id,companyId,userId,status,createdAt,updatedAt,...dados}=nextDraft;void createdAt;const{error}=await supabase.from("catalogo_importacoes").upsert({id,empresa_id:String(companyId),user_id:userId,status,dados,updated_at:updatedAt});if(error)throw error;return nextDraft;
 }
-export function deleteImportDraft(companyId, userId, importId) { const drafts = readStorage(companyId, userId); const updated = drafts.filter((draft) => draft.id !== importId); writeStorage(companyId, userId, updated); return updated.length !== drafts.length; }
+export async function deleteImportDraft(companyId, userId, importId) { void userId;const{error}=await supabase.from("catalogo_importacoes").delete().eq("id",importId).eq("empresa_id",String(companyId));if(error)throw error;return true; }
 
 export function addProductToDraft(draft, input) {
   const product = createExtractedProduct({ ...input, supplierName: input.supplierName ?? draft.supplierName, source: { ...(input.source ?? {}), importId: draft.id, supplierId: draft.supplierId, supplierName: input.source?.supplierName ?? draft.supplierName, catalogName: input.source?.catalogName ?? draft.catalogName, catalogVersion: input.source?.catalogVersion ?? draft.catalogVersion, originalFileName: input.source?.originalFileName ?? draft.originalFileName, importedBy: input.source?.importedBy ?? draft.userId } });

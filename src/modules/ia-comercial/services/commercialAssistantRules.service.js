@@ -1,7 +1,6 @@
 import { normalizeCommand, parseCommercialIntent } from "../utils/commercialIntentParser";
 
 const insufficient = "Não há informações suficientes no sistema para concluir esta análise.";
-const future = "Esta análise estará disponível após a integração da IA Comercial.";
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const recentLimit = (days) => { const date = new Date(); date.setDate(date.getDate() - days); return date.toISOString().slice(0, 10); };
 
@@ -51,8 +50,8 @@ export function analyzeCommercialCommand(command, context) {
     const label = parsed.intent === "sale" ? "Vendas" : "Compras";
     return records.length ? { title: `Resumo de ${label.toLowerCase()}`, message: `${records.length} registro(s) disponível(is) no sistema.`, source: `${label} · dado real`, items: records.slice(-5).map((item) => `${item.cliente_nome || item.fornecedor || "Registro"} — ${item.produto || "produto não informado"}`) } : { title: label, message: insufficient, source: label, items: [] };
   }
-  if (parsed.intent === "opportunity" || parsed.intent === "budget") return { title: parsed.intent === "opportunity" ? "Oportunidades" : "Apoio ao orçamento", message: future, source: "Funcionalidade futura", items: [] };
-  return { title: "Análise comercial", message: future, source: "Funcionalidade futura", items: [] };
+  if (parsed.intent === "opportunity" || parsed.intent === "budget") { const rows=context.opportunities||[];return rows.length?{title:parsed.intent==="opportunity"?"Oportunidades":"Apoio ao orçamento",message:`${rows.length} oportunidade(s) real(is) disponível(is) no CRM.`,source:"CRM · dado real",items:rows.slice(0,5).map((item)=>`${item.empresa} — ${item.etapa} — ${item.produtoInteresse||"produto não informado"}`)}:{title:"Oportunidades",message:insufficient,source:"CRM",items:[]}; }
+  return { title: "Análise comercial", message: insufficient, source: "Dados comerciais reais", items: [] };
 }
 
 export function findCatalogMatches(query, products) {

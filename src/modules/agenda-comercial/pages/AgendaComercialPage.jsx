@@ -32,7 +32,6 @@ export default function AgendaComercialPage({ empresaId, userId }) {
       <AgendaFilters filters={filters} origins={origins} statuses={statuses} onChange={setFilters} onClear={() => setFilters(initialFilters)} />
       {agenda.error && <p className="agenda-error" role="alert">{agenda.error}</p>}
       <div className="agenda-results"><header><h2>Atividades</h2><span>{filtered.length} resultado(s)</span></header><AgendaTimeline activities={filtered} loading={agenda.loading} /></div>
-      <section className="agenda-integrations"><div><span>Preparação futura</span><h2>Integrações planejadas</h2></div>{["WhatsApp Business", "Google Agenda", "Outlook", "IA Comercial"].map((item) => <span key={item}>{item}<small>Em breve</small></span>)}</section>
     </main>
   );
 }

@@ -32,7 +32,7 @@ export function getCommissionRule(product, fallbackPerKgRate = 0.05) {
     return { type: COMMISSION_TYPES.PER_KG, rate: 0.07 };
   }
 
-  if (name.includes("TARUGO")) {
+  if (name.includes("TARUGO") || name.includes("SUCATA")) {
     return { type: COMMISSION_TYPES.PER_KG, rate: 0.05 };
   }
 
@@ -45,6 +45,7 @@ export function calculateCommission({
   unit = "KG",
   pricePerKg = 0,
   percentage = 0,
+  perKgRate,
   fallbackPerKgRate = 0.05,
 }) {
   const kilograms = toKilograms(quantity, unit);
@@ -54,11 +55,14 @@ export function calculateCommission({
     ? rule.rate
     : parseDecimal(percentage);
   const totalSale = kilograms * unitPrice;
-  const commission = rule.type === COMMISSION_TYPES.PERCENT_SALE
+  const effectiveRule = rule.type === COMMISSION_TYPES.PER_KG && String(perKgRate ?? "").trim() !== ""
+    ? { ...rule, rate: parseDecimal(perKgRate) }
+    : rule;
+  const commission = effectiveRule.type === COMMISSION_TYPES.PERCENT_SALE
     ? totalSale * (percent / 100)
-    : kilograms * rule.rate;
+    : kilograms * effectiveRule.rate;
 
-  return { kilograms, unitPrice, percentage: percent, totalSale, commission, rule };
+  return { kilograms, unitPrice, percentage: percent, totalSale, commission, rule: effectiveRule };
 }
 
 export function getCommissionRuleLabel(product, storedRate = 0.05) {

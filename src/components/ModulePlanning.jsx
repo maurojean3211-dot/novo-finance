@@ -1,4 +1,7 @@
 export default function ModulePlanning({ title }) {
+  const showPlannedModules = false;
+  if (!showPlannedModules) return null;
+
   return (
     <main className="planning-page">
       <section className="planning-card">

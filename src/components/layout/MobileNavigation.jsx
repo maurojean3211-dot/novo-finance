@@ -21,7 +21,7 @@ export default function MobileNavigation({ pagina, permissoes, loginMaster, onNa
         <nav className="mobile-nav-menu" aria-label="Navegação móvel completa">
           <div className="mobile-nav-menu__header"><strong>Módulos</strong><button onClick={() => setMenuMais(false)} aria-label="Fechar menu">×</button></div>
           {menuGroups.map((group) => {
-            const items = group.items.filter((item) => canAccessMenuItem(item, permissoes, loginMaster));
+            const items = group.items.filter((item) => !item.hidden && canAccessMenuItem(item, permissoes, loginMaster));
             if (items.length === 0) return null;
             const open = openGroupId === group.id;
             return (

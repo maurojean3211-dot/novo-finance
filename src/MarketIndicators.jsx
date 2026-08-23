@@ -1,25 +1,27 @@
-import { indicadoresMercadoDemo } from "./marketData";
+import { formatMarketValue, marketQuoteDetail, useMarketData } from "./marketData";
 
 export default function MarketIndicators({ onAction }) {
+  const { quotes, reload } = useMarketData();
+
   return (
     <article className="dashboard-panel market-panel">
       <div className="market-header">
-        <div><span>Indicadores de mercado</span><h2>Dólar e LME do alumínio</h2></div>
-        <span className="market-demo-badge">Dados demonstrativos</span>
+        <div><span>Indicadores de mercado</span><h2>Dólar, Euro e LME do alumínio</h2></div>
+        <span className="market-demo-badge">Referência oficial PTAX</span>
       </div>
       <div className="market-content">
         <div className="market-quotes">
-          {indicadoresMercadoDemo.cotacoes.map((cotacao) => (
+          {quotes.map((cotacao) => (
             <div className="market-quote" key={cotacao.id}>
-              <div className="market-quote__title"><span>{cotacao.id === "usd" ? "$" : "Al"}</span><div><strong>{cotacao.nome}</strong><small>{cotacao.codigo}</small></div></div>
-              <div className="market-quote__value"><strong>{cotacao.valor}</strong><span className={`market-variation market-variation--${cotacao.tendencia}`}>{cotacao.variacaoDia} hoje</span></div>
-              <dl><div><dt>Semana</dt><dd>{cotacao.variacaoSemana}</dd></div><div><dt>Mês</dt><dd>{cotacao.variacaoMes}</dd></div></dl>
+              <div className="market-quote__title"><span>{cotacao.icon}</span><div><strong>{cotacao.name}</strong><small>{cotacao.pair}</small></div></div>
+              <div className="market-quote__value"><strong>{formatMarketValue(cotacao) ?? marketQuoteDetail(cotacao)}</strong></div>
+              <small>{cotacao.status === "available" ? `${cotacao.source} · referência ${cotacao.reference}` : marketQuoteDetail(cotacao)}</small>
             </div>
           ))}
         </div>
         <div className="market-meta">
-          <div><span>Última atualização</span><strong>{indicadoresMercadoDemo.ultimaAtualizacao}</strong><small>{indicadoresMercadoDemo.fonte}</small></div>
-          <div className="market-actions"><button onClick={() => onAction("A atualização manual de cotações")}>↻ Atualizar cotações</button><button onClick={() => onAction("O histórico de cotações")}>Ver histórico →</button></div>
+          <div><span>Fonte</span><strong>Banco Central do Brasil</strong><small>Fechamento PTAX oficial; não é cotação comercial intraday.</small></div>
+          <div className="market-actions"><button onClick={reload}>↻ Atualizar cotações</button><button onClick={() => onAction("O histórico de cotações")}>Ver histórico →</button></div>
         </div>
       </div>
     </article>

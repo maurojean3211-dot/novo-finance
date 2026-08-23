@@ -13,7 +13,8 @@ async function criarConta(){
 
 const { data, error } = await supabase.auth.signUp({
 email: email,
-password: senha
+password: senha,
+options: { data: { nome: email, empresa_nome: nome, cpf, whatsapp } }
 });
 
 if(error){
@@ -21,27 +22,8 @@ alert(error.message);
 return;
 }
 
-if(data.user){
-
-await supabase
-.from("empresas")
-.insert([
-{
-user_id: data.user.id,
-name: nome,
-email: email,
-cpf: cpf,
-whatsapp: whatsapp,
-plano: "Básico",
-status: "Ativo",
-tipo: "Empresa",
-tipo_sistema:"financeiro"
-}
-]);
-
-alert("Conta criada com sucesso!");
-
-}
+if(data.session) await supabase.auth.signOut({ scope: "local" });
+alert("Cadastro recebido. Aguarde a aprovação administrativa.");
 
 }
 

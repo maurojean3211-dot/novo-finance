@@ -31,3 +31,16 @@ export function dataAtualIso() {
 export function confirmarAcao(mensagem) {
   return window.confirm(mensagem);
 }
+
+export function getOperationKey(scope) {
+  const storageKey = `cunha:idempotency:${scope}`;
+  const current = window.sessionStorage.getItem(storageKey);
+  if (current) return current;
+  const key = crypto.randomUUID();
+  window.sessionStorage.setItem(storageKey, key);
+  return key;
+}
+
+export function clearOperationKey(scope) {
+  window.sessionStorage.removeItem(`cunha:idempotency:${scope}`);
+}

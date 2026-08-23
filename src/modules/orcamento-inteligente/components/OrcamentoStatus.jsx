@@ -1,2 +1,9 @@
 import { QUOTE_STATUSES } from "../types/orcamento";
-export default function OrcamentoStatus({ status, onChange }) { const current = QUOTE_STATUSES.indexOf(status); return <section className="quote-workflow"><div className="quote-workflow__summary"><div><small>Etapa atual</small><strong>{status}</strong></div><select value={status} onChange={(event) => onChange(event.target.value)}>{QUOTE_STATUSES.map((value) => <option key={value}>{value}</option>)}</select></div><div className="quote-workflow__track">{QUOTE_STATUSES.slice(0, 10).map((value, index) => <div className={index < current ? "done" : index === current ? "active" : ""} key={value}><span>{index < current ? "✓" : index + 1}</span><small>{value}</small></div>)}</div><footer><span>Próximo passo: revisão e validação humana</span>{["Pendência de correspondência", "Aguardando preço"].includes(status) && <b>Bloqueio demonstrativo ativo</b>}</footer></section>; }
+
+const DECISION_STATUSES = ["Aprovado", "Rejeitado"];
+
+export default function OrcamentoStatus({ status, onChange }) {
+  const current = QUOTE_STATUSES.indexOf(status);
+  const selectable = QUOTE_STATUSES.filter((value) => !DECISION_STATUSES.includes(value) || value === status);
+  return <section className="quote-workflow"><div className="quote-workflow__summary"><div><small>Etapa atual</small><strong>{status}</strong></div><select value={status} onChange={(event) => onChange(event.target.value)}>{selectable.map((value) => <option value={value} key={value}>{value}</option>)}</select></div><div className="quote-workflow__track">{QUOTE_STATUSES.map((value, index) => <div className={index < current ? "done" : index === current ? "active" : ""} key={value}><span>{index < current ? "✓" : index + 1}</span><small>{value}</small></div>)}</div><footer><span>Aprovação e rejeição são registradas pela tela de decisão.</span></footer></section>;
+}

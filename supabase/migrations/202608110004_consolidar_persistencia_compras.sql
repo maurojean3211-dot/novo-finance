@@ -2,7 +2,7 @@
 -- Migration exclusivamente local. Não aplicar automaticamente.
 
 create or replace function public.criar_pedido_compra_completo(
-  p_empresa_id text,
+  p_empresa_id uuid,
   p_user_id uuid,
   p_pedido jsonb,
   p_itens jsonb
@@ -14,13 +14,13 @@ as $$
 declare
   v_pedido_id uuid;
 begin
-  if p_empresa_id is null or btrim(p_empresa_id) = '' then
+  if p_empresa_id is null then
     raise exception 'Empresa é obrigatória.';
   end if;
-  if p_user_id is distinct from auth.uid() then
+  if auth.uid() is null or p_user_id is distinct from auth.uid() then
     raise exception 'Usuário divergente da sessão autenticada.' using errcode = '42501';
   end if;
-  if not exists(select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id::text = p_empresa_id) then
+  if not exists(select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = p_empresa_id) then
     raise exception 'Usuário sem permissão para esta empresa.' using errcode = '42501';
   end if;
   if nullif(btrim(p_pedido->>'fornecedor_id'), '') is null or nullif(btrim(p_pedido->>'numero'), '') is null or nullif(p_pedido->>'data', '') is null then
@@ -40,6 +40,18 @@ begin
     group by i.produto_id having count(*) > 1
   ) then
     raise exception 'O mesmo produto não pode ser duplicado no pedido.';
+  end if;
+  if exists(
+    select 1
+    from jsonb_to_recordset(p_itens) as i(estoque_id text)
+    where nullif(btrim(i.estoque_id), '') is not null
+      and not exists(
+        select 1 from public.estoque e
+        where e.id = btrim(i.estoque_id)::uuid
+          and e.empresa_id = p_empresa_id
+      )
+  ) then
+    raise exception 'Há item vinculado a estoque inexistente ou de outra empresa.';
   end if;
 
   insert into public.pedidos_compra(
@@ -71,7 +83,7 @@ end $$;
 
 create or replace function public.atualizar_pedido_compra_completo(
   p_pedido_id uuid,
-  p_empresa_id text,
+  p_empresa_id uuid,
   p_user_id uuid,
   p_pedido jsonb,
   p_itens jsonb
@@ -83,10 +95,13 @@ as $$
 declare
   v_pedido public.pedidos_compra;
 begin
-  if p_user_id is distinct from auth.uid() then
+  if p_empresa_id is null then
+    raise exception 'Empresa é obrigatória.';
+  end if;
+  if auth.uid() is null or p_user_id is distinct from auth.uid() then
     raise exception 'Usuário divergente da sessão autenticada.' using errcode = '42501';
   end if;
-  if not exists(select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id::text = p_empresa_id) then
+  if not exists(select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = p_empresa_id) then
     raise exception 'Usuário sem permissão para esta empresa.' using errcode = '42501';
   end if;
   select * into v_pedido from public.pedidos_compra where id = p_pedido_id and empresa_id = p_empresa_id for update;
@@ -113,6 +128,18 @@ begin
     group by i.produto_id having count(*) > 1
   ) then
     raise exception 'O mesmo produto não pode ser duplicado no pedido.';
+  end if;
+  if exists(
+    select 1
+    from jsonb_to_recordset(p_itens) as i(estoque_id text)
+    where nullif(btrim(i.estoque_id), '') is not null
+      and not exists(
+        select 1 from public.estoque e
+        where e.id = btrim(i.estoque_id)::uuid
+          and e.empresa_id = p_empresa_id
+      )
+  ) then
+    raise exception 'Há item vinculado a estoque inexistente ou de outra empresa.';
   end if;
 
   update public.pedidos_compra set
@@ -141,8 +168,10 @@ begin
   return p_pedido_id;
 end $$;
 
-grant execute on function public.criar_pedido_compra_completo(text,uuid,jsonb,jsonb) to authenticated;
-grant execute on function public.atualizar_pedido_compra_completo(uuid,text,uuid,jsonb,jsonb) to authenticated;
+revoke all on function public.criar_pedido_compra_completo(uuid,uuid,jsonb,jsonb) from public;
+revoke all on function public.atualizar_pedido_compra_completo(uuid,uuid,uuid,jsonb,jsonb) from public;
+grant execute on function public.criar_pedido_compra_completo(uuid,uuid,jsonb,jsonb) to authenticated;
+grant execute on function public.atualizar_pedido_compra_completo(uuid,uuid,uuid,jsonb,jsonb) to authenticated;
 
-comment on function public.criar_pedido_compra_completo(text,uuid,jsonb,jsonb) is 'Cria pedido, itens e histórico atomicamente, sem estoque ou financeiro.';
-comment on function public.atualizar_pedido_compra_completo(uuid,text,uuid,jsonb,jsonb) is 'Sincroniza cabeçalho e itens sem recebimento, preservando histórico.';
+comment on function public.criar_pedido_compra_completo(uuid,uuid,jsonb,jsonb) is 'Cria pedido, itens e histórico atomicamente, sem estoque ou financeiro.';
+comment on function public.atualizar_pedido_compra_completo(uuid,uuid,uuid,jsonb,jsonb) is 'Sincroniza cabeçalho e itens sem recebimento, preservando histórico.';

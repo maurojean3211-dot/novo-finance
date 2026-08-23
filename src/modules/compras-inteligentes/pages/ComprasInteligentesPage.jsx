@@ -4,7 +4,6 @@ import PurchaseReportControls from "../../../components/operations/PurchaseRepor
 import { formatPurchaseCommissionRate, getPurchaseCommissionData, getPurchaseItemCommissionData, getPurchaseOrderCommissionData } from "../../../services/commissionEngine";
 import { countPurchasesWithoutOriginalDate, formatOriginalPurchaseDate, getOriginalPurchaseDate } from "../../../services/purchaseDate";
 import { describePeriod, EMPTY_PURCHASE_FILTERS, filterPurchaseRecords, generatePurchasesReport } from "../../../services/reportPdf.service";
-import { listImportDrafts } from "../../catalogo-inteligente/services/catalogoImportDraft.service";
 import { listStock } from "../../estoque-inteligente/services/estoque.service";
 import { resolveConsolidatedPurchaseNeed } from "../../producao-pcp/services/producao.service";
 import useComprasInteligentes from "../hooks/useComprasInteligentes";
@@ -15,8 +14,6 @@ import "../fase22.css";
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const commissionRule = (data) => data.rate > 0 ? `${data.kilograms.toLocaleString("pt-BR")} kg × R$ ${formatPurchaseCommissionRate(data.rate)}/kg` : "Sem comissão automática";
 const empty = () => ({ supplier: null, data: new Date().toISOString().slice(0, 10), previsao: "", condicaoPagamento: "28 dias", transportadora: "", frete: 0, desconto: 0, observacoes: "", status: "Rascunho", items: [] });
-const needKey = (empresaId) => `cunha:pcp:purchase-needs:${String(empresaId)}`;
-const readNeeds = (empresaId) => { try { return JSON.parse(sessionStorage.getItem(needKey(empresaId)) || "[]").filter((need) => String(need.empresaId) === String(empresaId)); } catch { return []; } };
 
 export default function ComprasInteligentesPage({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
   return <ComprasWorkspace key={String(empresaId)} empresaId={empresaId} userId={userId} companyName={companyName} issuedBy={issuedBy} />;
@@ -33,14 +30,12 @@ function ComprasWorkspace({ empresaId, userId, companyName, issuedBy }) {
   const [reportFilters, setReportFilters] = useState(EMPTY_PURCHASE_FILTERS);
   const [appliedReportFilters, setAppliedReportFilters] = useState(EMPTY_PURCHASE_FILTERS);
   const [reportMessage, setReportMessage] = useState("");
-  const [needs, setNeeds] = useState(() => readNeeds(empresaId));
-  const catalog = useMemo(() => listImportDrafts(empresaId, userId).flatMap((draft) => draft.products || []).filter((product) => product.selected), [empresaId, userId]);
+  const needs = manager.needs;
+  const catalog = manager.catalog;
 
   async function removeResolvedNeed(need) {
     await resolveConsolidatedPurchaseNeed({ empresaId, userId, need });
-    const next = readNeeds(empresaId).filter((item) => (item.key || item.materialId) !== (need.key || need.materialId));
-    sessionStorage.setItem(needKey(empresaId), JSON.stringify(next));
-    setNeeds(next);
+    await manager.refreshNeeds();
   }
 
   async function addProduct(product) {

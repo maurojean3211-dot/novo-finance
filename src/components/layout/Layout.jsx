@@ -13,9 +13,11 @@ export default function Layout({ children, pagina, permissoes, loginMaster, nome
 
   return (
     <div className={`app-shell${isMobile ? " app-shell--mobile" : ""}`}>
-      {!isMobile && <Sidebar key={`desktop-${pagina}`} pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} nomeEmpresa={nomeEmpresa} onNavigate={onNavigate} onLogout={onLogout} />}
-      <div className="app-content">{children}</div>
-      {isMobile && <MobileNavigation key={`mobile-${pagina}`} pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} onNavigate={onNavigate} onLogout={onLogout} />}
+      {!isMobile && <Sidebar pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} nomeEmpresa={nomeEmpresa} onNavigate={onNavigate} onLogout={onLogout} />}
+      <main className="app-content" id="main-content">
+        <div className="app-content__inner">{children}</div>
+      </main>
+      {isMobile && <MobileNavigation pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} onNavigate={onNavigate} onLogout={onLogout} />}
     </div>
   );
 }

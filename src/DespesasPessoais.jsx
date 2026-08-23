@@ -39,11 +39,6 @@ const [dadosCategoria,setDadosCategoria] = useState([]);
 
 const [empresaId,setEmpresaId] = useState(null);
 
-// ================= BUSCAR EMPRESA
-useEffect(()=>{
-buscarEmpresa();
-},[]);
-
 async function buscarEmpresa(){
 
 const { data:{ user } } = await supabase.auth.getUser();
@@ -222,6 +217,11 @@ setLancamentos(novaLista);
 calcular(novaLista);
 
 }
+
+// ================= BUSCAR EMPRESA
+useEffect(()=>{
+void Promise.resolve().then(() => buscarEmpresa());
+},[]);
 
 const cores=["#22c55e","#ef4444"];
 

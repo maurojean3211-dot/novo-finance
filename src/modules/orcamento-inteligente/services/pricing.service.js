@@ -1,2 +1,34 @@
-export const DEMO_PRICING = { custoItens: 198420, custoKg: 19.84, frete: 6850, impostos: 24760, despesas: 2900, dolar: 5.48, lme: 2318, margemBruta: 27.4, margemLiquida: 21.8, markup: 1.38, precoSugerido: 321400, precoFinal: 316800, desconto: 1.5, rentabilidade: 22.1, custoAtualizadoEm: "28/07/2026", cenarios: [{ nome: "Preço mínimo", valor: 288900, margem: 15.2 }, { nome: "Preço recomendado", valor: 316800, margem: 21.8 }, { nome: "Preço premium", valor: 342500, margem: 27.6 }] };
-export function simulatePricing({ desconto, frete, quantidade }) { const factor = Number(quantidade || 100) / 100; const final = (DEMO_PRICING.precoSugerido * factor + Number(frete || 0)) * (1 - Number(desconto || 0) / 100); const margin = 27.4 - Number(desconto || 0) * 1.35; return { ...DEMO_PRICING, frete: Number(frete || 0), desconto: Number(desconto || 0), precoFinal: final, margemBruta: margin, margemLiquida: margin - 5.6 }; }
+function number(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function itemCost(item) {
+  const commercial = item.dadosCatalogo?.commercial || {};
+  const unitCost = number(item.custo || commercial.costPerPiece || commercial.costPerKg || commercial.costPerMeter);
+  return unitCost * number(item.quantidade);
+}
+
+function scenario(totalCost, margin) {
+  return { nome: `Margem ${margin}%`, valor: totalCost > 0 ? totalCost / (1 - margin / 100) : 0, margem: margin };
+}
+
+export function simulatePricing({ items = [], desconto = 0, frete = 0, impostos = 0, despesas = 0 }) {
+  const subtotal = items.reduce((sum, item) => sum + number(item.preco) * number(item.quantidade), 0);
+  const custoItens = items.reduce((sum, item) => sum + itemCost(item), 0);
+  const descontoValor = subtotal * (number(desconto) / 100);
+  const custosAdicionais = number(frete) + number(impostos) + number(despesas);
+  const precoFinal = subtotal - descontoValor + custosAdicionais;
+  const custoTotal = custoItens + custosAdicionais;
+  const lucroBruto = precoFinal - custoTotal;
+  const margemBruta = precoFinal > 0 ? (lucroBruto / precoFinal) * 100 : 0;
+  const pesoTotal = items.reduce((sum, item) => sum + number(item.pesoTotal), 0);
+  return {
+    custoItens, custoKg: pesoTotal > 0 ? custoItens / pesoTotal : 0, frete: number(frete),
+    impostos: number(impostos), despesas: number(despesas), subtotal, desconto: number(desconto),
+    descontoValor, custoTotal, lucroBruto, margemBruta, margemLiquida: margemBruta,
+    markup: custoTotal > 0 ? precoFinal / custoTotal : 0, precoSugerido: precoFinal, precoFinal,
+    rentabilidade: custoTotal > 0 ? (lucroBruto / custoTotal) * 100 : 0,
+    cenarios: [scenario(custoTotal, 10), scenario(custoTotal, 20), scenario(custoTotal, 30)],
+  };
+}

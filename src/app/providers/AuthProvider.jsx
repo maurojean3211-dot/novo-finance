@@ -51,14 +51,14 @@ export function AuthProvider({ children }) {
 
     const { data, error } = await supabase
       .from("usuarios")
-      .select("empresa_id, permissoes, nome, role")
+      .select("empresa_id, permissoes, nome, role, status")
       .eq("id", user.id)
       .maybeSingle();
 
     if (requestId !== requestIdRef.current) return;
-    if (error || !data?.empresa_id) {
+    if (error || data?.status !== "ATIVO" || !data?.empresa_id) {
       clearProfile();
-      setAuthIssue(error ? "Não foi possível carregar seu perfil e suas permissões." : "Nenhuma empresa foi vinculada a este usuário.");
+      setAuthIssue(error ? "Não foi possível carregar seu perfil e suas permissões." : data?.status === "BLOQUEADO" ? "Seu acesso está bloqueado. Contate o administrador." : data?.status === "REPROVADO" ? "Seu cadastro não foi aprovado." : "Seu cadastro está pendente de aprovação administrativa.");
       setLoadingSession(false);
       return;
     }

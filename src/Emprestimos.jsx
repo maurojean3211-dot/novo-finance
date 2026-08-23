@@ -85,7 +85,6 @@ export default function EmprestimosLista() {
         total,
         data_vencimento: dataVencimento,
         status: "pendente",
-        historico: "",
       },
     ]);
 
@@ -119,22 +118,10 @@ export default function EmprestimosLista() {
       .toISOString()
       .slice(0, 10);
 
-    const historicoAtual =
-      p.historico || "";
-
-    const novoHistorico =
-      historicoAtual +
-      `Juros pago R$ ${valorJuros.toFixed(
-        2
-      )} em ${hoje.toLocaleDateString(
-        "pt-BR"
-      )}\n`;
-
     await supabase
       .from("emprestimos")
       .update({
         data_vencimento: vencimento,
-        historico: novoHistorico,
         ultimo_pagamento: hoje
           .toISOString()
           .slice(0, 10),
@@ -372,20 +359,6 @@ export default function EmprestimosLista() {
           )}
           <br />
           📌 Status: {p.status}
-
-          {p.historico && (
-            <>
-              <br />
-              <small>
-                📝 Último:
-                <br />
-                {p.historico
-                  .split("\n")
-                  .slice(-2)
-                  .join("\n")}
-              </small>
-            </>
-          )}
 
           <div
             style={{

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
 import { supabase } from "./supabase";
+import { clearOperationKey, getOperationKey } from "./utils";
 import "./consolidation.css";
 
 export default function ContasReceber({ empresaId }) {
@@ -48,10 +49,10 @@ export default function ContasReceber({ empresaId }) {
 
   async function receber(recebimento) {
     if (!window.confirm("Confirmar pagamento?")) return;
-    const { error } = await supabase.from("recebimentos").update({ status: "pago" }).eq("id", recebimento.id).eq("empresa_id", empresaId);
+    const operationScope = `recebimento:${empresaId}:${recebimento.id}`;
+    const { error } = await supabase.rpc("confirmar_recebimento", { p_recebimento_id: recebimento.id, p_empresa_id: empresaId, p_idempotency_key: getOperationKey(operationScope) });
     if (error) return alert("Erro ao confirmar pagamento");
-    const { data: existente } = await supabase.from("lancamentos").select("id").eq("recebimento_id", recebimento.id).eq("empresa_id", empresaId).maybeSingle();
-    if (!existente) await supabase.from("lancamentos").insert([{ empresa_id: empresaId, cliente_id: recebimento.cliente_id, recebimento_id: recebimento.id, tipo: "receita", descricao: `Recebimento - ${recebimento.cliente_nome}`, valor: recebimento.valor, data: new Date(), status: "recebido" }]);
+    clearOperationKey(operationScope);
     await carregar();
     alert("✅ Pagamento confirmado!");
   }

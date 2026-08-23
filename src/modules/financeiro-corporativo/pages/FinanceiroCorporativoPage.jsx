@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import FinancialDocumentPrototype from "../../documentos-financeiros/components/FinancialDocumentPrototype";
 import { EmptyState, FeedbackBanner, LoadingState, MetricGrid, ModuleHeader, OperationModal } from "../../../components/operations/OperationsUI";
 import useFinanceiroCorporativo from "../hooks/useFinanceiroCorporativo";
 import { budgetToTitle, purchaseToTitle, registerTitle, reverseSettlement, saleToTitle, saveReconciliation, settleTitle } from "../services/financeiro.service";
@@ -24,7 +25,7 @@ function IntegrationCard({ eyebrow, title, detail, value, disabled, onConfirm })
   return <article className="corp-fin-integration"><div><small>{eyebrow}</small><strong>{title}</strong><span>{detail}</span></div><b>{money.format(value || 0)}</b><button disabled={disabled} onClick={onConfirm}>{disabled ? "Já integrado" : "Revisar e confirmar"}</button></article>;
 }
 
-export default function FinanceiroCorporativoPage({ empresaId, userId, initialTab = "overview" }) {
+export default function FinanceiroCorporativoPage({ empresaId, userId, companyName, initialTab = "overview" }) {
   const finance = useFinanceiroCorporativo(empresaId);
   const [tab, setTab] = useState(initialTab); const [feedback, setFeedback] = useState(null); const [busy, setBusy] = useState(false);
   const [titleForm, setTitleForm] = useState(null); const [settlementTitle, setSettlementTitle] = useState(null);
@@ -51,6 +52,7 @@ export default function FinanceiroCorporativoPage({ empresaId, userId, initialTa
     <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)}/>
     <MetricGrid items={metrics}/><PeriodFilter finance={finance}/>
     <nav className="corp-fin-tabs" aria-label="Seções do financeiro">{[["overview","Visão geral"],["payable","Contas a pagar"],["receivable","Contas a receber"],["forecast","Fluxo e previsão"],["integrations","Integrações"],["reconciliation","Conciliação"],["history","Histórico"]].map(([value,label]) => <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{label}</button>)}</nav>
+    {["payable", "reconciliation"].includes(tab) && <div className="corp-fin-document-action"><FinancialDocumentPrototype context="company" companyName={companyName} destination={tab === "reconciliation" ? "Conciliação Empresarial" : "Conta a Pagar Empresarial"} /></div>}
     {finance.error && <div className="corp-fin-schema-warning"><strong>Financeiro temporariamente indisponível</strong><span>{finance.error}</span><small>Os dados existentes não foram alterados. Tente atualizar novamente.</small></div>}
     {finance.loading ? <LoadingState/> : <>
       {["overview","payable","receivable"].includes(tab) && <section className="ops-panel"><div className="ops-panel__header"><h2>{tab === "payable" ? "Contas a pagar" : tab === "receivable" ? "Contas a receber" : "Títulos do período"}</h2><span>{tabTitles.length} registro(s)</span></div><TitlesTable items={tabTitles} onEdit={openEdit} onSettle={openSettlement}/></section>}

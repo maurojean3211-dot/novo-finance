@@ -1,5 +1,6 @@
 import { findCatalogMatches } from "./commercialAssistantRules.service";
 import { normalizeCommand } from "../utils/commercialIntentParser";
+import { supabase } from "../../../supabase";
 
 export const ATTENDANCE_TYPES = ["Novo cliente", "Cliente existente", "Pedido de orçamento", "Consulta de produto", "Consulta de preço", "Retorno comercial", "Pós-venda", "Outro"];
 export const PRIORITIES = ["Baixa", "Normal", "Alta", "Urgente"];
@@ -62,6 +63,6 @@ export function suggestedResponse(analysis) {
   return `Olá${name}! Obrigado pelas informações. Vamos conferir os dados de ${analysis.form.product || "sua solicitação"} e preparar o próximo passo comercial. Retornaremos após a análise da equipe.`;
 }
 
-const historyKey = (companyId, userId) => `cunha-finance:atendimento-ia:v1:${companyId}:${userId}`;
-export function loadAttendanceHistory(companyId, userId) { if (!companyId || !userId) return []; try { const value = JSON.parse(localStorage.getItem(historyKey(companyId, userId)) || "[]"); return Array.isArray(value) ? value : []; } catch { return []; } }
-export function saveAttendanceHistory(companyId, userId, history) { if (!companyId || !userId) return; localStorage.setItem(historyKey(companyId, userId), JSON.stringify(history.slice(0, 30))); }
+export async function loadAttendanceHistory(companyId, userId) { if(!companyId||!userId)return[];const{data,error}=await supabase.from("ia_comercial_historico").select("*").eq("empresa_id",String(companyId)).eq("user_id",userId).order("created_at",{ascending:false}).limit(30);if(error)throw error;return(data||[]).map((row)=>({id:row.id,command:row.comando,result:row.resultado,attendance:row.atendimento,createdAt:row.created_at})) }
+export async function saveAttendanceEntry(companyId,userId,entry){const{data,error}=await supabase.from("ia_comercial_historico").insert({empresa_id:String(companyId),user_id:userId,comando:entry.command,resultado:entry.result,atendimento:entry.attendance||null}).select("*").single();if(error)throw error;return{id:data.id,command:data.comando,result:data.resultado,attendance:data.atendimento,createdAt:data.created_at}}
+export async function deleteAttendanceEntry(companyId,userId,id){const{error}=await supabase.from("ia_comercial_historico").delete().eq("id",id).eq("empresa_id",String(companyId)).eq("user_id",userId);if(error)throw error}

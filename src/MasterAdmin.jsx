@@ -1,591 +1,82 @@
-import { useEffect, useState } from "react";
-import { supabase } from "./supabase";
+import { useCallback, useEffect, useState } from "react";
+import { approveAdminUser, blockAdminUser, inviteAdminUser, listAdminUsers, rejectAdminUser, unblockAdminUser, updateAdminUser } from "./services/adminUsers.service";
+import { MODULE_CATALOG } from "./app/auth/moduleCatalog";
+import "./MasterAdmin.css";
+
+const emptyInvite = { nome: "", email: "", empresaNome: "" };
+const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 export default function MasterAdmin() {
-  const [clientes, setClientes] = useState([]);
-  const [usuario, setUsuario] = useState(null);
-  const [busca, setBusca] = useState("");
-  const [pixSistema, setPixSistema] = useState("");
+  const [users, setUsers] = useState([]);
+  const [status, setStatus] = useState("carregando");
+  const [feedback, setFeedback] = useState("");
+  const [busyId, setBusyId] = useState("");
+  const [invite, setInvite] = useState(emptyInvite);
+  const [editing, setEditing] = useState(null);
 
-  const [editandoPermissoesId, setEditandoPermissoesId] = useState(null);
-  const [editandoId, setEditandoId] = useState(null);
-
-  const [form, setForm] = useState({
-    name: "",
-    valor: "",
-    whatsapp: "",
-  });
-
-  const [novoUsuario, setNovoUsuario] = useState({
-    name: "",
-    email: "",
-    whatsapp: "",
-    valor: "",
-  });
-
-  const permissoesPadrao = {
-    dashboard: true,
-    financeiro: true,
-    recebimentos: true,
-    clientes: true,
-    emprestimos: true,
-    vendas: false,
-    compras: false,
-    contas_pagar: true,
-    contas_fixas: true,
-    pessoal: true,
-    relatorio: false,
-  };
-
-  const [permissoes, setPermissoes] = useState(permissoesPadrao);
-
-  useEffect(() => {
-    verificarUsuario();
+  const load = useCallback(async ({ rethrow = false } = {}) => {
+    setStatus("carregando");
+    try {
+      const data = await listAdminUsers();
+      setUsers(data?.users || []);
+      setStatus("pronto");
+    } catch (error) {
+      setFeedback(error.message || "Acesso administrativo não autorizado.");
+      setStatus("negado");
+      if (rethrow) throw error;
+    }
   }, []);
 
-  async function verificarUsuario() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+  useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
 
-    if (!user) {
-      window.location.href = "/";
-      return;
-    }
-
-    const { data } = await supabase
-      .from("usuarios")
-      .select("*")
-      .eq("email", user.email)
-      .maybeSingle();
-
-    if (!data || data.role !== "master") {
-      alert("Acesso negado");
-      await supabase.auth.signOut();
-      window.location.href = "/";
-      return;
-    }
-
-    setUsuario(data);
-    carregarClientes();
-    buscarPix();
+  async function run(userId, action, success) {
+    setBusyId(userId);
+    setFeedback("");
+    try { await action(); await load({ rethrow: true }); setFeedback(success); return true; }
+    catch (error) { setFeedback(error.message || "Não foi possível concluir a ação."); return false; }
+    finally { setBusyId(""); }
   }
 
-  async function carregarClientes() {
-    const { data } = await supabase
-      .from("empresas")
-      .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
-
-    setClientes(data || []);
+  async function approve(user) {
+    const companyName = window.prompt("Empresa para vincular ao cliente", user.empresa_nome || "");
+    if (!companyName?.trim()) return;
+    await run(user.id, () => approveAdminUser(user.id, companyName.trim()), "Cadastro aprovado.");
   }
 
-  async function buscarPix() {
-    const { data } = await supabase
-      .from("configuracoes")
-      .select("*")
-      .eq("chave", "pix_sistema")
-      .maybeSingle();
-
-    if (data) {
-      setPixSistema(data.valor || "");
-    }
+  async function submitInvite(event) {
+    event.preventDefault();
+    if (!invite.nome.trim() || !invite.email.trim() || !invite.empresaNome.trim()) return setFeedback("Preencha nome, e-mail e empresa.");
+    await run("invite", () => inviteAdminUser(invite), "Convite enviado; usuário permanecerá pendente até aprovação.");
+    setInvite(emptyInvite);
   }
 
-  async function salvarPix() {
-    const { error } = await supabase.from("configuracoes").upsert({
-      chave: "pix_sistema",
-      valor: pixSistema,
-    });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    alert("PIX salvo!");
+  function openEdit(user) {
+    setEditing({ id: user.id, nome: user.nome || "", empresa_nome: user.empresa_nome || "", role: user.role || "cliente", permissoes: user.permissoes || {}, valor_mensal: Number(user.valor_mensal || 0), status: user.status });
   }
 
-  async function criarUsuario() {
-    if (!novoUsuario.name || !novoUsuario.email) {
-      alert("Preencha nome e email");
-      return;
-    }
-
-    const { data: usuarioExistente, error: erroBuscaUsuario } = await supabase
-      .from("usuarios")
-      .select("id")
-      .eq("email", novoUsuario.email)
-      .maybeSingle();
-
-    if (erroBuscaUsuario) {
-      alert(erroBuscaUsuario.message);
-      return;
-    }
-
-    if (usuarioExistente) {
-      alert("Já existe um usuário com este email");
-      return;
-    }
-
-    const { data: empresaExistente, error: erroBuscaEmpresa } = await supabase
-      .from("empresas")
-      .select("id")
-      .eq("email", novoUsuario.email)
-      .maybeSingle();
-
-    if (erroBuscaEmpresa) {
-      alert(erroBuscaEmpresa.message);
-      return;
-    }
-
-    if (empresaExistente) {
-      alert("Já existe uma empresa/cliente com este email");
-      return;
-    }
-
-    const { error: erroEmpresa } = await supabase.from("empresas").insert({
-      name: novoUsuario.name,
-      email: novoUsuario.email,
-      whatsapp: novoUsuario.whatsapp,
-      valor: novoUsuario.valor,
-      status: "Ativo",
-      pagou: false,
-      isento: false,
-    });
-
-    if (erroEmpresa) {
-      alert(erroEmpresa.message);
-      return;
-    }
-
-    const { error: erroUsuario } = await supabase.from("usuarios").insert({
-      name: novoUsuario.name,
-      email: novoUsuario.email,
-      role: "cliente",
-      permissoes: permissoesPadrao,
-    });
-
-    if (erroUsuario) {
-      alert(erroUsuario.message);
-      return;
-    }
-
-    alert("Usuário criado!");
-
-    setNovoUsuario({
-      name: "",
-      email: "",
-      whatsapp: "",
-      valor: "",
-    });
-
-    carregarClientes();
+  async function saveEdit() {
+    if (await run(editing.id, () => updateAdminUser(editing), "Cliente atualizado.")) setEditing(null);
   }
 
-  function abrirEditar(c) {
-    setEditandoId(c.id);
+  if (status === "carregando" && !users.length) return <div style={containerStyle}>Carregando gestão administrativa...</div>;
+  if (status === "negado") return <div style={containerStyle}>Acesso administrativo não autorizado. {feedback}</div>;
 
-    setForm({
-      name: c.name || "",
-      valor: c.valor || "",
-      whatsapp: c.whatsapp || "",
-    });
-  }
+  const pending = users.filter((user) => user.status === "PENDENTE");
+  const managed = users.filter((user) => user.status !== "PENDENTE" && user.role !== "master" && !user.master_admin);
+  const permissions = (user) => Object.entries(user.permissoes || {}).filter(([, enabled]) => enabled).map(([key]) => key).join(", ") || "Padrão";
 
-  async function salvarEdicao() {
-    const { error } = await supabase
-      .from("empresas")
-      .update({
-        name: form.name,
-        valor: form.valor,
-        whatsapp: form.whatsapp,
-      })
-      .eq("id", editandoId);
+  return <main className="master-admin ops-page">
+    <header className="master-admin__header"><div><span>SISTEMA</span><h1>Master Admin</h1><p>Aprovação e controle de clientes e usuários.</p></div><span className="master-admin__safe">Backend administrativo protegido</span></header>
+    {feedback && <section className="master-admin__notice" role="status"><strong>{feedback}</strong></section>}
+    <section className="master-admin__metrics"><article><span>Pendentes</span><strong>{pending.length}</strong><small>aguardando aprovação</small></article><article><span>Ativos</span><strong>{managed.filter((user) => user.status === "ATIVO").length}</strong><small>acesso liberado</small></article><article><span>Bloqueados</span><strong>{managed.filter((user) => user.status === "BLOQUEADO").length}</strong><small>sem empresa ativa</small></article><article><span>Reprovados</span><strong>{managed.filter((user) => user.status === "REPROVADO").length}</strong><small>sem acesso</small></article></section>
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    <section className="ops-panel"><div className="ops-panel__header"><h2>Cadastros pendentes</h2><span>{pending.length} registro(s)</span></div>{pending.length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Empresa</th><th>Cadastro</th><th>Status</th><th>Ações</th></tr></thead><tbody>{pending.map((user) => <tr key={user.id}><td>{user.nome || "—"}</td><td>{user.email}</td><td>{user.empresa_nome || "Não informada"}</td><td>{new Date(user.created_at).toLocaleDateString("pt-BR")}</td><td>{user.status}</td><td><button disabled={busyId === user.id} onClick={() => approve(user)}>Aprovar</button><button disabled={busyId === user.id} onClick={() => run(user.id, () => rejectAdminUser(user.id), "Cadastro reprovado.")}>Reprovar</button></td></tr>)}</tbody></table></div> : <p>Nenhum cadastro aguardando aprovação.</p>}</section>
 
-    alert("Cliente atualizado!");
-    setEditandoId(null);
-    carregarClientes();
-  }
+    <section className="ops-panel"><div className="ops-panel__header"><h2>Usuários administrados</h2><span>{managed.length} registro(s)</span></div>{managed.length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Nome</th><th>E-mail</th><th>Empresa</th><th>Perfil/permissões</th><th>Valor mensal</th><th>Status</th><th>Ações</th></tr></thead><tbody>{managed.map((user) => <tr key={user.id}><td>{user.nome || "—"}</td><td>{user.email}</td><td>{user.empresa_nome || "—"}</td><td>{user.role || user.tipo_usuario || "cliente"} · {permissions(user)}</td><td>{money(user.valor_mensal)}</td><td>{user.status}</td><td><button disabled={busyId === user.id} onClick={() => openEdit(user)}>Editar</button>{user.status === "ATIVO" && <button disabled={busyId === user.id} onClick={() => run(user.id, () => blockAdminUser(user.id), "Usuário bloqueado.")}>Bloquear</button>}{user.status === "BLOQUEADO" && <button disabled={busyId === user.id} onClick={() => run(user.id, () => unblockAdminUser(user.id), "Usuário desbloqueado.")}>Desbloquear</button>}</td></tr>)}</tbody></table></div> : <p>Nenhum usuário administrado.</p>}</section>
 
-  async function excluirCliente(c) {
-    const ok = confirm("Deseja excluir este cliente?");
-
-    if (!ok) return;
-
-    await supabase.from("usuarios").delete().eq("email", c.email);
-    await supabase.from("empresas").delete().eq("id", c.id);
-
-    alert("Cliente excluído!");
-    carregarClientes();
-  }
-
-  async function abrirPermissoes(c) {
-    const emailBusca = c.email || "";
-
-    if (!emailBusca) {
-      alert("Cliente sem email cadastrado");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("email, permissoes")
-      .eq("email", emailBusca)
-      .maybeSingle();
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    if (!data) {
-      alert("Cliente sem login na tabela usuarios");
-      return;
-    }
-
-    let banco = {};
-
-    try {
-      banco =
-        typeof data.permissoes === "string"
-          ? JSON.parse(data.permissoes)
-          : data.permissoes || {};
-    } catch {
-      banco = {};
-    }
-
-    setEditandoPermissoesId(emailBusca);
-
-    setPermissoes({
-      ...permissoesPadrao,
-      ...banco,
-    });
-  }
-
-  async function salvarPermissoes() {
-    const payload = {};
-
-    Object.keys(permissoesPadrao).forEach((item) => {
-      payload[item] = !!permissoes[item];
-    });
-
-    const { error } = await supabase
-      .from("usuarios")
-      .update({
-        permissoes: payload,
-      })
-      .eq("email", editandoPermissoesId);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    alert("Permissões salvas!");
-    setEditandoPermissoesId(null);
-  }
-
-  async function marcarPago(c) {
-    await supabase
-      .from("empresas")
-      .update({
-        pagou: true,
-      })
-      .eq("id", c.id);
-
-    carregarClientes();
-  }
-
-  async function marcarPendente(c) {
-    await supabase
-      .from("empresas")
-      .update({
-        pagou: false,
-      })
-      .eq("id", c.id);
-
-    carregarClientes();
-  }
-
-  async function alterarStatus(c) {
-    const novo = c.status === "Ativo" ? "Bloqueado" : "Ativo";
-
-    await supabase
-      .from("empresas")
-      .update({
-        status: novo,
-      })
-      .eq("id", c.id);
-
-    carregarClientes();
-  }
-
-  async function alternarIsencao(c) {
-    const atual = c.isento === true || c.isento === "true" || c.isento === 1;
-
-    const { error } = await supabase
-      .from("empresas")
-      .update({
-        isento: !atual,
-      })
-      .eq("id", c.id);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    carregarClientes();
-  }
-
-  function enviarPix(cliente) {
-    let numero = String(cliente.whatsapp || "").replace(/\D/g, "");
-
-    if (!numero.startsWith("55")) {
-      numero = "55" + numero;
-    }
-
-    const msg = `Olá ${cliente.name}
-Valor: ${cliente.isento ? "ISENTO" : "R$ " + cliente.valor}
-PIX: ${pixSistema}`;
-
-    window.open(
-      `https://wa.me/${numero}?text=${encodeURIComponent(msg)}`,
-      "_blank"
-    );
-  }
-
-  if (!usuario) {
-    return <div style={{ color: "#fff" }}>Carregando...</div>;
-  }
-
-  const clientesFiltrados = clientes.filter((c) =>
-    (c.name || "").toLowerCase().includes(busca.toLowerCase())
-  );
-
-  return (
-    <div
-      style={{
-        padding: 20,
-        color: "#fff",
-      }}
-    >
-      <h2>👑 MASTER ADMIN</h2>
-
-      <input
-        placeholder="PIX Sistema"
-        value={pixSistema}
-        onChange={(e) => setPixSistema(e.target.value)}
-      />
-
-      <button onClick={salvarPix}>Salvar PIX</button>
-
-      <br />
-      <br />
-
-      <input
-        placeholder="Pesquisar cliente"
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-      />
-
-      <br />
-      <br />
-
-      <div
-        style={{
-          background: "#111827",
-          padding: 15,
-          borderRadius: 10,
-          marginBottom: 20,
-        }}
-      >
-        <h3>Criar novo usuário</h3>
-
-        <input
-          placeholder="Nome"
-          value={novoUsuario.name}
-          onChange={(e) =>
-            setNovoUsuario({
-              ...novoUsuario,
-              name: e.target.value,
-            })
-          }
-        />
-
-        <input
-          placeholder="Email"
-          value={novoUsuario.email}
-          onChange={(e) =>
-            setNovoUsuario({
-              ...novoUsuario,
-              email: e.target.value,
-            })
-          }
-        />
-
-        <input
-          placeholder="WhatsApp"
-          value={novoUsuario.whatsapp}
-          onChange={(e) =>
-            setNovoUsuario({
-              ...novoUsuario,
-              whatsapp: e.target.value,
-            })
-          }
-        />
-
-        <input
-          placeholder="Valor"
-          value={novoUsuario.valor}
-          onChange={(e) =>
-            setNovoUsuario({
-              ...novoUsuario,
-              valor: e.target.value,
-            })
-          }
-        />
-
-        <button onClick={criarUsuario}>Criar usuário</button>
-      </div>
-
-      <hr />
-
-      {clientesFiltrados.map((c) => (
-        <div
-          key={c.id}
-          style={{
-            borderBottom: "1px solid #333",
-            padding: 10,
-            marginBottom: 10,
-          }}
-        >
-          <strong>{c.name}</strong> | {c.isento ? "ISENTO" : "R$ " + c.valor} |{" "}
-          {c.status}
-
-          <div
-            style={{
-              display: "flex",
-              gap: 5,
-              flexWrap: "wrap",
-              marginTop: 10,
-            }}
-          >
-            <button onClick={() => abrirEditar(c)}>✏️ Editar</button>
-
-            <button onClick={() => excluirCliente(c)}>🗑 Excluir</button>
-
-            <button onClick={() => abrirPermissoes(c)}>🔐 Permissões</button>
-
-            <button onClick={() => enviarPix(c)}>PIX</button>
-
-            <button onClick={() => marcarPago(c)}>Pago</button>
-
-            <button onClick={() => marcarPendente(c)}>Pend.</button>
-
-            <button onClick={() => alterarStatus(c)}>Status</button>
-
-            <button onClick={() => alternarIsencao(c)}>Isentar</button>
-          </div>
-
-          {editandoId === c.id && (
-            <div
-              style={{
-                marginTop: 15,
-              }}
-            >
-              <input
-                placeholder="Nome"
-                value={form.name}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    name: e.target.value,
-                  })
-                }
-              />
-
-              <input
-                placeholder="Valor"
-                value={form.valor}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    valor: e.target.value,
-                  })
-                }
-              />
-
-              <input
-                placeholder="WhatsApp"
-                value={form.whatsapp}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    whatsapp: e.target.value,
-                  })
-                }
-              />
-
-              <button onClick={salvarEdicao}>💾 Salvar</button>
-            </div>
-          )}
-
-          {editandoPermissoesId === c.email && (
-            <div
-              style={{
-                marginTop: 15,
-                background: "#111827",
-                padding: 15,
-                borderRadius: 10,
-              }}
-            >
-              <h4>🔐 Permissões</h4>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                  gap: 10,
-                }}
-              >
-                {Object.keys(permissoesPadrao).map((modulo) => (
-                  <label key={modulo}>
-                    <input
-                      type="checkbox"
-                      checked={!!permissoes[modulo]}
-                      onChange={(e) =>
-                        setPermissoes({
-                          ...permissoes,
-                          [modulo]: e.target.checked,
-                        })
-                      }
-                    />{" "}
-                    {modulo}
-                  </label>
-                ))}
-              </div>
-
-              <button
-                onClick={salvarPermissoes}
-                style={{
-                  marginTop: 15,
-                }}
-              >
-                💾 Salvar Permissões
-              </button>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+    <section className="ops-panel"><div className="ops-panel__header"><h2>Convidar cliente</h2><span>Cadastro manual seguro</span></div><form className="master-admin__form-grid" onSubmit={submitInvite}><label>Nome<input value={invite.nome} onChange={(event) => setInvite({ ...invite, nome: event.target.value })} /></label><label>E-mail<input type="email" value={invite.email} onChange={(event) => setInvite({ ...invite, email: event.target.value })} /></label><label>Empresa<input value={invite.empresaNome} onChange={(event) => setInvite({ ...invite, empresaNome: event.target.value })} /></label><button className="master-admin__invite-button" type="submit" disabled={busyId === "invite"}>{busyId === "invite" ? "Enviando…" : "Enviar convite"}</button></form></section>
+    {editing && <div className="ops-overlay" onMouseDown={(event) => event.target === event.currentTarget && setEditing(null)}><section className="ops-modal" role="dialog" aria-modal="true" aria-label="Editar cliente"><header><div><p>Gestão do cliente</p><h2>Editar cliente</h2></div><button onClick={() => setEditing(null)} aria-label="Fechar">×</button></header><div className="ops-form"><label className="ops-field"><span>Nome</span><input value={editing.nome} onChange={(event) => setEditing({ ...editing, nome: event.target.value })} /></label><label className="ops-field"><span>Empresa</span><input value={editing.empresa_nome} onChange={(event) => setEditing({ ...editing, empresa_nome: event.target.value })} /></label><label className="ops-field"><span>Perfil</span><select value={editing.role} onChange={(event) => setEditing({ ...editing, role: event.target.value })}><option value="cliente">Cliente</option><option value="usuario">Usuário</option></select></label><label className="ops-field"><span>Status</span><select value={editing.status} onChange={(event) => setEditing({ ...editing, status: event.target.value })}><option value="ATIVO">Ativo</option><option value="BLOQUEADO">Bloqueado</option><option value="REPROVADO">Reprovado</option></select></label><label className="ops-field ops-field--wide"><span>Valor mensal</span><input inputMode="decimal" value={money(editing.valor_mensal)} onChange={(event) => setEditing({ ...editing, valor_mensal: Number(event.target.value.replace(/\D/g, "")) / 100 })} /></label><div className="ops-field ops-field--wide"><span>Permissões/módulos liberados</span><div className="master-admin__module-grid">{MODULE_CATALOG.filter((module) => !module.hidden).map((module) => <label key={module.key}><input type="checkbox" checked={editing.permissoes[module.key] === true} onChange={(event) => setEditing({ ...editing, permissoes: { ...editing.permissoes, [module.key]: event.target.checked } })} /><strong>{module.label}</strong></label>)}</div></div></div><footer><button onClick={() => setEditing(null)}>Cancelar</button><button disabled={busyId === editing.id || !editing.nome.trim() || !editing.empresa_nome.trim()} onClick={saveEdit}>Salvar</button></footer></section></div>}
+  </main>;
 }
+
+const containerStyle = { maxWidth: 760, margin: "40px auto", padding: 24, color: "#fff" };

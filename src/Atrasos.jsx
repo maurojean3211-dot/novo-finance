@@ -6,10 +6,6 @@ export default function Atrasos({ empresaId }) {
   const [parcelas, setParcelas] = useState([]);
   const [busca, setBusca] = useState("");
 
-  useEffect(() => {
-    carregarParcelas();
-  }, []);
-
   async function carregarParcelas(){
     const { data, error } = await supabase
       .from("parcelas")
@@ -24,6 +20,10 @@ export default function Atrasos({ empresaId }) {
 
     setParcelas(data);
   }
+
+  useEffect(() => {
+    void Promise.resolve().then(() => carregarParcelas());
+  }, []);
 
   function calcularAtraso(vencimento){
     const hoje = new Date();

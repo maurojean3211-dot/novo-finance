@@ -1,9 +1,9 @@
-create table if not exists public.orcamentos (
+create table public.orcamentos (
   id uuid primary key default gen_random_uuid(),
-  empresa_id text not null,
+  empresa_id uuid not null references public.empresas(id) on update cascade on delete restrict,
   user_id uuid not null references auth.users(id) on update cascade on delete restrict,
-  cliente_id text not null,
-  oportunidade_id uuid references public.crm_oportunidades(id) on update cascade on delete set null,
+  cliente_id uuid not null,
+  oportunidade_id uuid,
   numero text not null,
   data date not null default current_date,
   validade date not null,
@@ -21,13 +21,22 @@ create table if not exists public.orcamentos (
   modalidade_frete text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (empresa_id, numero)
+  unique (id, empresa_id),
+  unique (empresa_id, numero),
+  foreign key (cliente_id, empresa_id)
+    references public.clientes(id, empresa_id)
+    on update cascade
+    on delete restrict,
+  foreign key (oportunidade_id, empresa_id)
+    references public.crm_oportunidades(id, empresa_id)
+    on update cascade
+    on delete set null (oportunidade_id)
 );
 
-create table if not exists public.orcamento_itens (
+create table public.orcamento_itens (
   id uuid primary key default gen_random_uuid(),
-  orcamento_id uuid not null references public.orcamentos(id) on update cascade on delete cascade,
-  empresa_id text not null,
+  orcamento_id uuid not null,
+  empresa_id uuid not null references public.empresas(id) on update cascade on delete restrict,
   catalogo_item_id text,
   produto text not null,
   descricao text,
@@ -40,17 +49,25 @@ create table if not exists public.orcamento_itens (
   preco_unitario numeric(14,4) not null check (preco_unitario >= 0),
   subtotal numeric(14,2) not null check (subtotal >= 0),
   dados_catalogo jsonb not null default '{}'::jsonb,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (orcamento_id, empresa_id)
+    references public.orcamentos(id, empresa_id)
+    on update cascade
+    on delete cascade
 );
 
-create table if not exists public.orcamento_historico (
+create table public.orcamento_historico (
   id uuid primary key default gen_random_uuid(),
-  orcamento_id uuid not null references public.orcamentos(id) on update cascade on delete cascade,
-  empresa_id text not null,
+  orcamento_id uuid not null,
+  empresa_id uuid not null references public.empresas(id) on update cascade on delete restrict,
   user_id uuid not null references auth.users(id) on update cascade on delete restrict,
   tipo text not null check (tipo in ('Criação','Edição','Envio','Aprovação','Rejeição','Cancelamento')),
   descricao text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  foreign key (orcamento_id, empresa_id)
+    references public.orcamentos(id, empresa_id)
+    on update cascade
+    on delete cascade
 );
 
 create index if not exists orcamentos_empresa_status_idx on public.orcamentos (empresa_id, status);
@@ -64,22 +81,22 @@ alter table public.orcamento_itens enable row level security;
 alter table public.orcamento_historico enable row level security;
 
 drop policy if exists "orcamentos_select_empresa" on public.orcamentos;
-create policy "orcamentos_select_empresa" on public.orcamentos for select to authenticated using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id::text = orcamentos.empresa_id));
+create policy "orcamentos_select_empresa" on public.orcamentos for select to authenticated using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamentos.empresa_id));
 drop policy if exists "orcamentos_insert_empresa" on public.orcamentos;
-create policy "orcamentos_insert_empresa" on public.orcamentos for insert to authenticated with check (user_id = auth.uid() and exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id::text = orcamentos.empresa_id));
+create policy "orcamentos_insert_empresa" on public.orcamentos for insert to authenticated with check (user_id = auth.uid() and exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamentos.empresa_id));
 drop policy if exists "orcamentos_update_empresa" on public.orcamentos;
-create policy "orcamentos_update_empresa" on public.orcamentos for update to authenticated using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id::text = orcamentos.empresa_id)) with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id::text = orcamentos.empresa_id));
+create policy "orcamentos_update_empresa" on public.orcamentos for update to authenticated using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamentos.empresa_id)) with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamentos.empresa_id));
 
 drop policy if exists "orcamento_itens_empresa" on public.orcamento_itens;
-create policy "orcamento_itens_empresa" on public.orcamento_itens for all to authenticated using (exists (select 1 from public.orcamentos o where o.id = orcamento_itens.orcamento_id and o.empresa_id = orcamento_itens.empresa_id)) with check (exists (select 1 from public.orcamentos o where o.id = orcamento_itens.orcamento_id and o.empresa_id = orcamento_itens.empresa_id));
+create policy "orcamento_itens_empresa" on public.orcamento_itens for all to authenticated using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamento_itens.empresa_id) and exists (select 1 from public.orcamentos o where o.id = orcamento_itens.orcamento_id and o.empresa_id = orcamento_itens.empresa_id)) with check (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamento_itens.empresa_id) and exists (select 1 from public.orcamentos o where o.id = orcamento_itens.orcamento_id and o.empresa_id = orcamento_itens.empresa_id));
 drop policy if exists "orcamento_historico_select_empresa" on public.orcamento_historico;
-create policy "orcamento_historico_select_empresa" on public.orcamento_historico for select to authenticated using (exists (select 1 from public.orcamentos o where o.id = orcamento_historico.orcamento_id and o.empresa_id = orcamento_historico.empresa_id));
+create policy "orcamento_historico_select_empresa" on public.orcamento_historico for select to authenticated using (exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamento_historico.empresa_id) and exists (select 1 from public.orcamentos o where o.id = orcamento_historico.orcamento_id and o.empresa_id = orcamento_historico.empresa_id));
 drop policy if exists "orcamento_historico_insert_empresa" on public.orcamento_historico;
-create policy "orcamento_historico_insert_empresa" on public.orcamento_historico for insert to authenticated with check (user_id = auth.uid() and exists (select 1 from public.orcamentos o where o.id = orcamento_historico.orcamento_id and o.empresa_id = orcamento_historico.empresa_id));
+create policy "orcamento_historico_insert_empresa" on public.orcamento_historico for insert to authenticated with check (user_id = auth.uid() and exists (select 1 from public.usuarios u where u.id = auth.uid() and u.empresa_id = orcamento_historico.empresa_id) and exists (select 1 from public.orcamentos o where o.id = orcamento_historico.orcamento_id and o.empresa_id = orcamento_historico.empresa_id));
 
 grant select, insert, update on public.orcamentos to authenticated;
 grant select, insert, update, delete on public.orcamento_itens to authenticated;
 grant select, insert on public.orcamento_historico to authenticated;
 
-comment on column public.orcamentos.empresa_id is 'Text até a validação remota definitiva do tipo de public.empresas.id.';
-comment on column public.orcamentos.cliente_id is 'Text até a validação remota definitiva do tipo de public.clientes.id.';
+comment on column public.orcamentos.empresa_id is 'Tenant canônico UUID referenciado por public.empresas(id).';
+comment on column public.orcamentos.cliente_id is 'Cliente UUID vinculado ao mesmo tenant do orçamento.';

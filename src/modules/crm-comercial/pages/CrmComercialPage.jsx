@@ -8,14 +8,14 @@ import OpportunityModal from "../components/OpportunityModal";
 import OpportunityTable from "../components/OpportunityTable";
 import useCrm from "../hooks/useCrm";
 import { EMPTY_OPPORTUNITY } from "../types/crm";
-import { consumeProspectOpportunityFlow, linkProspectOpportunity } from "../../../app/integrations/prospectCrmFlow";
-import { consumeCustomerOpportunityFlow } from "../../../app/integrations/customerCrmFlow";
+import { linkProspectOpportunity, prospectCompanyData } from "../../../app/integrations/prospectCrmFlow";
 import "../crm-comercial.css";
 
 const money = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-export default function CrmComercialPage({ empresaId, userId, onNavigate }) {
+export default function CrmComercialPage({ empresaId, userId, navigationContext, onNavigationConsumed, onNavigate }) {
   const crm = useCrm({ empresaId, userId });
+  const { clearFilters, loading: crmLoading, opportunities: crmOpportunities, prospects: crmProspects } = crm;
   const [view, setView] = useState("board");
   const [workspace, setWorkspace] = useState("opportunities");
   const [modalOpen, setModalOpen] = useState(false);
@@ -24,48 +24,37 @@ export default function CrmComercialPage({ empresaId, userId, onNavigate }) {
   const [feedback, setFeedback] = useState(null);
   const [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [incoming, setIncoming] = useState(() => consumeProspectOpportunityFlow({ empresaId, userId }));
-  const [customerOpportunityId, setCustomerOpportunityId] = useState(() => consumeCustomerOpportunityFlow({ empresaId }));
   const selected = crm.opportunities.find((item) => item.id === selectedId) || null;
   function openEdit(item) { setEditing(item); setModalOpen(true); }
   useEffect(() => {
-    if (!incoming || crm.loading) return;
+    if (!navigationContext || crmLoading) return;
     const timer = window.setTimeout(() => {
-      const existing = incoming.opportunityId && crm.opportunities.find((item) => item.id === incoming.opportunityId);
+      const prospect = navigationContext.prospectId && crmProspects.find((item) => item.id === navigationContext.prospectId);
+      const opportunityId = navigationContext.opportunityId || prospect?.oportunidadeId;
+      const existing = opportunityId && crmOpportunities.find((item) => item.id === opportunityId);
       if (existing) {
-        crm.clearFilters();
+        clearFilters();
         setWorkspace("opportunities");
         setSelectedId(existing.id);
         setFeedback({ type: "info", message: "Esta empresa já possui uma oportunidade vinculada. Abrimos o registro existente." });
-      } else {
-        setEditing({ ...EMPTY_OPPORTUNITY, ...incoming.company });
+      } else if (prospect) {
+        setEditing({ ...EMPTY_OPPORTUNITY, ...prospectCompanyData(prospect) });
         setModalOpen(true);
-        setFeedback({ type: "info", message: incoming.opportunityId ? "O vínculo anterior não foi encontrado. Revise antes de criar uma nova oportunidade." : "Dados da empresa carregados da Prospecção. Complete somente os dados comerciais." });
+        setFeedback({ type: "info", message: "Dados da empresa carregados da Prospecção. Complete somente os dados comerciais." });
+      } else {
+        setFeedback({ type: "error", message: "O registro comercial solicitado não está disponível nesta empresa." });
       }
-      setIncoming(null);
+      onNavigationConsumed?.();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [incoming, crm]);
-  useEffect(() => {
-    if (!customerOpportunityId || crm.loading) return;
-    const existing = crm.opportunities.find((item) => item.id === customerOpportunityId);
-    if (existing) {
-      crm.clearFilters();
-      setWorkspace("opportunities");
-      setView("table");
-      setSelectedId(existing.id);
-    } else {
-      setFeedback({ type: "error", message: "A oportunidade vinculada não está disponível para esta empresa." });
-    }
-    setCustomerOpportunityId(null);
-  }, [customerOpportunityId, crm]);
+  }, [clearFilters, crmLoading, crmOpportunities, crmProspects, navigationContext, onNavigationConsumed]);
   async function save(item) {
     if (!window.confirm("Confirmar gravação desta oportunidade no CRM?")) return;
     setSaveError("");
     setSaving(true);
     try {
       const saved = await crm.saveOpportunity(item);
-      if (item.prospectId) linkProspectOpportunity({ empresaId, userId, prospectId: item.prospectId, opportunityId: saved.id });
+      if (item.prospectId) await linkProspectOpportunity({ empresaId, prospectId: item.prospectId, opportunityId: saved.id });
       crm.clearFilters();
       setWorkspace("opportunities");
       setView("table");

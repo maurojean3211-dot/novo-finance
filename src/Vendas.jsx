@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import { ActionButtons, EmptyState, FilterBar, MetricGrid, ModuleHeader, OperationModal } from "./components/operations/OperationsUI";
-import { formatarData, formatarNumero } from "./utils";
-import { calculateCommission, COMMISSION_TYPES, DEFAULT_PROFILE_COMMISSION_PERCENT, getSaleCommissionPercentage, getStoredOrCalculatedCommission } from "./services/commissionEngine";
+import { clearOperationKey, formatarData, formatarNumero, getOperationKey } from "./utils";
+import { calculateCommission, COMMISSION_TYPES, DEFAULT_PROFILE_COMMISSION_PERCENT, formatPurchaseCommissionRate, getCommissionRule, getSaleCommissionPercentage, getStoredOrCalculatedCommission } from "./services/commissionEngine";
 import { describePeriod, filterSalesRecords, generateSalesReport } from "./services/reportPdf.service";
+import useCatalogProducts from "./modules/catalogo-inteligente/hooks/useCatalogProducts";
 
 export default function Vendas({ empresaId, userId, companyName = "Cunha Finance", issuedBy = "Não informado" }) {
+  const catalogProducts = useCatalogProducts(empresaId);
   const [vendas, setVendas] = useState([]);
 
   const [cliente, setCliente] = useState("");
@@ -13,6 +15,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
   const [kilos, setKilos] = useState("");
   const [unidade, setUnidade] = useState("KG");
   const [valorPorKg, setValorPorKg] = useState("");
+  const [comissaoPorKg, setComissaoPorKg] = useState("");
   const [percentualComissao, setPercentualComissao] = useState(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
 
   const [dataVenda, setDataVenda] = useState(
@@ -84,6 +87,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     unit: unidade,
     pricePerKg: valorPorKg,
     percentage: percentualComissao,
+    perKgRate: comissaoPorKg,
   });
 
   async function salvarVenda() {
@@ -96,9 +100,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
       .trim()
       .toUpperCase();
 
-    const produtoPermitido = produtosPermitidos.some((p) =>
-      nomeProduto.includes(p)
-    );
+    const produtoPermitido = produtosPermitidos.some((p) => nomeProduto.includes(p)) || catalogProducts.some((item) => [item.name,item.description,item.supplierCode].some((value) => String(value||"").trim().toUpperCase() === nomeProduto));
 
     if (!produtoPermitido) {
       return alert(
@@ -129,7 +131,9 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
       produto: nomeProduto,
       kilos: calculoComissao.kilograms,
       valor: calculoComissao.totalSale,
+      valor_por_kg: calculoComissao.unitPrice,
       comissao: calculoComissao.commission,
+      comissao_por_kg: calculoComissao.rule.type === COMMISSION_TYPES.PER_KG ? calculoComissao.rule.rate : null,
       data_venda: dataVenda,
     };
 
@@ -149,6 +153,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
 
       setEditandoId(null);
     } else {
+      const operationScope = `venda:${empresaId}`;
       const { error } = await supabase
         .from("vendas")
         .insert([
@@ -156,15 +161,17 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
             ...payload,
             empresa_id: empresaId,
             user_id: userId,
+            idempotency_key: getOperationKey(operationScope),
           },
         ]);
 
-      if (error) {
+      if (error && error.code !== "23505") {
         console.error(error);
         return alert("Erro ao salvar venda");
       }
 
       alert("Venda salva!");
+      clearOperationKey(operationScope);
     }
 
     // 🔥 LIMPA CAMPOS
@@ -173,6 +180,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     setKilos("");
     setUnidade("KG");
     setValorPorKg("");
+    setComissaoPorKg("");
     setPercentualComissao(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
     setModalAberto(false);
 
@@ -188,6 +196,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     setUnidade("KG");
     const precoUnitario = Number(v.kilos) > 0 ? Number(v.valor || 0) / Number(v.kilos) : 0;
     setValorPorKg(precoUnitario || "");
+    setComissaoPorKg(v.comissao_por_kg ?? getCommissionRule(v.produto).rate);
     setPercentualComissao(String(getSaleCommissionPercentage(v)));
     setDataVenda(v.data_venda || "");
     setModalAberto(true);
@@ -222,6 +231,7 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     setKilos("");
     setUnidade("KG");
     setValorPorKg("");
+    setComissaoPorKg("");
     setPercentualComissao(String(DEFAULT_PROFILE_COMMISSION_PERCENT));
     setDataVenda(new Date().toISOString().split("T")[0]);
     setModalAberto(true);
@@ -254,11 +264,12 @@ export default function Vendas({ empresaId, userId, companyName = "Cunha Finance
     {modalAberto && <OperationModal title={editandoId ? "Editar venda" : "Nova venda"} editing={Boolean(editandoId)} onClose={() => setModalAberto(false)} onSubmit={salvarVenda} submitLabel={editandoId ? "Atualizar" : "Salvar"}>
       <label className="ops-field"><span>Data</span><input type="date" value={dataVenda} onChange={(e) => setDataVenda(e.target.value)} /></label>
       <label className="ops-field"><span>Cliente</span><input placeholder="Cliente" value={cliente} onChange={(e) => setCliente(e.target.value)} /></label>
-      <label className="ops-field"><span>Produto</span><input placeholder="Produto" value={produto} onChange={(e) => setProduto(e.target.value)} /></label>
+      <label className="ops-field"><span>Produto</span><input list="catalogo-vendas" placeholder="Produto" value={produto} onChange={(e) => { const value = e.target.value; setProduto(value); setComissaoPorKg(formatPurchaseCommissionRate(getCommissionRule(value).rate)); }} /><datalist id="catalogo-vendas">{catalogProducts.map((item)=><option key={item.id} value={item.name||item.description||item.supplierCode}/>)}</datalist></label>
       <label className="ops-field"><span>Quantidade</span><input type="number" step="any" min="0" placeholder="Quantidade" value={kilos} onChange={(e) => setKilos(e.target.value)} /></label>
       <label className="ops-field"><span>Unidade</span><select value={unidade} onChange={(e) => setUnidade(e.target.value)}><option value="KG">Quilograma</option><option value="TON">Tonelada</option></select></label>
       <label className="ops-field"><span>Valor por kg</span><input type="number" step="any" min="0" value={valorPorKg} onChange={(e) => setValorPorKg(e.target.value)} /></label>
       {calculoComissao.rule.type === COMMISSION_TYPES.PERCENT_SALE && <label className="ops-field"><span>Percentual da comissão (%)</span><input type="number" step="any" min="0" value={percentualComissao} onChange={(e) => setPercentualComissao(e.target.value)} /></label>}
+      {calculoComissao.rule.type === COMMISSION_TYPES.PER_KG && <label className="ops-field"><span>Comissão por kg (R$)</span><input type="text" inputMode="decimal" value={comissaoPorKg} onChange={(e) => setComissaoPorKg(e.target.value)} /></label>}
       <div className="ops-preview"><strong>Peso:</strong> {formatarNumero(calculoComissao.kilograms)} kg · <strong>Valor da venda:</strong> R$ {formatarNumero(calculoComissao.totalSale)} · <strong>Comissão:</strong> R$ {formatarNumero(calculoComissao.commission)}</div>
     </OperationModal>}
   </div>;

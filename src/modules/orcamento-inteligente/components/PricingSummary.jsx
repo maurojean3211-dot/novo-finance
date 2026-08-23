@@ -1,2 +1,24 @@
 import { formatMoney } from "../utils/money-calculations";
-export default function PricingSummary({ simulation }) { const { inputs, update, pricing } = simulation; const alerts = []; if(pricing.margemBruta<18) alerts.push("Margem abaixo do recomendado"); if(pricing.precoFinal<288900) alerts.push("Preço abaixo do mínimo"); if(Number(inputs.desconto)>8) alerts.push("Desconto acima do limite"); alerts.push("Custo demonstrativo: confirmar atualização"); return <div className="pricing-layout"><section className="ops-panel pricing-simulator"><div className="ops-panel__header"><h2>Simulador comercial</h2><span>Valores demonstrativos</span></div><div className="quote-form__grid"><label className="ops-field"><span>Desconto (%)</span><input type="number" value={inputs.desconto} onChange={(e)=>update("desconto",e.target.value)}/></label><label className="ops-field"><span>Frete</span><input type="number" value={inputs.frete} onChange={(e)=>update("frete",e.target.value)}/></label><label className="ops-field"><span>Condição de pagamento</span><select value={inputs.condicaoPagamento} onChange={(e)=>update("condicaoPagamento",e.target.value)}><option>À vista</option><option>28 dias</option><option>42 dias</option></select></label><label className="ops-field"><span>Quantidade-base (%)</span><input type="number" value={inputs.quantidade} onChange={(e)=>update("quantidade",e.target.value)}/></label><label className="ops-field"><span>Fornecedor</span><select value={inputs.fornecedor} onChange={(e)=>update("fornecedor",e.target.value)}><option>Liga Brasil</option><option>Metal Forte</option><option>Alumax</option></select></label></div></section><section className="pricing-grid">{[["Custo dos itens",formatMoney(pricing.custoItens)],["Custo/kg",formatMoney(pricing.custoKg)],["Frete",formatMoney(pricing.frete)],["Impostos",formatMoney(pricing.impostos)],["Despesas",formatMoney(pricing.despesas)],["Dólar",`R$ ${pricing.dolar}`],["LME",`US$ ${pricing.lme}`],["Margem bruta",`${pricing.margemBruta.toFixed(1)}%`],["Margem líquida",`${pricing.margemLiquida.toFixed(1)}%`],["Markup",`${pricing.markup}×`],["Preço sugerido",formatMoney(pricing.precoSugerido)],["Preço final",formatMoney(pricing.precoFinal)],["Desconto",`${pricing.desconto}%`],["Rentabilidade",`${pricing.rentabilidade}%`]].map(([label,value])=><article key={label}><span>{label}</span><strong>{value}</strong></article>)}</section><section className="pricing-scenarios">{pricing.cenarios.map((scenario)=><article key={scenario.nome}><small>{scenario.nome}</small><strong>{formatMoney(scenario.valor)}</strong><span>Margem {scenario.margem}%</span></article>)}</section><section className="quote-alerts">{alerts.map((alert)=><p key={alert}>! {alert}</p>)}</section></div>; }
+
+export default function PricingSummary({ simulation }) {
+  const { inputs, update, pricing } = simulation;
+  const alerts = [];
+  if (pricing.custoItens === 0) alerts.push("Os itens não possuem custo cadastrado no catálogo.");
+  if (pricing.precoFinal <= pricing.custoTotal) alerts.push("O preço final não cobre o custo total.");
+  const metrics = [
+    ["Custo dos itens", formatMoney(pricing.custoItens)], ["Custo/kg", formatMoney(pricing.custoKg)],
+    ["Frete", formatMoney(pricing.frete)], ["Impostos", formatMoney(pricing.impostos)],
+    ["Despesas", formatMoney(pricing.despesas)], ["Subtotal", formatMoney(pricing.subtotal)],
+    ["Desconto", formatMoney(pricing.descontoValor)], ["Custo total", formatMoney(pricing.custoTotal)],
+    ["Lucro bruto", formatMoney(pricing.lucroBruto)], ["Margem", `${pricing.margemBruta.toFixed(1)}%`],
+    ["Markup", `${pricing.markup.toFixed(2)}×`], ["Preço final", formatMoney(pricing.precoFinal)],
+  ];
+  return <div className="pricing-layout">
+    <section className="ops-panel pricing-simulator"><div className="ops-panel__header"><h2>Formação de preço</h2><span>Valores calculados com os itens do orçamento</span></div><div className="quote-form__grid">
+      {["desconto", "frete", "impostos", "despesas"].map((field) => <label className="ops-field" key={field}><span>{field === "desconto" ? "Desconto (%)" : field[0].toUpperCase() + field.slice(1)}</span><input type="number" value={inputs[field]} onChange={(event) => update(field, event.target.value)} /></label>)}
+    </div></section>
+    <section className="pricing-grid">{metrics.map(([label, value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}</section>
+    <section className="pricing-scenarios">{pricing.cenarios.map((item) => <article key={item.nome}><small>{item.nome}</small><strong>{formatMoney(item.valor)}</strong><span>Preço calculado sobre o custo total</span></article>)}</section>
+    {alerts.length > 0 && <section className="quote-alerts">{alerts.map((alert) => <p key={alert}>! {alert}</p>)}</section>}
+  </div>;
+}

@@ -3,7 +3,7 @@
 
 create or replace function public.alterar_status_pedido_compra(
   p_pedido_id uuid,
-  p_empresa_id text,
+  p_empresa_id uuid,
   p_user_id uuid,
   p_novo_status text
 ) returns void
@@ -15,19 +15,19 @@ declare
   v_pedido public.pedidos_compra;
   v_tipo text;
 begin
-  if p_user_id is distinct from auth.uid() then raise exception 'Usuário divergente da sessão autenticada.' using errcode='42501'; end if;
-  if not exists(select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id::text=p_empresa_id) then
+  if auth.uid() is null or p_user_id is distinct from auth.uid() then raise exception 'Usuário divergente da sessão autenticada.' using errcode='42501'; end if;
+  if not exists(select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id=p_empresa_id) then
     raise exception 'Usuário sem permissão para esta empresa.' using errcode='42501';
   end if;
   select * into v_pedido from public.pedidos_compra where id=p_pedido_id and empresa_id=p_empresa_id for update;
   if not found then raise exception 'Pedido não encontrado para a empresa atual.'; end if;
-  if not case v_pedido.status
+  if not (case v_pedido.status
     when 'Rascunho' then p_novo_status in ('Solicitado','Cancelado')
     when 'Solicitado' then p_novo_status in ('Rascunho','Em cotação','Cancelado')
     when 'Em cotação' then p_novo_status in ('Solicitado','Aprovado','Cancelado')
     when 'Aprovado' then p_novo_status in ('Em cotação','Comprado','Cancelado')
     when 'Comprado' then p_novo_status='Cancelado'
-    else false end then
+    else false end) then
     raise exception 'Transição de status não permitida: % para %.',v_pedido.status,p_novo_status;
   end if;
 
@@ -43,7 +43,7 @@ end $$;
 create or replace function public.salvar_cotacao_pedido_compra(
   p_cotacao_id uuid,
   p_pedido_id uuid,
-  p_empresa_id text,
+  p_empresa_id uuid,
   p_user_id uuid,
   p_cotacao jsonb
 ) returns uuid
@@ -56,8 +56,8 @@ declare
   v_fornecedor_id text:=nullif(btrim(p_cotacao->>'fornecedor_id'),'');
   v_acao text;
 begin
-  if p_user_id is distinct from auth.uid() then raise exception 'Usuário divergente da sessão autenticada.' using errcode='42501'; end if;
-  if not exists(select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id::text=p_empresa_id) then
+  if auth.uid() is null or p_user_id is distinct from auth.uid() then raise exception 'Usuário divergente da sessão autenticada.' using errcode='42501'; end if;
+  if not exists(select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id=p_empresa_id) then
     raise exception 'Usuário sem permissão para esta empresa.' using errcode='42501';
   end if;
   perform 1 from public.pedidos_compra where id=p_pedido_id and empresa_id=p_empresa_id for update;
@@ -92,7 +92,7 @@ end $$;
 
 create or replace function public.sincronizar_parcelas_pedido_compra(
   p_pedido_id uuid,
-  p_empresa_id text,
+  p_empresa_id uuid,
   p_user_id uuid,
   p_parcelas jsonb
 ) returns void
@@ -105,8 +105,8 @@ declare
   v_quantidade integer;
   v_soma numeric;
 begin
-  if p_user_id is distinct from auth.uid() then raise exception 'Usuário divergente da sessão autenticada.' using errcode='42501'; end if;
-  if not exists(select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id::text=p_empresa_id) then
+  if auth.uid() is null or p_user_id is distinct from auth.uid() then raise exception 'Usuário divergente da sessão autenticada.' using errcode='42501'; end if;
+  if not exists(select 1 from public.usuarios u where u.id=auth.uid() and u.empresa_id=p_empresa_id) then
     raise exception 'Usuário sem permissão para esta empresa.' using errcode='42501';
   end if;
   select * into v_pedido from public.pedidos_compra where id=p_pedido_id and empresa_id=p_empresa_id for update;
@@ -118,7 +118,7 @@ begin
   end if;
   if exists(
     select 1 from public.pedido_compra_parcelas pc
-    join public.financeiro_titulos ft on ft.empresa_id=pc.empresa_id and ft.origem='Compra' and ft.origem_id='parcela:'||pc.id::text
+    join public.financeiro_titulos ft on ft.empresa_id=p_empresa_id and ft.empresa_id=pc.empresa_id and ft.origem='Compra' and ft.origem_id='parcela:'||pc.id::text
     where pc.pedido_id=p_pedido_id and pc.empresa_id=p_empresa_id
   ) then
     raise exception 'Parcelas já vinculadas a títulos financeiros não podem ser substituídas.';
@@ -144,10 +144,13 @@ begin
   values(p_pedido_id,p_empresa_id,p_user_id,'Financeiro',v_quantidade||' parcela(s) pendente(s) sincronizada(s) sem criar títulos financeiros.');
 end $$;
 
-grant execute on function public.alterar_status_pedido_compra(uuid,text,uuid,text) to authenticated;
-grant execute on function public.salvar_cotacao_pedido_compra(uuid,uuid,text,uuid,jsonb) to authenticated;
-grant execute on function public.sincronizar_parcelas_pedido_compra(uuid,text,uuid,jsonb) to authenticated;
+revoke all on function public.alterar_status_pedido_compra(uuid,uuid,uuid,text) from public;
+revoke all on function public.salvar_cotacao_pedido_compra(uuid,uuid,uuid,uuid,jsonb) from public;
+revoke all on function public.sincronizar_parcelas_pedido_compra(uuid,uuid,uuid,jsonb) from public;
+grant execute on function public.alterar_status_pedido_compra(uuid,uuid,uuid,text) to authenticated;
+grant execute on function public.salvar_cotacao_pedido_compra(uuid,uuid,uuid,uuid,jsonb) to authenticated;
+grant execute on function public.sincronizar_parcelas_pedido_compra(uuid,uuid,uuid,jsonb) to authenticated;
 
-comment on function public.alterar_status_pedido_compra(uuid,text,uuid,text) is 'Altera status e grava histórico atomicamente; recebimento permanece em função própria.';
-comment on function public.salvar_cotacao_pedido_compra(uuid,uuid,text,uuid,jsonb) is 'Cria ou atualiza uma cotação por fornecedor e grava histórico atomicamente.';
-comment on function public.sincronizar_parcelas_pedido_compra(uuid,text,uuid,jsonb) is 'Substitui apenas parcelas pendentes e grava histórico, sem criar títulos financeiros.';
+comment on function public.alterar_status_pedido_compra(uuid,uuid,uuid,text) is 'Altera status e grava histórico atomicamente; recebimento permanece em função própria.';
+comment on function public.salvar_cotacao_pedido_compra(uuid,uuid,uuid,uuid,jsonb) is 'Cria ou atualiza uma cotação por fornecedor e grava histórico atomicamente.';
+comment on function public.sincronizar_parcelas_pedido_compra(uuid,uuid,uuid,jsonb) is 'Substitui apenas parcelas pendentes e grava histórico, sem criar títulos financeiros.';
