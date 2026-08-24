@@ -10,6 +10,7 @@ export function AuthProvider({ children }) {
   const [nomeUsuario, setNomeUsuario] = useState("");
   const [nomeEmpresa, setNomeEmpresa] = useState("");
   const [role, setRole] = useState("");
+  const [masterAdmin, setMasterAdmin] = useState(false);
   const [authIssue, setAuthIssue] = useState(null);
   const requestIdRef = useRef(0);
 
@@ -19,6 +20,7 @@ export function AuthProvider({ children }) {
     setNomeUsuario("");
     setNomeEmpresa("");
     setRole("");
+    setMasterAdmin(false);
   }, []);
 
   const carregarSessao = useCallback(async (eventUser) => {
@@ -51,7 +53,7 @@ export function AuthProvider({ children }) {
 
     const { data, error } = await supabase
       .from("usuarios")
-      .select("empresa_id, permissoes, nome, role, status")
+      .select("empresa_id, permissoes, nome, role, master_admin, status")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -78,6 +80,7 @@ export function AuthProvider({ children }) {
     setPermissoes(perms);
     setNomeUsuario(data?.nome || user.email);
     setRole(data?.role || "");
+    setMasterAdmin(data?.master_admin === true);
 
     const { data: company } = await supabase.from("empresas").select("name").eq("id", data.empresa_id).maybeSingle();
     if (requestId !== requestIdRef.current) return;
@@ -110,7 +113,7 @@ export function AuthProvider({ children }) {
     window.location.replace("/");
   }
 
-  const value = { session, loadingSession, empresaId, permissoes, nomeUsuario, nomeEmpresa, role, authIssue, sair };
+  const value = { session, loadingSession, empresaId, permissoes, nomeUsuario, nomeEmpresa, role, masterAdmin, authIssue, sair };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

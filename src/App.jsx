@@ -65,6 +65,7 @@ export default function App() {
     nomeUsuario,
     nomeEmpresa,
     role,
+    masterAdmin,
     authIssue,
     sair,
   } = useAuth();
@@ -250,9 +251,7 @@ export default function App() {
     );
   }
 
-  const loginMaster = isMasterUser(    session.user,
-    role
-  );
+  const loginMaster = isMasterUser(role, masterAdmin);
 
   const menuItem = findMenuItem(pagina);
 

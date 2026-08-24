@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.99.3";
+import { buildUserChanges, compensateFailedApproval, hasNormalizedTextChanged, isAuthorizedMaster, normalizeApprovalChoice, shouldSyncAuth } from "./adminUsersSecurity.js";
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const defaults = { vendas: true, compras: true, financeiro: true, recebimentos: true, contas_pagar: true, relatorio: true };
@@ -20,17 +21,20 @@ Deno.serve(async (request) => {
     const { data: authData, error: authError } = await callerClient.auth.getUser();
     if (authError || !authData.user) return json(401, { error: "Sessão inválida." });
     const { data: caller } = await admin.from("usuarios").select("id,role,master_admin,status").eq("id", authData.user.id).maybeSingle();
-    if (!caller || caller.status !== "ATIVO" || (caller.role !== "master" && caller.master_admin !== true)) return json(403, { error: "Ação restrita ao Master Admin." });
+    if (!isAuthorizedMaster(caller)) return json(403, { error: "Ação restrita ao Master Admin." });
 
     const body = await request.json();
     const action = String(body.action || "");
     if (action === "LIST_USERS") {
       const { data: users, error } = await admin.from("usuarios").select("id,nome,email,created_at,role,tipo_usuario,permissoes,status,empresa_id,empresa_id_bloqueada,empresa_solicitada,valor_mensal").order("created_at", { ascending: false });
       if (error) throw error;
-      const companyIds = [...new Set((users || []).flatMap((item) => [item.empresa_id, item.empresa_id_bloqueada]).filter(Boolean))];
-      const { data: companies } = companyIds.length ? await admin.from("empresas").select("id,name").in("id", companyIds) : { data: [] };
+      const { data: companies, error: companiesError } = await admin.from("empresas").select("id,name").order("name");
+      if (companiesError) throw companiesError;
       const names = new Map((companies || []).map((item) => [item.id, item.name]));
-      return json(200, { users: (users || []).map((item) => ({ ...item, empresa_nome: names.get(item.empresa_id || item.empresa_id_bloqueada) || item.empresa_solicitada || "" })) });
+      return json(200, {
+        companies: companies || [],
+        users: (users || []).map((item) => ({ ...item, empresa_nome: names.get(item.empresa_id || item.empresa_id_bloqueada) || item.empresa_solicitada || "" })),
+      });
     }
 
     if (action === "INVITE_USER") {
@@ -44,24 +48,88 @@ Deno.serve(async (request) => {
     }
 
     const userId = String(body.user_id || body.user?.id || "");
-    const { data: target, error: targetError } = await admin.from("usuarios").select("*").eq("id", userId).maybeSingle();
+    const targetColumns = action === "UPDATE_USER"
+      ? "id,nome,email,role,master_admin,tipo_usuario,permissoes,status,empresa_id,empresa_id_bloqueada,empresa_solicitada,valor_mensal"
+      : "*";
+    const { data: target, error: targetError } = await admin.from("usuarios").select(targetColumns).eq("id", userId).maybeSingle();
     if (targetError || !target) return json(404, { error: "Usuário não encontrado." });
     if (target.master_admin || target.role === "master") return json(400, { error: "Este fluxo não altera outro Master Admin." });
 
     if (action === "APPROVE_USER") {
-      let empresaId = body.empresa_id ? String(body.empresa_id) : "";
-      if (!empresaId) {
-        const companyName = String(body.empresa_nome || target.empresa_solicitada || "").trim();
-        if (!companyName) return json(400, { error: "Informe a empresa para aprovação." });
-        const { data: company, error } = await admin.from("empresas").insert({ name: companyName, user_id: userId, email: target.email, status: "ATIVO" }).select("id").single();
-        if (error) throw error;
-        empresaId = company.id;
+      let requestedCompanyId = "";
+      let requestedCompanyName = "";
+      try {
+        ({ empresaId: requestedCompanyId, empresaNome: requestedCompanyName } = normalizeApprovalChoice(body));
+      } catch (error) {
+        return json(400, { error: error instanceof Error ? error.message : "Escolha inválida." });
       }
-      const { error } = await admin.from("usuarios").update({ empresa_id: empresaId, empresa_id_bloqueada: null, status: "ATIVO", role: "cliente", tipo_usuario: "usuario", permissoes: target.permissoes || defaults }).eq("id", userId);
-      if (error) throw error;
-      const { error: authError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
-      if (authError) throw authError;
-      return json(200, { status: "ATIVO", empresa_id: empresaId });
+
+      if (target.status === "ATIVO" && target.empresa_id) {
+        if (requestedCompanyId && target.empresa_id !== requestedCompanyId) {
+          return json(409, { error: "Usuário já aprovado em outra empresa." });
+        }
+        const { data: currentCompany } = await admin.from("empresas").select("id,name").eq("id", target.empresa_id).maybeSingle();
+        if (requestedCompanyName && currentCompany?.name !== requestedCompanyName) {
+          return json(409, { error: "Usuário já aprovado em outra empresa." });
+        }
+        const { error: authError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+        if (authError) throw authError;
+        return json(200, { status: "ATIVO", empresa_id: target.empresa_id, replay: true });
+      }
+      if (target.status !== "PENDENTE") return json(409, { error: "Somente cadastro pendente pode ser aprovado." });
+
+      let empresaId = requestedCompanyId;
+      let createdCompanyId = "";
+      if (empresaId) {
+        const { data: company, error } = await admin.from("empresas").select("id").eq("id", empresaId).maybeSingle();
+        if (error) throw error;
+        if (!company) return json(404, { error: "Empresa existente não encontrada." });
+      } else {
+        const { data: recoveredCompany, error: recoveryError } = await admin.from("empresas").select("id,name").eq("user_id", userId).maybeSingle();
+        if (recoveryError) throw recoveryError;
+        if (recoveredCompany) {
+          if (recoveredCompany.name !== requestedCompanyName) return json(409, { error: "Já existe empresa de recuperação com outro nome para este cadastro." });
+          empresaId = recoveredCompany.id;
+        } else {
+          const { data: company, error } = await admin.from("empresas").insert({ name: requestedCompanyName, user_id: userId, email: target.email, status: "ATIVO" }).select("id").single();
+          if (error) throw error;
+          empresaId = company.id;
+          createdCompanyId = company.id;
+        }
+      }
+
+      const previousProfile = {
+        empresa_id: target.empresa_id,
+        empresa_id_bloqueada: target.empresa_id_bloqueada,
+        status: target.status,
+        role: target.role,
+        tipo_usuario: target.tipo_usuario,
+        permissoes: target.permissoes,
+      };
+      let profileUpdated = false;
+      try {
+        const { error } = await admin.from("usuarios").update({ empresa_id: empresaId, empresa_id_bloqueada: null, status: "ATIVO", role: "cliente", tipo_usuario: "usuario", permissoes: target.permissoes || defaults }).eq("id", userId);
+        if (error) throw error;
+        profileUpdated = true;
+        const { error: authError } = await admin.auth.admin.updateUserById(userId, { ban_duration: "none" });
+        if (authError) throw authError;
+      } catch (approvalError) {
+        const compensationErrors = await compensateFailedApproval({
+          profileUpdated,
+          createdCompanyId,
+          restoreProfile: async () => {
+            const { error } = await admin.from("usuarios").update(previousProfile).eq("id", userId);
+            if (error) throw error;
+          },
+          deleteCompany: async (companyId) => {
+            const { error } = await admin.from("empresas").delete().eq("id", companyId);
+            if (error) throw error;
+          },
+        });
+        if (compensationErrors.length) throw new Error(`Falha na aprovação e na compensação (${compensationErrors.join("; ")}).`);
+        throw approvalError;
+      }
+      return json(200, { status: "ATIVO", empresa_id: empresaId, replay: false });
     }
     if (action === "REJECT_USER") {
       const { error } = await admin.from("usuarios").update({ empresa_id: null, empresa_id_bloqueada: null, status: "REPROVADO" }).eq("id", userId);
@@ -97,28 +165,43 @@ Deno.serve(async (request) => {
       if (!["cliente", "usuario"].includes(role)) return json(400, { error: "Perfil inválido." });
       if (!["ATIVO", "BLOQUEADO", "REPROVADO"].includes(status)) return json(400, { error: "Status inválido." });
       if (!Number.isFinite(valorMensal) || valorMensal < 0) return json(400, { error: "Valor mensal inválido." });
-      const suppliedPermissions = input.permissoes && typeof input.permissoes === "object" ? input.permissoes : {};
-      const permissoes = Object.fromEntries(permissionKeys.map((key) => [key, suppliedPermissions[key] === true]));
       let empresaId = target.empresa_id || target.empresa_id_bloqueada;
+      let companyUpdated = false;
       if (empresaId) {
-        const { error } = await admin.from("empresas").update({ name: empresaNome }).eq("id", empresaId);
-        if (error) throw error;
+        if (hasNormalizedTextChanged(target.empresa_solicitada, empresaNome)) {
+          const { data: company, error: companyError } = await admin.from("empresas").select("id,name").eq("id", empresaId).maybeSingle();
+          if (companyError) throw companyError;
+          if (!company) return json(404, { error: "Empresa vinculada não encontrada." });
+          if (hasNormalizedTextChanged(company.name, empresaNome)) {
+            const { error } = await admin.from("empresas").update({ name: empresaNome }).eq("id", empresaId);
+            if (error) throw error;
+            companyUpdated = true;
+          }
+        }
       } else if (status !== "REPROVADO") {
         const { data: company, error } = await admin.from("empresas").insert({ name: empresaNome, user_id: userId, email: target.email, status: "ATIVO" }).select("id").single();
         if (error) throw error;
         empresaId = company.id;
+        companyUpdated = true;
       }
-      const active = status === "ATIVO";
-      const { error } = await admin.from("usuarios").update({
-        nome, role, tipo_usuario: role, permissoes, valor_mensal: valorMensal,
-        empresa_solicitada: empresaNome, status,
-        empresa_id: active ? empresaId : null,
-        empresa_id_bloqueada: status === "BLOQUEADO" ? empresaId : null,
-      }).eq("id", userId);
-      if (error) throw error;
-      const { error: authError } = await admin.auth.admin.updateUserById(userId, { ban_duration: active ? "none" : "876000h" });
-      if (authError) throw authError;
-      return json(200, { status });
+      const { changes, normalized } = buildUserChanges({ target, input, permissionKeys, empresaId });
+      const changedFields = Object.keys(changes);
+      if (changedFields.length) {
+        const { error } = await admin.from("usuarios").update(changes).eq("id", userId);
+        if (error) throw error;
+      }
+      const authUpdated = shouldSyncAuth(target.status, normalized.status);
+      if (authUpdated) {
+        const { error: authError } = await admin.auth.admin.updateUserById(userId, { ban_duration: normalized.status === "ATIVO" ? "none" : "876000h" });
+        if (authError) throw authError;
+      }
+      return json(200, {
+        status: normalized.status,
+        changed: companyUpdated || changedFields.length > 0 || authUpdated,
+        updated_fields: changedFields,
+        company_updated: companyUpdated,
+        auth_updated: authUpdated,
+      });
     }
     return json(400, { error: "Ação administrativa inválida." });
   } catch (error) {
