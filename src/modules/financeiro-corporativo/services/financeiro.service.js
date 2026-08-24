@@ -3,6 +3,19 @@ import { clearOperationKey, getOperationKey } from "../../../utils";
 
 const company = (empresaId) => String(empresaId);
 
+export async function loadFinanceServerTime() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Sessão indisponível para consultar a data do servidor.");
+  const response = await fetch(`${supabase.supabaseUrl}/rest/v1/financeiro_titulos?select=id&limit=1`, {
+    cache: "no-store",
+    headers: { apikey: supabase.supabaseKey, Authorization: `Bearer ${session.access_token}` },
+  });
+  if (!response.ok) throw new Error("Não foi possível consultar a data do servidor.");
+  const serverDate = response.headers.get("date");
+  if (!serverDate) throw new Error("O servidor não informou uma referência de data.");
+  return new Date(serverDate);
+}
+
 export async function loadCorporateFinance(empresaId) {
   const empresa = company(empresaId);
   const [titles, settlements, reconciliations, history, purchaseInstallments, sales, budgets] = await Promise.all([

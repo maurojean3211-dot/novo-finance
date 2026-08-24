@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import FinancialDocumentPrototype from "../../documentos-financeiros/components/FinancialDocumentPrototype";
 import { EmptyState, FeedbackBanner, LoadingState, MetricGrid, ModuleHeader, OperationModal } from "../../../components/operations/OperationsUI";
 import useFinanceiroCorporativo from "../hooks/useFinanceiroCorporativo";
-import { budgetToTitle, purchaseToTitle, registerTitle, reverseSettlement, saleToTitle, saveReconciliation, settleTitle } from "../services/financeiro.service";
+import { budgetToTitle, loadFinanceServerTime, purchaseToTitle, registerTitle, reverseSettlement, saleToTitle, saveReconciliation, settleTitle } from "../services/financeiro.service";
+import { EMPTY_PAYABLE_REPORT_FILTERS, generatePayablesReport } from "../../../services/reportPdf.service";
 import "../financeiro-corporativo.css";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -31,6 +32,7 @@ export default function FinanceiroCorporativoPage({ empresaId, userId, companyNa
   const [titleForm, setTitleForm] = useState(null); const [settlementTitle, setSettlementTitle] = useState(null);
   const [settlement, setSettlement] = useState({ value: "", date: today(), method: "PIX", account: "", notes: "" });
   const [reconciliation, setReconciliation] = useState(null);
+  const [reportFilters, setReportFilters] = useState(EMPTY_PAYABLE_REPORT_FILTERS);
   useEffect(() => setTab(initialTab), [initialTab]);
   const originKeys = useMemo(() => new Set(finance.titles.map((item) => `${item.origem}:${item.origem_id}`)), [finance.titles]);
   const run = async (work, message) => { setBusy(true); setFeedback(null); try { await work(); setFeedback({ type: "success", message }); await finance.refresh(); return true; } catch (cause) { setFeedback({ type: "error", message: cause.message || "Não foi possível concluir a operação." }); return false; } finally { setBusy(false); } };
@@ -46,12 +48,22 @@ export default function FinanceiroCorporativoPage({ empresaId, userId, companyNa
     { label: "Saldo projetado", value: money.format(finance.projected), detail: `${finance.dueSoon.length} vencimento(s) em 7 dias`, icon: "◇", tone: finance.projected >= 0 ? "green" : "amber" },
   ];
   const tabTitles = tab === "payable" ? finance.payable : tab === "receivable" ? finance.receivable : finance.periodTitles;
+  const generatePayables = async () => {
+    try {
+      const serverNow = await loadFinanceServerTime();
+      const generated = generatePayablesReport({ titles: finance.titles, settlements: finance.settlements, empresaId, companyName, filters: reportFilters, serverNow });
+      setFeedback(generated ? { type: "success", message: "Relatório de Contas a Pagar gerado." } : { type: "error", message: "Nenhum título encontrado para os filtros selecionados." });
+    } catch (cause) {
+      setFeedback({ type: "error", message: cause.message || "Não foi possível obter a data do servidor." });
+    }
+  };
 
   return <main className="ops-page corp-fin-page">
     <ModuleHeader eyebrow="Núcleo financeiro empresarial" title="Financeiro Corporativo" description="Títulos, baixas, projeção e conciliação com rastreabilidade multiempresa." actionLabel="Novo título" onAction={() => setTitleForm(emptyTitle(tab === "receivable" ? "Receber" : "Pagar"))}/>
     <FeedbackBanner feedback={feedback} onClose={() => setFeedback(null)}/>
     <MetricGrid items={metrics}/><PeriodFilter finance={finance}/>
     <nav className="corp-fin-tabs" aria-label="Seções do financeiro">{[["overview","Visão geral"],["payable","Contas a pagar"],["receivable","Contas a receber"],["forecast","Fluxo e previsão"],["integrations","Integrações"],["reconciliation","Conciliação"],["history","Histórico"]].map(([value,label]) => <button key={value} className={tab === value ? "active" : ""} onClick={() => setTab(value)}>{label}</button>)}</nav>
+    {tab === "payable" && <section className="ops-panel"><div className="ops-panel__header"><div><h2>Relatório de Contas a Pagar</h2><span>PDF A4 com títulos e baixas reais da empresa ativa</span></div><button type="button" className="primary" onClick={generatePayables} disabled={finance.loading}>Gerar relatório</button></div><div className="corp-fin-period__custom"><label>Vencimento inicial<input type="date" value={reportFilters.startDate} onChange={(event) => setReportFilters((current) => ({ ...current, startDate: event.target.value }))}/></label><label>Vencimento final<input type="date" value={reportFilters.endDate} onChange={(event) => setReportFilters((current) => ({ ...current, endDate: event.target.value }))}/></label><label>Status<select value={reportFilters.status} onChange={(event) => setReportFilters((current) => ({ ...current, status: event.target.value }))}><option value="all">Todos</option><option value="pending">Pendentes</option><option value="overdue">Vencidos</option><option value="paid">Pagos</option></select></label><button type="button" onClick={() => setReportFilters(EMPTY_PAYABLE_REPORT_FILTERS)}>Limpar filtros</button></div></section>}
     {["payable", "reconciliation"].includes(tab) && <div className="corp-fin-document-action"><FinancialDocumentPrototype context="company" companyName={companyName} destination={tab === "reconciliation" ? "Conciliação Empresarial" : "Conta a Pagar Empresarial"} /></div>}
     {finance.error && <div className="corp-fin-schema-warning"><strong>Financeiro temporariamente indisponível</strong><span>{finance.error}</span><small>Os dados existentes não foram alterados. Tente atualizar novamente.</small></div>}
     {finance.loading ? <LoadingState/> : <>

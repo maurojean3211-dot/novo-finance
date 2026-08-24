@@ -4,6 +4,8 @@ import { formatOriginalPurchaseDate } from "./purchaseDate.js";
 const PAGE = { width: 841.89, height: 595.28, margin: 28 };
 
 export const EMPTY_PURCHASE_FILTERS = { startDate: "", endDate: "", party: "", product: "", unit: "", status: "" };
+export const EMPTY_PAYABLE_REPORT_FILTERS = { startDate: "", endDate: "", status: "all" };
+export const FINANCE_TIME_ZONE = "America/Sao_Paulo";
 
 function pdfText(value) {
   const normalized = String(value ?? "-")
@@ -193,6 +195,108 @@ export function downloadPdf(bytes, filename) {
 export function describePeriod(start, end) {
   if (!start && !end) return "Todos os registros carregados";
   return `${start ? formatDate(start) : "início"} a ${end ? formatDate(end) : "hoje"}`;
+}
+
+function payableStatus({ paid, balance, dueDate, today }) {
+  if (balance <= 0) return "Pago";
+  if (dueDate && dueDate < today) return "Vencido";
+  return paid > 0 ? "Pendente (parcial)" : "Pendente";
+}
+
+export function dateKeyInTimeZone(value, timeZone = FINANCE_TIME_ZONE) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("Referência de data do servidor inválida.");
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
+  const get = (type) => parts.find((part) => part.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function netSettlementsByTitle(settlements, empresaId) {
+  const totals = new Map();
+  const titlesWithEvents = new Set();
+  settlements.forEach((event) => {
+    if (String(event.empresa_id) !== String(empresaId) || !event.titulo_id) return;
+    titlesWithEvents.add(String(event.titulo_id));
+    const signed = event.tipo === "Estorno" ? -Number(event.valor || 0) : Number(event.valor || 0);
+    totals.set(String(event.titulo_id), (totals.get(String(event.titulo_id)) || 0) + signed);
+  });
+  return { totals, titlesWithEvents };
+}
+
+export function buildPayablesReportData({ titles = [], settlements = [], empresaId, companyName, filters = EMPTY_PAYABLE_REPORT_FILTERS, serverNow }) {
+  const today = dateKeyInTimeZone(serverNow);
+  const { totals: settlementTotals, titlesWithEvents } = netSettlementsByTitle(settlements, empresaId);
+  const seen = new Set();
+  const records = titles.flatMap((title) => {
+    const id = String(title.id || "");
+    if (!id || seen.has(id) || String(title.empresa_id) !== String(empresaId) || title.tipo !== "Pagar" || title.status === "Cancelado") return [];
+    seen.add(id);
+    const dueDate = String(title.vencimento || "").slice(0, 10);
+    if (!matchesDate(dueDate, filters.startDate, filters.endDate)) return [];
+    const original = Math.max(0, Number(title.valor_original || 0));
+    const eventPaid = settlementTotals.get(id) || 0;
+    const paid = Math.min(original, Math.max(0, titlesWithEvents.has(id) ? eventPaid : Number(title.valor_baixado || 0)));
+    const balance = Math.max(0, original - paid);
+    const status = payableStatus({ paid, balance, dueDate, today });
+    const requested = filters.status || "all";
+    if (requested === "pending" && !status.startsWith("Pendente")) return [];
+    if (requested === "overdue" && status !== "Vencido") return [];
+    if (requested === "paid" && status !== "Pago") return [];
+    return [{ ...title, reportStatus: status, reportPaid: paid, reportBalance: balance, dueDate }];
+  });
+  const totals = records.reduce((result, item) => ({
+    count: result.count + 1,
+    original: result.original + Number(item.valor_original || 0),
+    paid: result.paid + item.reportPaid,
+    open: result.open + item.reportBalance,
+    overdue: result.overdue + (item.reportStatus === "Vencido" ? item.reportBalance : 0),
+  }), { count: 0, original: 0, paid: 0, open: 0, overdue: 0 });
+  const rows = records.map((item) => ({
+    party: item.contraparte_nome || "-",
+    description: item.descricao || "-",
+    dueDate: formatDate(item.dueDate),
+    original: formatMoney(item.valor_original),
+    paid: formatMoney(item.reportPaid),
+    balance: formatMoney(item.reportBalance),
+    status: item.reportStatus,
+    origin: [item.origem, item.referencia].filter(Boolean).join(" · ") || "Manual",
+  }));
+  return {
+    records,
+    totals,
+    pdf: {
+      title: "Relatório de Contas a Pagar",
+      companyName,
+      period: describePeriod(filters.startDate, filters.endDate),
+      issuedBy: "Financeiro Corporativo",
+      summary: [
+        { label: "Títulos", value: totals.count },
+        { label: "Total original", value: formatMoney(totals.original) },
+        { label: "Total pago", value: formatMoney(totals.paid) },
+        { label: "Total em aberto", value: formatMoney(totals.open) },
+        { label: "Total vencido", value: formatMoney(totals.overdue) },
+      ],
+      columns: [
+        { key: "party", label: "Fornecedor", width: 105 },
+        { key: "description", label: "Descrição", width: 125 },
+        { key: "dueDate", label: "Vencimento", width: 62 },
+        { key: "original", label: "Original", width: 78 },
+        { key: "paid", label: "Pago", width: 74 },
+        { key: "balance", label: "Saldo", width: 74 },
+        { key: "status", label: "Status", width: 80 },
+        { key: "origin", label: "Parcela / origem", width: 187 },
+      ],
+      rows,
+      totals: `${totals.count} título(s) | original ${formatMoney(totals.original)} | pago ${formatMoney(totals.paid)} | aberto ${formatMoney(totals.open)} | vencido ${formatMoney(totals.overdue)}`,
+    },
+  };
+}
+
+export function generatePayablesReport(options) {
+  const report = buildPayablesReportData(options);
+  if (!report.records.length) return false;
+  downloadPdf(generateReportPdfBytes(report.pdf), `relatorio-contas-a-pagar-${new Date().toISOString().slice(0, 10)}.pdf`);
+  return true;
 }
 
 function includesText(value, filter) {
