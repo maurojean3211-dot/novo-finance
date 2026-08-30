@@ -18,6 +18,7 @@ import VendasUsuario from "./VendasUsuario.jsx";
 
 import useAppNavigation from "./app/navigation/useAppNavigation";
 import { findMenuItem } from "./app/navigation/menuConfig";
+import { chooseEntryPage } from "./app/navigation/navigationHistory";
 import {
   canAccessPage,
   hasPlatformAdminAccess,
@@ -108,6 +109,40 @@ export default function App() {
 
   useEffect(() => {
     const userId = session?.user?.id;
+    if (
+      loadingSession
+      || !userId
+      || enteredUserId !== userId
+      || isExiting
+      || authIssue
+      || (!empresaId && !loginMaster)
+    ) return;
+    const allowed = pagina === "master"
+      ? loginMaster
+      : canAccessPage(pagina, permissoes, false);
+    if (allowed) return;
+    const safePage = loginMaster
+      ? "master"
+      : tipoCliente === "PF"
+        ? "financeiro_pessoal"
+        : "dashboard";
+    navigate(safePage, { replace: true });
+  }, [
+    authIssue,
+    empresaId,
+    enteredUserId,
+    isExiting,
+    loadingSession,
+    loginMaster,
+    navigate,
+    pagina,
+    permissoes,
+    session?.user?.id,
+    tipoCliente,
+  ]);
+
+  useEffect(() => {
+    const userId = session?.user?.id;
 
     if (!userId || !pagina) return;
 
@@ -138,35 +173,20 @@ export default function App() {
 
     setEnteredUserId(userId);
 
-    if (loginMaster) {
-      navigate("master");
-      return;
-    }
-
-    const defaultPage = tipoCliente === "PF" ? "financeiro_pessoal" : "dashboard";
-
-    if (
-      window.location.pathname ===
-      "/prospeccao"
-    ) {
-      navigate(canAccessPage("prospeccao", permissoes, false) ? "prospeccao" : defaultPage);
-      return;
-    }
-
+    let savedPage = null;
     try {
-      const savedPage =
-        window.localStorage.getItem(
-          lastPageKey(userId)
-        );
-
-      if (savedPage && canAccessPage(savedPage, permissoes, false)) {
-        navigate(savedPage);
-      } else {
-        navigate(defaultPage);
-      }
+      savedPage = window.localStorage.getItem(lastPageKey(userId));
     } catch {
-      navigate(defaultPage);
+      savedPage = null;
     }
+    const entryPage = chooseEntryPage({
+      pathname: window.location.pathname,
+      loginMaster,
+      tipoCliente,
+      savedPage,
+      canAccess: (page) => canAccessPage(page, permissoes, false),
+    });
+    navigate(entryPage, { replace: true });
   }
 
   function startLogout() {

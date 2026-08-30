@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
-
-function pageFromPath(fallbackPage) {
-  return window.location.pathname === "/prospeccao" ? "prospeccao" : fallbackPage;
-}
+import { useCallback, useEffect, useState } from "react";
+import { resolveNavigationPage, writeNavigationHistory } from "./navigationHistory.js";
 
 export default function useAppNavigation(initialPage = "dashboard") {
-  const [pagina, setPagina] = useState(() => pageFromPath(initialPage));
-  const navigate = (page) => {
-    setPagina(page);
-    const path = page === "prospeccao" ? "/prospeccao" : "/";
-    if (window.location.pathname !== path) window.history.pushState({ page }, "", path);
-  };
+  const [pagina, setPagina] = useState(() =>
+    resolveNavigationPage(window.location.pathname, window.history.state, initialPage)
+  );
+  const navigate = useCallback((page, options) => {
+    const targetPage = writeNavigationHistory(window, page, options);
+    setPagina(targetPage);
+  }, []);
   useEffect(() => {
-    const onPopState = () => setPagina(pageFromPath(initialPage));
+    const onPopState = (event) => setPagina(
+      resolveNavigationPage(window.location.pathname, event.state, initialPage)
+    );
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [initialPage]);

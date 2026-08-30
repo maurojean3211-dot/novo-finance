@@ -4,8 +4,8 @@ export const menuGroups = [
     label: "VISÃO GERAL",
     icon: "▦",
     items: [
-      { page: "dashboard", label: "Dashboard", icon: "📊", permissionKey: "dashboard" },
-      { page: "painel_executivo", label: "Painel Executivo", icon: "◫", permissionKey: "dashboard" },
+      { page: "dashboard", path: "/", label: "Dashboard", icon: "📊", permissionKey: "dashboard" },
+      { page: "painel_executivo", path: "/painel-executivo", label: "Painel Executivo", icon: "◫", permissionKey: "dashboard" },
     ],
   },
   {
@@ -13,11 +13,12 @@ export const menuGroups = [
     label: "COMERCIAL",
     icon: "◇",
     items: [
-      { page: "crm", label: "CRM", icon: "◎", permissionKey: "crm" },
-      { page: "clientes", label: "Clientes", icon: "◉", permissionKey: "crm" },
-      { page: "prospeccao", label: "Prospecção", icon: "⌕", permissionKey: "prospeccao" },
+      { page: "crm", path: "/crm", label: "CRM", icon: "◎", permissionKey: "crm" },
+      { page: "clientes", path: "/clientes", label: "Clientes", icon: "◉", permissionKey: "crm" },
+      { page: "prospeccao", path: "/prospeccao", label: "Prospecção", icon: "⌕", permissionKey: "prospeccao" },
       {
         page: "agenda_comercial",
+        path: "/agenda-comercial",
         label: "Agenda Comercial",
         icon: "◷",
         permissionKey: "prospeccao",
@@ -25,12 +26,13 @@ export const menuGroups = [
       { page: "contatos", label: "Contatos", icon: "◉", planned: true },
       {
         page: "orcamentos",
+        path: "/orcamentos",
         label: "Orçamentos",
         icon: "▤",
         permissionKey: "orcamentos",
       },
-      { page: "vendas", label: "Vendas", icon: "📦", permissionKey: "vendas" },
-      { page: "compras", label: "Compras", icon: "🧱", permissionKey: "compras" },
+      { page: "vendas", path: "/vendas", label: "Vendas", icon: "📦", permissionKey: "vendas" },
+      { page: "compras", path: "/compras", label: "Compras", icon: "🧱", permissionKey: "compras" },
       { page: "pos_venda", label: "Pós-venda", icon: "↗", planned: true },
     ],
   },
@@ -41,20 +43,23 @@ export const menuGroups = [
     items: [
       {
         page: "catalogo_inteligente",
+        path: "/catalogo",
         label: "Catálogo",
         icon: "▦",
         permissionKey: "catalogo",
       },
-      { page: "produtos", label: "Produtos", icon: "◈", permissionKey: "catalogo" },
-      { page: "estoque", label: "Estoque", icon: "▥", permissionKey: "estoque" },
+      { page: "produtos", path: "/produtos", label: "Produtos", icon: "◈", permissionKey: "catalogo" },
+      { page: "estoque", path: "/estoque", label: "Estoque", icon: "▥", permissionKey: "estoque" },
       {
         page: "producao",
+        path: "/pcp",
         label: "Produção e PCP",
         icon: "⚙",
         permissionKey: "pcp",
       },
       {
         page: "fornecedores",
+        path: "/fornecedores",
         label: "Fornecedores",
         icon: "🏭",
         permissionKey: "catalogo",
@@ -68,18 +73,21 @@ export const menuGroups = [
     items: [
       {
         page: "contas_pagar",
+        path: "/financeiro/contas-a-pagar",
         label: "Contas a pagar",
         icon: "↘",
         permissionKey: "financeiro",
       },
       {
         page: "recebimentos",
+        path: "/financeiro/contas-a-receber",
         label: "Contas a Receber",
         icon: "💵",
         permissionKey: "financeiro",
       },
       {
         page: "financeiro",
+        path: "/financeiro",
         label: "Fluxo de Caixa",
         icon: "⌁",
         permissionKey: "financeiro",
@@ -94,6 +102,7 @@ export const menuGroups = [
     items: [
       {
         page: "ia_comercial",
+        path: "/ia-comercial",
         label: "Atendimento Comercial IA",
         icon: "✦",
         permissionKey: "catalogo",
@@ -122,6 +131,7 @@ export const menuGroups = [
     items: [
       {
         page: "relatorio",
+        path: "/relatorios",
         label: "Relatórios",
         icon: "▤",
         permissionKey: "relatorios",
@@ -134,12 +144,14 @@ export const menuGroups = [
       },
       {
         page: "relatorio_comercial",
+        path: "/relatorios/comercial",
         label: "Comercial",
         icon: "◇",
         permissionKey: "relatorios",
       },
       {
         page: "relatorio_financeiro",
+        path: "/relatorios/financeiro",
         label: "Financeiro",
         icon: "$",
         permissionKey: "relatorios",
@@ -152,12 +164,14 @@ export const menuGroups = [
       },
       {
         page: "relatorio_compras",
+        path: "/relatorios/compras",
         label: "Compras",
         icon: "▧",
         permissionKey: "relatorios",
       },
       {
         page: "relatorio_vendas",
+        path: "/relatorios/vendas",
         label: "Vendas",
         icon: "↗",
         permissionKey: "relatorios",
@@ -177,6 +191,7 @@ export const menuGroups = [
     items: [
       {
         page: "financeiro_pessoal",
+        path: "/financeiro-pessoal",
         label: "Visão Geral",
         icon: "▦",
         permissionKey: "pessoal_visao_geral",
@@ -184,6 +199,7 @@ export const menuGroups = [
       },
       {
         page: "receitas_pessoais",
+        path: "/financeiro-pessoal/receitas",
         label: "Receitas",
         icon: "↗",
         permissionKey: "pessoal_receitas",
@@ -191,6 +207,7 @@ export const menuGroups = [
       },
       {
         page: "despesas_pessoais",
+        path: "/financeiro-pessoal/despesas",
         label: "Despesas",
         icon: "↘",
         permissionKey: "pessoal_despesas",
@@ -198,6 +215,7 @@ export const menuGroups = [
       },
       {
         page: "contas_pagar_pessoais",
+        path: "/financeiro-pessoal/contas-a-pagar",
         label: "Contas a Pagar",
         icon: "◷",
         permissionKey: "pessoal_contas_pagar",
@@ -205,6 +223,7 @@ export const menuGroups = [
       },
       {
         page: "contas_fixas_pessoais",
+        path: "/financeiro-pessoal/contas-fixas",
         label: "Contas Fixas",
         icon: "🔁",
         permissionKey: "pessoal_contas_fixas",
@@ -212,6 +231,7 @@ export const menuGroups = [
       },
       {
         page: "relatorios_pessoais",
+        path: "/financeiro-pessoal/relatorios",
         label: "Relatórios Pessoais",
         icon: "▤",
         permissionKey: "pessoal_relatorios",
@@ -226,6 +246,7 @@ export const menuGroups = [
     items: [
       {
         page: "usuarios",
+        path: "/usuarios",
         label: "Usuários",
         icon: "👤",
         permissionKey: "gerenciar_usuarios",
@@ -251,6 +272,7 @@ export const menuGroups = [
 
       {
         page: "configuracoes",
+        path: "/configuracoes/tributarias",
         label: "Configuração Tributária",
         icon: "🧾",
         permissionKey: "tributario",
@@ -261,6 +283,7 @@ export const menuGroups = [
 
       {
         page: "master",
+        path: "/master",
         label: "Master Admin",
         icon: "◆",
         accessScope: "PLATFORM_ADMIN",
@@ -301,4 +324,29 @@ export function findMenuItem(page) {
   return menuGroups
     .flatMap((group) => group.items)
     .find((item) => item.page === page);
+}
+
+export const activeRoutes = Object.freeze(
+  menuGroups
+    .flatMap((group) => group.items)
+    .filter((item) => !item.planned && item.path)
+    .map((item) => Object.freeze({ page: item.page, path: item.path }))
+);
+
+function normalizePath(pathname) {
+  if (!pathname || pathname === "/") return "/";
+  return pathname.replace(/\/+$/, "") || "/";
+}
+
+export function pathForPage(page) {
+  return activeRoutes.find((route) => route.page === page)?.path || "/";
+}
+
+export function pageForPath(pathname) {
+  const path = normalizePath(pathname);
+  return activeRoutes.find((route) => route.path === path)?.page || null;
+}
+
+export function isActivePage(page) {
+  return activeRoutes.some((route) => route.page === page);
 }
