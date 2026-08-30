@@ -15,11 +15,11 @@ export default function EmprestimosLista() {
   const [busca, setBusca] = useState("");
 
   const [pixChave, setPixChave] = useState(
-    () => localStorage.getItem("chave_pix") || "11963068079"
+    () => localStorage.getItem("chave_pix") || ""
   );
 
   const [pixEdit, setPixEdit] = useState(
-    () => localStorage.getItem("chave_pix") || "11963068079"
+    () => localStorage.getItem("chave_pix") || ""
   );
 
   async function carregarEmpresa() {
