@@ -1,330 +1,95 @@
-import { useCallback, useEffect, useState } from "react";
-import { supabase } from "./supabase";
-import { FilterBar, MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
-import { getPurchaseCommissionData, getStoredOrCalculatedCommission } from "./services/commissionEngine";
-import { getOriginalPurchaseDate } from "./services/purchaseDate";
+import { useEffect, useMemo, useState } from "react";
+import { EmptyState, FilterBar, LoadingState, MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
+import { buildEnterpriseReport, loadEnterpriseReport } from "./services/enterpriseReports.service";
 
-export default function Relatorio({ empresaId }) {
-  const [dados, setDados] = useState([]);
-  const [totalVendas, setTotalVendas] = useState(0);
-  const [totalComissao, setTotalComissao] = useState(0);
+const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const number = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
+const today = () => new Date().toISOString().slice(0, 10);
+const monthStart = () => `${today().slice(0, 7)}-01`;
 
-  const [recebidoHoje, setRecebidoHoje] = useState(0);
-  const [comissaoHoje, setComissaoHoje] = useState(0);
+function metricValue(item) {
+  if (item.money) return money.format(item.value || 0);
+  return `${number.format(item.value || 0)}${item.suffix || ""}`;
+}
 
-  const [recebidoMes, setRecebidoMes] = useState(0);
-  const [comissaoMes, setComissaoMes] = useState(0);
+function formatDate(value) {
+  if (!value) return "—";
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
 
-  const [dataInicio, setDataInicio] = useState("");
-  const [dataFim, setDataFim] = useState("");
-
-  const buscar = useCallback(async () => {
-    if (!empresaId) return;
-
-    const hoje = new Date();
-    const dataHoje = hoje.toISOString().slice(0, 10);
-    const mesAtual = dataHoje.slice(0, 7);
-
-    // =========================
-    // BUSCA SOMENTE VENDAS
-    // =========================
-    let queryVendas = supabase
-      .from("vendas")
-      .select("*")
-      .eq("empresa_id", empresaId);
-
-    // =========================
-    // BUSCA SOMENTE COMPRAS
-    // =========================
-    let queryCompras = supabase
-      .from("compras")
-      .select("*")
-      .eq("empresa_id", empresaId);
-
-    if (dataInicio) {
-      queryVendas = queryVendas.gte(
-        "created_at",
-        dataInicio
-      );
-
-      queryCompras = queryCompras.gte(
-        "created_at",
-        dataInicio
-      );
-    }
-
-    if (dataFim) {
-      queryVendas = queryVendas.lte(
-        "created_at",
-        dataFim + "T23:59:59"
-      );
-
-      queryCompras = queryCompras.lte(
-        "created_at",
-        dataFim + "T23:59:59"
-      );
-    }
-
-    const {
-      data: vendas,
-      error: erroVendas,
-    } = await queryVendas;
-
-    const {
-      data: compras,
-      error: erroCompras,
-    } = await queryCompras;
-
-    if (erroVendas) {
-      console.error("Erro vendas:", erroVendas);
-    }
-
-    if (erroCompras) {
-      console.error("Erro compras:", erroCompras);
-    }
-
-    let resumo = {};
-
-    let totalKg = 0;
-    let totalCom = 0;
-
-    let hojeRecebido = 0;
-    let hojeCom = 0;
-
-    let mesRecebido = 0;
-    let mesCom = 0;
-
-    // ==================================
-    // PROCESSA VENDAS
-    // ==================================
-    (vendas || []).forEach((item) => {
-      const cliente =
-        item.cliente_nome ||
-        item.cliente ||
-        item.nome_cliente;
-
-      const kg = Number(item.kilos) || 0;
-
-      const nomeProduto = String(
-        item.produto || ""
-      ).toUpperCase();
-
-      // 🔥 IGNORA REGISTROS INVÁLIDOS
-      if (!cliente || kg <= 0) {
-        return;
-      }
-
-      // 🔥 BLOQUEIA PRODUTOS ERRADOS
-      if (
-        nomeProduto.includes("IPHONE") ||
-        nomeProduto.includes("CELULAR") ||
-        nomeProduto.includes("NOTEBOOK")
-      ) {
-        return;
-      }
-
-      if (!resumo[cliente]) {
-        resumo[cliente] = {
-          cliente,
-          vendas: 0,
-          compras: 0,
-          comissao: 0,
-        };
-      }
-
-      const valor = Number(
-        item.valor_total || item.valor || 0
-      );
-
-      const com = getStoredOrCalculatedCommission(item);
-
-      resumo[cliente].vendas += kg;
-      resumo[cliente].comissao += com;
-
-      totalKg += kg;
-      totalCom += com;
-
-      const dataVenda = String(item.data_venda || "").slice(0, 10);
-
-      if (dataVenda === dataHoje) {
-        hojeRecebido += valor;
-        hojeCom += com;
-      }
-
-      if (dataVenda.slice(0, 7) === mesAtual) {
-        mesRecebido += valor;
-        mesCom += com;
-      }
-    });
-
-    // ==================================
-    // PROCESSA COMPRAS
-    // ==================================
-    (compras || []).forEach((item) => {
-      const fornecedor =
-        item.fornecedor ||
-        item.cliente;
-
-      const kg = Number(item.kilos) || 0;
-
-      const nomeProduto = String(
-        item.produto || ""
-      ).toUpperCase();
-
-      // 🔥 IGNORA REGISTROS INVÁLIDOS
-      if (!fornecedor || kg <= 0) {
-        return;
-      }
-
-      // 🔥 BLOQUEIA PRODUTOS ERRADOS
-      if (
-        nomeProduto.includes("IPHONE") ||
-        nomeProduto.includes("CELULAR") ||
-        nomeProduto.includes("NOTEBOOK")
-      ) {
-        return;
-      }
-
-      if (!resumo[fornecedor]) {
-        resumo[fornecedor] = {
-          cliente: fornecedor,
-          vendas: 0,
-          compras: 0,
-          comissao: 0,
-        };
-      }
-
-      resumo[fornecedor].compras += kg;
-
-      const com = getPurchaseCommissionData(item).commission;
-
-      resumo[fornecedor].comissao += com;
-
-      totalCom += com;
-
-      const dataCompra = getOriginalPurchaseDate(item);
-
-      if (dataCompra === dataHoje) {
-        hojeCom += com;
-      }
-
-      if (dataCompra.slice(0, 7) === mesAtual) {
-        mesCom += com;
-      }
-    });
-
-    // 🔥 REMOVE LINHAS VAZIAS
-    const filtrados = Object.values(resumo).filter(
-      (item) =>
-        item.cliente &&
-        (
-          Number(item.vendas) > 0 ||
-          Number(item.compras) > 0 ||
-          Number(item.comissao) > 0
-        )
-    );
-
-    setDados(filtrados);
-
-    setTotalVendas(totalKg);
-
-    setTotalComissao(totalCom);
-
-    setRecebidoHoje(hojeRecebido);
-    setComissaoHoje(hojeCom);
-
-    setRecebidoMes(mesRecebido);
-    setComissaoMes(mesCom);
-  }, [dataFim, dataInicio, empresaId]);
+export function EnterpriseReportShell({ empresaId, reportType, accessMode }) {
+  const [loadState, setLoadState] = useState({ key: "", data: null, error: "" });
+  const [startDate, setStartDate] = useState(monthStart);
+  const [endDate, setEndDate] = useState(today);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { if (empresaId) void buscar(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [buscar, empresaId]);
+    let active = true;
+    const key = `${empresaId}:${reportType}`;
+    loadEnterpriseReport(reportType, empresaId)
+      .then((data) => { if (active) setLoadState({ key, data, error: "" }); })
+      .catch((cause) => { if (active) setLoadState({ key, data: null, error: cause.message || "Não foi possível carregar o relatório." }); });
+    return () => { active = false; };
+  }, [empresaId, reportType]);
 
-  function dinheiro(valor) {
-    return Number(valor || 0).toLocaleString(
-      "pt-BR",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    );
-  }
+  const loadKey = `${empresaId}:${reportType}`;
+  const loading = loadState.key !== loadKey;
+  const rawData = loading ? null : loadState.data;
+  const error = loading ? "" : loadState.error;
+
+  const report = useMemo(() => rawData ? buildEnterpriseReport({
+    reportType,
+    data: rawData,
+    startDate,
+    endDate,
+    accessMode,
+  }) : null, [accessMode, endDate, rawData, reportType, startDate]);
+
+  if (loading) return <LoadingState>Carregando relatório empresarial...</LoadingState>;
+  if (error) return <div className="ops-status-panel" role="alert"><strong>Relatório indisponível</strong><p>{error}</p></div>;
+  if (!report) return <EmptyState title="Relatório indisponível" description="Não foi possível preparar os dados deste relatório." />;
+
+  const financial = report.config.type === "financial";
+  const commercial = report.config.type === "commercial";
 
   return (
     <div className="ops-page">
-      <ModuleHeader eyebrow="Inteligência gerencial" title="Central de Relatórios" description="Consolide indicadores operacionais e financeiros sem alterar os cálculos atuais." />
-      <section className="report-hub">
-        <article><span>◫</span><strong>Relatório Comercial</strong><small>Visão consolidada das operações.</small></article>
-        <article><span>R$</span><strong>Relatório Financeiro</strong><small>Resultados e comissões atuais.</small></article>
-        <article><span>↗</span><strong>Relatório de Vendas</strong><small>Volumes e clientes atendidos.</small></article>
-        <article><span>↙</span><strong>Relatório de Compras</strong><small>Volumes e fornecedores.</small></article>
-        <article><span>▦</span><strong>Relatório de Estoque</strong><small>Central preparada para o módulo.</small></article>
-        <article><span>◎</span><strong>Relatório de Clientes</strong><small>Central preparada para o módulo.</small></article>
-        <article><span>◇</span><strong>Relatório de Fornecedores</strong><small>Central preparada para o módulo.</small></article>
-        <article className="planned"><span>✦</span><strong>Relatório de IA</strong><small>Módulo em planejamento.</small></article>
-      </section>
-
+      <ModuleHeader eyebrow="Inteligência gerencial" title={report.config.title} description={report.config.description} />
       <FilterBar>
-        <input
-          type="date"
-          value={dataInicio}
-          onChange={(e) =>
-            setDataInicio(e.target.value)
-          }
-        />
-
-        <input
-          type="date"
-          value={dataFim}
-          onChange={(e) =>
-            setDataFim(e.target.value)
-          }
-        />
-
-        <button onClick={buscar}>
-          Gerar relatório
-        </button>
-        <button onClick={() => { setDataInicio(""); setDataFim(""); }}>Limpar filtros</button>
+        <label><span>De</span><input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
+        <label><span>Até</span><input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
+        <button type="button" onClick={() => { setStartDate(monthStart()); setEndDate(today()); }}>Mês atual</button>
       </FilterBar>
-
-      <MetricGrid items={[{ label: "Recebido hoje", value: `R$ ${dinheiro(recebidoHoje)}`, detail: "resultado diário", icon: "R$", tone: "green" }, { label: "Comissão hoje", value: `R$ ${dinheiro(comissaoHoje)}`, detail: "comissão diária", icon: "%" }, { label: "Recebido no mês", value: `R$ ${dinheiro(recebidoMes)}`, detail: "resultado mensal", icon: "↗", tone: "green" }, { label: "Comissão no mês", value: `R$ ${dinheiro(comissaoMes)}`, detail: "comissão mensal", icon: "%", tone: "amber" }, { label: "KG vendidos", value: Number(totalVendas).toLocaleString("pt-BR"), detail: `R$ ${dinheiro(totalComissao)} em comissões`, icon: "⚖" }]} />
-
-      <section className="ops-panel"><div className="ops-panel__header"><h2>Resultado consolidado</h2><span>{dados.length} registro(s)</span></div><div className="ops-table-wrap"><table className="ops-table">
-        <thead>
-          <tr>
-            <th>Cliente / Fornecedor</th>
-            <th>Vendas (kg)</th>
-            <th>Compras (kg)</th>
-            <th>Comissão</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {dados.map((item, i) => (
-            <tr key={i}>
-              <td>{item.cliente}</td>
-
-              <td>
-                {Number(item.vendas).toLocaleString(
-                  "pt-BR"
-                )}
-              </td>
-
-              <td>
-                {Number(item.compras).toLocaleString(
-                  "pt-BR"
-                )}
-              </td>
-
-              <td>
-                R$ {dinheiro(item.comissao)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table></div></section>
+      <MetricGrid items={report.metrics.map((item) => ({ ...item, value: metricValue(item) }))} />
+      {!report.rows.length ? <EmptyState title="Nenhum resultado" description={report.empty} /> : (
+        <section className="ops-panel">
+          <div className="ops-panel__header"><h2>{financial ? "Títulos do período" : commercial ? "Contrapartes consolidadas" : "Operações do período"}</h2><span>{report.rows.length} registro(s)</span></div>
+          <div className="ops-table-wrap"><table className="ops-table">
+            <thead><tr>
+              {!commercial && <th>Data operacional</th>}
+              <th>{financial ? "Contraparte" : report.config.type === "sales" ? "Cliente" : commercial ? "Contraparte" : "Fornecedor"}</th>
+              <th>Detalhes</th>
+              {!financial && <th>Volume</th>}
+              <th>{financial ? "Saldo" : "Valor"}</th>
+              {accessMode === "master" && !financial && <th>Comissão</th>}
+              <th>Fonte</th>
+            </tr></thead>
+            <tbody>{report.rows.map((item) => <tr key={item.key}>
+              {!commercial && <td>{formatDate(item.date)}</td>}
+              <td><strong>{item.party}</strong></td>
+              <td>{item.detail}</td>
+              {!financial && <td>{number.format(item.volume || 0)}</td>}
+              <td>{money.format(item.value || 0)}</td>
+              {accessMode === "master" && !financial && <td>{money.format(item.commission || 0)}</td>}
+              <td>{item.source}</td>
+            </tr>)}</tbody>
+          </table></div>
+        </section>
+      )}
     </div>
   );
+}
+
+export default function Relatorio({ empresaId, reportType }) {
+  return <EnterpriseReportShell empresaId={empresaId} reportType={reportType} accessMode="master" />;
 }

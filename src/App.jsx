@@ -543,10 +543,12 @@ export default function App() {
             (loginMaster ? (
               <Relatorio
                 empresaId={empresaId}
+                reportType={pagina}
               />
             ) : (
               <RelatorioUsuario
                 empresaId={empresaId}
+                reportType={pagina}
               />
             ))}
 
