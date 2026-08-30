@@ -143,6 +143,13 @@ test("consultas empresariais preservam empresa_id e não acessam tabelas pessoai
   assert.doesNotMatch(source, /created_at.*startDate|created_at.*endDate/);
 });
 
+test("consultas de vendas e compras usam somente campos de comissão existentes", async () => {
+  const source = await readFile(new URL("./services/enterpriseReports.service.js", import.meta.url), "utf8");
+  assert.match(source, /SALES_FIELDS = "[^"]*comissao[^"]*comissao_por_kg[^"]*data_venda"/);
+  assert.match(source, /LEGACY_PURCHASE_FIELDS = "[^"]*comissao[^"]*comissao_por_kg"/);
+  assert.doesNotMatch(source, /percentual_comissao|taxa_comissao|unidade_original/);
+});
+
 test("App passa reportType e mantém a distinção Master/usuário", async () => {
   const app = await readFile(new URL("./App.jsx", import.meta.url), "utf8");
   const reportTypeProps = app.match(/reportType=\{pagina\}/g) || [];

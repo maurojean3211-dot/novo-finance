@@ -9,9 +9,9 @@ export const ENTERPRISE_REPORTS = Object.freeze({
   relatorio_vendas: { title: "Relatório de Vendas", description: "Valores, volumes, clientes e comissões por data de venda.", type: "sales" },
 });
 
-const SALES_FIELDS = "id,empresa_id,cliente_nome,produto,kilos,valor,comissao,valor_por_kg,percentual_comissao,data_venda";
+const SALES_FIELDS = "id,empresa_id,cliente_nome,produto,kilos,valor,comissao,valor_por_kg,comissao_por_kg,data_venda";
 const CURRENT_PURCHASE_FIELDS = "id,empresa_id,fornecedor_id,fornecedor_snapshot,numero,status,data,previsao,valor_total,pedido_compra_itens(id,produto,descricao,quantidade,unidade,comissao)";
-const LEGACY_PURCHASE_FIELDS = "id,empresa_id,data_compra,fornecedor,produto,kilos,valor,comissao,comissao_por_kg,taxa_comissao,unidade_original";
+const LEGACY_PURCHASE_FIELDS = "id,empresa_id,data_compra,fornecedor,produto,kilos,valor,comissao,comissao_por_kg";
 
 async function querySales(empresaId) {
   const { supabase } = await import("../supabase.js");
