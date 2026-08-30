@@ -119,6 +119,41 @@ button:hover {
   opacity: 0.92;
 }
 
+:focus-visible {
+  outline: 2px solid #e1bd59;
+  outline-offset: 2px;
+}
+
+/* Harmonização de superfícies operacionais com azul-marinho, ouro e prata. */
+.app-shell :is(.card, .ops-panel, .command-panel, .executive-metric, .catalog-results, .dashboard-view-heading) {
+  border-color: #344155;
+}
+
+.app-shell :is(input:not([type="checkbox"]), select, textarea) {
+  border-color: #3a485c;
+  background-color: #0c1725;
+  color: #eef2f7;
+}
+
+.app-shell :is(input:not([type="checkbox"]), select, textarea):focus {
+  border-color: #c9a64b;
+  box-shadow: 0 0 0 3px rgba(201, 166, 75, 0.12);
+}
+
+.app-shell :is(th, thead td) {
+  color: #d8bf77;
+}
+
+.app-shell :is(table, .ops-table-wrap, .catalog-table-wrap) {
+  border-color: #344155;
+}
+
+.app-shell :is(button[type="submit"], .new-operation):not(.excluir) {
+  border-color: #d4b45b;
+  background: linear-gradient(135deg, #d1aa45, #9e7624);
+  color: #07101c;
+}
+
 button.excluir {
   background: #dc2626;
 }

@@ -118,12 +118,20 @@ export default function Login({ onLogin }) {
     <main className="login-page">
       <section className="login-showcase">
         <div className="login-showcase__glow" />
-        <div className="login-brand"><span>CF</span><div><strong>Cunha Finance</strong><small>Gestão inteligente</small></div></div>
+        <div className="login-brand">
+          <span className="login-brand__mark" aria-hidden="true"><img src="/cunha-c-premium.png" alt="" /></span>
+          <div><strong>Cunha Finance</strong><small>Gestão inteligente</small></div>
+        </div>
 
         <div className="login-presentation">
           <p className="login-eyebrow">Gestão empresarial, pessoal e novas oportunidades</p>
           <h1>Gestão inteligente para sua empresa, suas finanças e novas oportunidades.</h1>
           <p className="login-description">Financeiro, vendas, compras, estoque, produção, CRM, finanças pessoais, soluções em energia e representações em um único ecossistema.</p>
+
+          <div className="login-signature" aria-hidden="true">
+            <span className="login-signature__halo" />
+            <img src="/cunha-c-premium.png" alt="" />
+          </div>
 
           <div className="industry-visual" aria-hidden="true">
             <div className="industry-visual__grid" />
@@ -154,7 +162,7 @@ export default function Login({ onLogin }) {
 
       <section className="login-access">
         <div className="login-card">
-          <div className="login-card__logo"><img src={`${window.location.origin}/logo.png`} alt="Cunha Finance" /><span>CF</span></div>
+          <div className="login-card__logo"><img src="/cunha-c-premium.png" alt="" aria-hidden="true" /><span>Cunha Finance</span></div>
           <div className="login-card__heading"><span>Acesso seguro</span><h2>{modo === "login" ? "Bem-vindo de volta" : "Criar sua conta"}</h2><p>{modo === "login" ? "Entre com seus dados para acessar a plataforma." : "Preencha os dados para iniciar seu acesso."}</p></div>
 
           {mensagem && <div className={`login-message login-message--${mensagem.tipo}`} role="status">{mensagem.texto}</div>}

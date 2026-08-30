@@ -21,7 +21,7 @@ export default function Sidebar({ pagina, permissoes, loginMaster, platformAdmin
   return (
     <aside className="app-sidebar">
       <div className="app-brand">
-        <div className="app-brand__mark">CF</div>
+        <div className="app-brand__mark" aria-hidden="true"><img src="/cunha-c-premium.png" alt="" /></div>
         <div><strong>Cunha Finance</strong><small>Gestão inteligente</small></div>
       </div>
 

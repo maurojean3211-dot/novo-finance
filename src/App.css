@@ -293,3 +293,15 @@ border-radius:4px;
 }
 .access-state{display:grid;min-height:100dvh;place-items:center;padding:24px;background:#07101d;color:#f4f7fb}.access-state section,.access-denied{width:min(520px,100%);padding:28px;border:1px solid #293a51;border-radius:16px;background:#0d1827}.access-state span,.access-denied span{color:#6596eb;font-size:10px;font-weight:800;letter-spacing:.12em}.access-state h1,.access-denied h2{margin:9px 0}.access-state p,.access-denied p{color:#9aa8ba;line-height:1.5}.access-state button,.access-denied button{margin-top:12px;padding:11px 16px;border-radius:9px;background:#285fbf;color:#fff}.access-denied{margin:32px auto}
 .app-context-switch{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 12px 10px}.app-context-switch button{padding:8px 5px;border:1px solid #263b55;border-radius:7px;background:#0c1725;color:#7187a3;font-size:8px}.app-context-switch button.active{border-color:#4f78aa;background:#142a43;color:#d9e8fb}
+
+/* Identidade premium Cunha Finance, sem interferir na densidade operacional. */
+.app-shell{background:radial-gradient(circle at 80% 0,rgba(202,164,67,.09),transparent 27%),#050d18}
+.app-sidebar{border-right-color:#4d4124;background:linear-gradient(180deg,#0b1829 0%,#060f1b 100%)}
+.app-brand__mark{width:38px;height:38px;overflow:hidden;border-color:#987d36;background:#d7dce2;box-shadow:0 8px 24px rgba(0,0,0,.28),0 0 0 1px rgba(226,196,108,.08)}.app-brand__mark img{width:100%;height:100%;object-fit:cover}.app-brand small{color:#8b96a5}
+.app-company-card{border-color:#394354;background:linear-gradient(145deg,#111e2e,#0d1826)}.app-company-card small{color:#b9c3cf}
+.app-nav-button:hover{background:#131f2e;color:#edf1f6}.app-nav-button--active{border-color:#806a31;background:linear-gradient(90deg,rgba(188,145,43,.22),rgba(80,70,42,.06));color:#fff7df;box-shadow:inset 3px 0 #d4ad49}.app-nav-button--active span{color:#dfc46f}
+.app-nav-group--open .app-nav-group__toggle{color:#d1d8e1}.app-nav-group--open .app-nav-group__toggle>span{color:#c7aa5b}
+.mobile-nav-menu{border-color:#77612d;background:linear-gradient(160deg,#101d2d,#06101c)}.mobile-nav-menu__header{display:grid;grid-template-columns:32px 1fr auto;gap:8px;border-bottom-color:#4d4128}.mobile-nav-brand{display:block;width:30px;height:30px;overflow:hidden;border:1px solid #907631;border-radius:8px;background:#d7dce2}.mobile-nav-brand img{width:100%;height:100%;object-fit:cover}.mobile-nav-group__items button.is-active{border-color:#8b7131;background:#26251f;color:#fff7df;box-shadow:inset 3px 0 #d4ad49}
+.app-context-switch button.active{border-color:#9b8039;background:#28261e;color:#f2dfaa}
+
+@media(min-width:768px) and (max-height:800px){.app-brand__mark{width:32px;height:32px}}
