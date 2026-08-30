@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState, FilterBar, LoadingState, MetricGrid, ModuleHeader } from "./components/operations/OperationsUI";
 import { buildEnterpriseReport, loadEnterpriseReport } from "./services/enterpriseReports.service";
+import { generateEnterpriseReport } from "./services/reportPdf.service";
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const number = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 });
@@ -22,6 +23,7 @@ export function EnterpriseReportShell({ empresaId, reportType, accessMode }) {
   const [loadState, setLoadState] = useState({ key: "", data: null, error: "" });
   const [startDate, setStartDate] = useState(monthStart);
   const [endDate, setEndDate] = useState(today);
+  const [pdfFeedback, setPdfFeedback] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -52,6 +54,11 @@ export function EnterpriseReportShell({ empresaId, reportType, accessMode }) {
   const financial = report.config.type === "financial";
   const commercial = report.config.type === "commercial";
 
+  function generatePdf() {
+    const generated = generateEnterpriseReport({ report, reportType, accessMode, startDate, endDate });
+    setPdfFeedback(generated ? "PDF gerado com os dados empresariais filtrados." : "Nenhum registro encontrado para gerar o PDF.");
+  }
+
   return (
     <div className="ops-page">
       <ModuleHeader eyebrow="Inteligência gerencial" title={report.config.title} description={report.config.description} />
@@ -59,7 +66,9 @@ export function EnterpriseReportShell({ empresaId, reportType, accessMode }) {
         <label><span>De</span><input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></label>
         <label><span>Até</span><input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></label>
         <button type="button" onClick={() => { setStartDate(monthStart()); setEndDate(today()); }}>Mês atual</button>
+        <button type="button" className="primary" onClick={generatePdf}>Gerar PDF</button>
       </FilterBar>
+      {pdfFeedback && <div className="ops-status-panel" role="status">{pdfFeedback}</div>}
       <MetricGrid items={report.metrics.map((item) => ({ ...item, value: metricValue(item) }))} />
       {!report.rows.length ? <EmptyState title="Nenhum resultado" description={report.empty} /> : (
         <section className="ops-panel">

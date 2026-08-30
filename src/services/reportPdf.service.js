@@ -388,6 +388,82 @@ export function generatePersonalFinanceReport(options) {
   return true;
 }
 
+const ENTERPRISE_PDF_FILENAMES = Object.freeze({
+  relatorio_comercial: "relatorio-comercial",
+  relatorio_financeiro: "relatorio-financeiro",
+  relatorio_compras: "relatorio-compras",
+  relatorio_vendas: "relatorio-vendas",
+});
+
+function enterpriseMetricValue(item) {
+  if (item.money) return formatMoney(item.value);
+  return `${formatNumber(item.value)}${item.suffix || ""}`;
+}
+
+function enterprisePdfColumns(type, showCommission) {
+  if (type === "financial") return [
+    { key: "date", label: "Vencimento", width: 70 },
+    { key: "party", label: "Contraparte", width: 180 },
+    { key: "detail", label: "Tipo / status", width: 220 },
+    { key: "value", label: "Saldo", width: 120 },
+    { key: "source", label: "Fonte", width: 195 },
+  ];
+  if (type === "commercial") return [
+    { key: "party", label: "Contraparte", width: 160 },
+    { key: "detail", label: "Tipo", width: 120 },
+    { key: "volume", label: "Volume", width: 100 },
+    { key: "value", label: "Valor", width: 120 },
+    ...(showCommission ? [{ key: "commission", label: "Comissão", width: 110 }] : []),
+    { key: "source", label: "Fonte", width: showCommission ? 135 : 245 },
+  ];
+  return [
+    { key: "date", label: "Data operacional", width: 75 },
+    { key: "party", label: type === "sales" ? "Cliente" : "Fornecedor", width: 150 },
+    { key: "detail", label: "Detalhes", width: 180 },
+    { key: "volume", label: "Volume", width: 90 },
+    { key: "value", label: "Valor", width: 105 },
+    ...(showCommission ? [{ key: "commission", label: "Comissão", width: 100 }] : []),
+    { key: "source", label: "Fonte", width: showCommission ? 85 : 185 },
+  ];
+}
+
+export function buildEnterpriseReportPdfData({ report, reportType, accessMode = "user", startDate = "", endDate = "", companyName = "Cunha Finance", issuedBy }) {
+  if (!report?.rows?.length) return null;
+  const type = report.config?.type || "commercial";
+  const showCommission = accessMode === "master" && type !== "financial";
+  const summary = (report.metrics || [])
+    .filter((item) => showCommission || item.label !== "Comissões")
+    .map((item) => ({ label: item.label, value: enterpriseMetricValue(item) }));
+  const rows = report.rows.map((item) => ({
+    date: formatDate(item.date),
+    party: item.party || "Não informado",
+    detail: item.detail || "-",
+    volume: formatNumber(item.volume),
+    value: formatMoney(item.value),
+    ...(showCommission ? { commission: formatMoney(item.commission) } : {}),
+    source: item.source || "Não informada",
+  }));
+  return {
+    title: report.config?.title || "Relatório Empresarial",
+    companyName,
+    period: describePeriod(startDate, endDate),
+    issuedBy: issuedBy || (accessMode === "master" ? "Master Admin" : "Usuário autenticado"),
+    summary,
+    columns: enterprisePdfColumns(type, showCommission),
+    rows,
+    totals: summary.map((item) => `${item.label}: ${item.value}`).join(" | "),
+    filename: ENTERPRISE_PDF_FILENAMES[reportType] || "relatorio-empresarial",
+  };
+}
+
+export function generateEnterpriseReport(options) {
+  const pdf = buildEnterpriseReportPdfData(options);
+  if (!pdf) return false;
+  const { filename, ...document } = pdf;
+  downloadPdf(generateReportPdfBytes(document), `${filename}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  return true;
+}
+
 function includesText(value, filter) {
   return !filter || String(value || "").toLocaleLowerCase("pt-BR").includes(String(filter).toLocaleLowerCase("pt-BR"));
 }
