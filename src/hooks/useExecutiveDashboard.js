@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabase";
-import { calculateDashboardMetrics, resolvePeriod } from "../components/dashboard/dashboardMetrics";
+import { calculateDashboardMetrics, normalizeDashboardReceivables, resolvePeriod } from "../components/dashboard/dashboardMetrics";
 
 const TABLES = {
   lancamentos: "id, descricao, valor, tipo, data_lancamento, created_at",
   vendas: "*",
   compras: "*",
-  recebimentos: "id, cliente_nome, valor, status, data_vencimento, created_at",
+  recebimentos: "id, cliente_id, valor, status, data_vencimento, created_at",
   clientes: "id, nome, created_at",
   estoque: "id, estoque_atual, estoque_reservado, estoque_disponivel, estoque_minimo, ponto_reposicao, custo_unitario",
   pedidos_compra: "id, fornecedor_id, fornecedor_snapshot, status, valor_total, data, previsao",
@@ -50,6 +50,7 @@ export default function useExecutiveDashboard(empresaId, initialPeriod = "month"
             nextErrors[table] = result?.error?.message || settled.reason?.message || "Falha na consulta";
           } else nextData[table] = result.data || [];
         });
+        nextData.recebimentos = normalizeDashboardReceivables(nextData.recebimentos, nextData.clientes);
         return nextData;
       });
       loadedCompany.current = empresaId;

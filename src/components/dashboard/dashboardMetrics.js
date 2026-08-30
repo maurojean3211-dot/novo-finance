@@ -15,6 +15,13 @@ export const safeNumber = (value) => {
   return Number.isFinite(number) ? number : 0;
 };
 export const moneyValue = (item) => safeNumber(item?.valor ?? item?.valor_total);
+export function normalizeDashboardReceivables(receivables = [], customers = []) {
+  const customerNames = new Map(customers.map((customer) => [String(customer.id), customer.nome]));
+  return receivables.map((receivable) => ({
+    ...receivable,
+    cliente_nome: customerNames.get(String(receivable.cliente_id)) || "Cliente",
+  }));
+}
 export function localIsoDate(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
