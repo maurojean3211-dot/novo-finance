@@ -125,7 +125,7 @@ export default function Login({ onLogin }) {
 
         <div className="login-presentation">
           <p className="login-eyebrow">Gestão empresarial, pessoal e novas oportunidades</p>
-          <h1>Gestão inteligente para sua empresa, suas finanças e novas oportunidades.</h1>
+          <h1>Gestão inteligente para sua empresa, suas finanças e <span>novas oportunidades.</span></h1>
           <p className="login-description">Financeiro, vendas, compras, estoque, produção, CRM, finanças pessoais, soluções em energia e representações em um único ecossistema.</p>
 
           <div className="login-signature" aria-hidden="true">
