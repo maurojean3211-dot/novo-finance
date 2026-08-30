@@ -35,15 +35,16 @@ function personalTransactionPayload(values, tipo, empresaId, userId) {
 export async function savePersonalTransaction({ empresaId, userId, tipo, id, values }) {
   const payload = personalTransactionPayload(values, tipo, empresaId, userId);
   const query = id
-    ? supabase.from("despesas").update(payload).eq("id", id).eq("empresa_id", empresaId).eq("tipo", tipo)
+    ? supabase.from("despesas").update(payload).eq("id", id).eq("empresa_id", empresaId).eq("proprietario_id", userId).eq("tipo", tipo)
     : supabase.from("despesas").insert([payload]);
   const { error } = await query;
   if (error && !(error.code === "23505" && !id)) throw error;
 }
 
-export async function deletePersonalTransaction({ empresaId, tipo, id }) {
+export async function deletePersonalTransaction({ empresaId, userId, tipo, id }) {
   requireScope(empresaId);
-  const { error } = await supabase.from("despesas").delete().eq("id", id).eq("empresa_id", empresaId).eq("tipo", tipo);
+  if (!userId) throw new Error("Proprietário não identificado.");
+  const { error } = await supabase.from("despesas").delete().eq("id", id).eq("empresa_id", empresaId).eq("proprietario_id", userId).eq("tipo", tipo);
   if (error) throw error;
 }
 
@@ -76,9 +77,10 @@ export async function savePersonalFixedExpense({ empresaId, userId, id, values }
   if (error) throw error;
 }
 
-export async function deletePersonalFixedExpense({ empresaId, id }) {
+export async function deletePersonalFixedExpense({ empresaId, userId, id }) {
   requireScope(empresaId);
-  const { error } = await supabase.from("financeiro_recorrencias").update({ ativo: false }).eq("id", id).eq("empresa_id", empresaId);
+  if (!userId) throw new Error("Proprietário não identificado.");
+  const { error } = await supabase.from("financeiro_recorrencias").update({ ativo: false }).eq("id", id).eq("empresa_id", empresaId).eq("proprietario_id", userId).eq("escopo", "Pessoal");
   if (error) throw error;
 }
 
