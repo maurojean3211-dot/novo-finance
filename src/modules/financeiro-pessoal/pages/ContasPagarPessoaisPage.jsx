@@ -77,6 +77,7 @@ export default function ContasPagarPessoaisPage({ empresaId, userId }) {
     setFeedback({ type: "success", message: "Conta cadastrada após revisão e confirmação." });
   }
   function openEdit(item) {
+    if (item.status === "Pago") { setFeedback({ type: "error", message: "Conta paga possui dados financeiros imutáveis. Estorne o pagamento antes de editar." }); return; }
     if (item.grupo_parcelamento_id) { void openGroup(item.grupo_parcelamento_id); return; }
     setEditingId(item.id); setForm({ ...emptyForm, fornecedor: item.fornecedor || "", descricao: item.descricao || "", valor: item.valor || "", vencimento: String(item.vencimento || "").slice(0, 10), status: item.status || "Pendente", categoria: item.categoria || "", observacoes: item.observacoes || "" }); setIdempotencyKey(""); setFeedback(null); setModalOpen(true);
   }

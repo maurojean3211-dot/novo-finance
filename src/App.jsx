@@ -9,6 +9,7 @@ import Fornecedores from "./Fornecedores.jsx";
 import Login from "./Login";
 import ResetPassword from "./ResetPassword";
 import MasterAdmin from "./MasterAdmin";
+import TenantUsers from "./TenantUsers";
 import Produtos from "./Produtos.jsx";
 import Relatorio from "./Relatorio.jsx";
 import RelatorioUsuario from "./RelatorioUsuario.jsx";
@@ -19,7 +20,7 @@ import useAppNavigation from "./app/navigation/useAppNavigation";
 import { findMenuItem } from "./app/navigation/menuConfig";
 import {
   canAccessPage,
-  isMasterUser,
+  hasPlatformAdminAccess,
 } from "./app/auth/accessPolicy";
 
 import useAuth from "./app/providers/useAuth";
@@ -52,6 +53,11 @@ import {
 
 const ENTRY_SESSION_KEY = "cunha-finance";
 
+function isPasswordSetupCallback() {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return ["invite", "recovery"].includes(hash.get("type"));
+}
+
 function lastPageKey(userId) {
   return `cunha-finance:last-page:${userId}`;
 }
@@ -66,9 +72,17 @@ export default function App() {
     nomeEmpresa,
     role,
     masterAdmin,
+    contextoMaster,
+    alterarContextoMaster,
+    tipoCliente,
+    plano,
+    statusAssinatura,
     authIssue,
     sair,
   } = useAuth();
+
+  const platformAdmin = hasPlatformAdminAccess(masterAdmin);
+  const loginMaster = platformAdmin && contextoMaster === "administracao";
 
   const { pagina, navigate } = useAppNavigation();
   const [commercialNavigation, setCommercialNavigation] = useState(null);
@@ -124,11 +138,18 @@ export default function App() {
 
     setEnteredUserId(userId);
 
+    if (loginMaster) {
+      navigate("master");
+      return;
+    }
+
+    const defaultPage = tipoCliente === "PF" ? "financeiro_pessoal" : "dashboard";
+
     if (
       window.location.pathname ===
       "/prospeccao"
     ) {
-      navigate("prospeccao");
+      navigate(canAccessPage("prospeccao", permissoes, false) ? "prospeccao" : defaultPage);
       return;
     }
 
@@ -138,11 +159,13 @@ export default function App() {
           lastPageKey(userId)
         );
 
-      if (savedPage) {
+      if (savedPage && canAccessPage(savedPage, permissoes, false)) {
         navigate(savedPage);
+      } else {
+        navigate(defaultPage);
       }
     } catch {
-      // Mantém a página atual.
+      navigate(defaultPage);
     }
   }
 
@@ -179,9 +202,7 @@ export default function App() {
     }
   }
 
-  if (
-    window.location.pathname === "/reset"
-  ) {
+  if (window.location.pathname === "/reset" || isPasswordSetupCallback()) {
     return <ResetPassword />;
   }
 
@@ -211,7 +232,7 @@ export default function App() {
     return <Login />;
   }
 
-  if (authIssue || !empresaId) {
+  if (authIssue || (!empresaId && !loginMaster)) {
     return (
       <main className="access-state">
         <section>
@@ -251,15 +272,11 @@ export default function App() {
     );
   }
 
-  const loginMaster = isMasterUser(role, masterAdmin);
-
   const menuItem = findMenuItem(pagina);
 
-  const acessoPermitido = canAccessPage(
-    pagina,
-    permissoes,
-    loginMaster
-  );
+  const acessoPermitido = pagina === "master"
+    ? loginMaster
+    : canAccessPage(pagina, permissoes, false);
 
   const paginaRelatorio = [
     "relatorio",
@@ -275,6 +292,15 @@ export default function App() {
       permissoes={permissoes}
       loginMaster={loginMaster}
       nomeEmpresa={nomeEmpresa}
+      plano={plano}
+      statusAssinatura={statusAssinatura}
+      tipoCliente={tipoCliente}
+      platformAdmin={platformAdmin}
+      contextoMaster={contextoMaster}
+      onMasterContextChange={(contexto) => {
+        alterarContextoMaster(contexto);
+        navigate(contexto === "administracao" ? "master" : tipoCliente === "PF" ? "financeiro_pessoal" : "dashboard");
+      }}
       onNavigate={navigate}
       onLogout={startLogout}
     >
@@ -295,7 +321,7 @@ export default function App() {
           <button
             type="button"
             onClick={() =>
-              navigate("dashboard")
+              navigate(loginMaster ? "master" : tipoCliente === "PF" ? "financeiro_pessoal" : "dashboard")
             }
           >
             Voltar ao Dashboard
@@ -426,12 +452,14 @@ export default function App() {
           {pagina === "receitas_pessoais" && (
             <ReceitasPessoaisPage
               empresaId={empresaId}
+              userId={session.user.id}
             />
           )}
 
           {pagina === "despesas_pessoais" && (
             <DespesasPessoaisPage
               empresaId={empresaId}
+              userId={session.user.id}
             />
           )}
 
@@ -454,6 +482,7 @@ export default function App() {
           {pagina === "contas_fixas_pessoais" && (
             <ContasFixasPessoaisIsoladasPage
               empresaId={empresaId}
+              userId={session.user.id}
             />
           )}
 
@@ -503,6 +532,8 @@ export default function App() {
 
           {pagina === "master" &&
             loginMaster && <MasterAdmin />}
+
+          {pagina === "usuarios" && <TenantUsers />}
 
           {pagina === "admin" && (
             <Admin />

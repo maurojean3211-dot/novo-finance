@@ -1,7 +1,13 @@
-import { canAccessMenuItem, findMenuItem } from "../navigation/menuConfig";
+import { canAccessMenuItem, findMenuItem } from "../navigation/menuConfig.js";
+
+export const PLATFORM_ADMIN = "PLATFORM_ADMIN";
+
+export function hasPlatformAdminAccess(masterAdmin) {
+  return masterAdmin === true;
+}
 
 export function isMasterUser(role, masterAdmin) {
-  return String(role || "").trim().toLowerCase() === "master" || masterAdmin === true;
+  return hasPlatformAdminAccess(masterAdmin) || String(role || "").trim().toLowerCase() === "master";
 }
 
 export function canAccessPage(page, permissions, master) {

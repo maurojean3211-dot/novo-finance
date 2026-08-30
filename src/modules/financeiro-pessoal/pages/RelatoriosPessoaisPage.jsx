@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PersonalFinanceHeader from "../components/PersonalFinanceHeader";
 import PersonalFinanceMetrics from "../components/PersonalFinanceMetrics";
 import { usePersonalExpensesRead, usePersonalFixedExpensesRead, usePersonalIncomesRead, usePersonalPayablesRead, usePersonalPaymentEventsRead } from "../hooks/usePersonalFinanceRead";
 import { dateLabel, money } from "../utils/personalFinance";
+import { loadPersonalFinanceServerTime } from "../services/personalFinance.service";
+import { buildPersonalFinanceReportData, generatePersonalFinanceReport } from "../../../services/reportPdf.service";
 
 const today = new Date();
 const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -23,11 +25,11 @@ function filterByPeriod(records, filters, getDate = dateValue) {
 }
 
 function PayablesPanel({ records }) {
-  const statuses = ["Pago", "Pendente", "Cancelada"].map((status) => {
-    const matches = records.filter((item) => item.status === status);
+  const statuses = ["Pago", "Pendente", "Vencida", "Cancelada"].map((status) => {
+    const matches = records.filter((item) => (item.reportStatus || item.status) === status);
     return { status, count: matches.length, total: valueOf(matches) };
   });
-  return <section className="ops-panel pf-payables-report"><div className="ops-panel__header"><div><h2>Contas a Pagar Pessoais</h2><span>Valores somados por parcela; o total da compra é apenas metadado</span></div><span>{records.length} conta(s) no período</span></div><div className="pf-payables-report__summary">{statuses.map((item) => <article key={item.status}><span>{item.status}</span><strong>{money(item.total)}</strong><small>{item.count} conta(s)</small></article>)}</div>{records.length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Descrição</th><th>Parcela</th><th>Status</th><th>Valor</th></tr></thead><tbody>{records.map((item) => <tr key={item.id}><td>{dateLabel(item.vencimento)}</td><td>{item.fornecedor || "—"}</td><td>{item.descricao || "—"}</td><td>{item.grupo_parcelamento_id ? `${item.parcela_numero}/${item.parcelas_total}` : "—"}</td><td><span className={`pf-status ${item.status === "Pago" ? "paid" : item.status === "Cancelada" ? "late" : "pending"}`}>{item.status}</span></td><td>{money(item.valor)}</td></tr>)}</tbody></table></div> : <div className="pf-report-empty">Nenhuma conta a pagar pessoal com vencimento no período selecionado.</div>}</section>;
+  return <section className="ops-panel pf-payables-report"><div className="ops-panel__header"><div><h2>Contas a Pagar Pessoais</h2><span>Valores somados por parcela; o total da compra é apenas metadado</span></div><span>{records.length} conta(s) no período</span></div><div className="pf-payables-report__summary">{statuses.map((item) => <article key={item.status}><span>{item.status}</span><strong>{money(item.total)}</strong><small>{item.count} conta(s)</small></article>)}</div>{records.length ? <div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Vencimento</th><th>Fornecedor</th><th>Descrição</th><th>Parcela</th><th>Status</th><th>Valor</th></tr></thead><tbody>{records.map((item) => { const status = item.reportStatus || item.status; return <tr key={item.id}><td>{dateLabel(item.vencimento)}</td><td>{item.fornecedor || "—"}</td><td>{item.descricao || "—"}</td><td>{item.grupo_parcelamento_id ? `${item.parcela_numero}/${item.parcelas_total}` : "—"}</td><td><span className={`pf-status ${status === "Pago" ? "paid" : ["Cancelada", "Vencida"].includes(status) ? "late" : "pending"}`}>{status}</span></td><td>{money(item.valor)}</td></tr>; })}</tbody></table></div> : <div className="pf-report-empty">Nenhuma conta a pagar pessoal com vencimento no período selecionado.</div>}</section>;
 }
 
 function PaymentEventsPanel({ events, payables }) {
@@ -49,27 +51,29 @@ function CategoryPanel({ title, records, emptyText }) {
 }
 
 export default function RelatoriosPessoaisPage({ empresaId, userId }) {
-  const incomes = usePersonalIncomesRead(empresaId);
-  const expenses = usePersonalExpensesRead(empresaId);
-  const fixedExpenses = usePersonalFixedExpensesRead(empresaId);
+  const incomes = usePersonalIncomesRead(empresaId, userId);
+  const expenses = usePersonalExpensesRead(empresaId, userId);
+  const fixedExpenses = usePersonalFixedExpensesRead(empresaId, userId);
   const payables = usePersonalPayablesRead(empresaId, userId);
   const paymentEvents = usePersonalPaymentEventsRead(empresaId, userId);
   const [filters, setFilters] = useState({ month: currentMonth, start: "", end: "" });
+  const [serverNow, setServerNow] = useState(null);
+  const [serverDateError, setServerDateError] = useState("");
+  const [pdfFeedback, setPdfFeedback] = useState("");
+  useEffect(() => { let active = true; void loadPersonalFinanceServerTime().then((value) => { if (active) { setServerNow(value); setServerDateError(""); } }).catch((cause) => { if (active) setServerDateError(cause.message || "Não foi possível obter a data do servidor."); }); return () => { active = false; }; }, []);
   const filteredIncomes = useMemo(() => filterByPeriod(incomes.records, filters), [incomes.records, filters]);
-  const filteredExpenses = useMemo(() => filterByPeriod(expenses.records, filters), [expenses.records, filters]);
+  const filteredExpenses = useMemo(() => filterByPeriod(expenses.records.filter((item) => !item.pagamento_evento_id), filters), [expenses.records, filters]);
   const filteredPayables = useMemo(() => filterByPeriod(payables.records, filters, (record) => String(record.vencimento || "").slice(0, 10)), [payables.records, filters]);
   const filteredPaymentEvents = useMemo(() => filterByPeriod(paymentEvents.records, filters, (record) => String(record.pago_em || "").slice(0, 10)), [paymentEvents.records, filters]);
-  const reversedIds = useMemo(() => new Set(paymentEvents.records.filter((event) => event.tipo === "Estorno").map((event) => event.estorno_de_evento_id)), [paymentEvents.records]);
-  const activePaymentEvents = filteredPaymentEvents.filter((event) => ["Pagamento", "Antecipacao"].includes(event.tipo) && !reversedIds.has(event.id));
-  const effectiveOutflow = activePaymentEvents.reduce((sum, event) => sum + Number(event.valor_pago || 0), 0);
-  const savings = activePaymentEvents.reduce((sum, event) => sum + Number(event.desconto_obtido || 0), 0);
+  const consolidated = useMemo(() => serverNow ? buildPersonalFinanceReportData({ incomes: incomes.records, expenses: expenses.records, fixedExpenses: fixedExpenses.records, payables: payables.records, paymentEvents: paymentEvents.records, empresaId, userId, filters, serverNow }) : null, [empresaId, expenses.records, filters, fixedExpenses.records, incomes.records, payables.records, paymentEvents.records, serverNow, userId]);
   const incomeTotal = valueOf(filteredIncomes);
   const expenseTotal = valueOf(filteredExpenses);
+  const classifiedExpenses = filteredExpenses.map((item) => ({ ...item, categoria: item.classificacao_financeira || "Variável não essencial" }));
   const balance = incomeTotal - expenseTotal;
-  const fixedMonthly = valueOf(fixedExpenses.records.filter((item) => item.ativo !== false));
-  const payablesTotal = valueOf(filteredPayables);
-  const paidPayables = filteredPayables.filter((item) => item.status === "Pago");
-  const pendingPayables = filteredPayables.filter((item) => item.status === "Pendente");
+  const fixedMonthly = consolidated?.totals.fixedMonthly || 0;
+  const payablesTotal = consolidated?.totals.activePayablesTotal || 0;
+  const paidPayables = consolidated?.paid || [];
+  const pendingPayables = consolidated?.pending || [];
   const loading = incomes.loading || expenses.loading || fixedExpenses.loading || payables.loading || paymentEvents.loading;
   const errors = [incomes.error, expenses.error, fixedExpenses.error, payables.error, paymentEvents.error].filter(Boolean);
 
@@ -93,19 +97,26 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
   function setMonth(month) { setFilters({ month, start: "", end: "" }); }
   function setRange(key, value) { setFilters((current) => ({ ...current, month: "", [key]: value })); }
   function clearFilters() { setFilters({ month: "", start: "", end: "" }); }
+  function generatePdf() {
+    if (!serverNow) { setPdfFeedback(serverDateError || "Aguarde a referência de data do servidor."); return; }
+    const generated = generatePersonalFinanceReport({ incomes: incomes.records, expenses: expenses.records, fixedExpenses: fixedExpenses.records, payables: payables.records, paymentEvents: paymentEvents.records, empresaId, userId, filters, serverNow });
+    setPdfFeedback(generated ? "PDF gerado com os dados pessoais filtrados." : "Nenhum dado encontrado para gerar o PDF.");
+  }
 
   return <main className="ops-page pf-page"><PersonalFinanceHeader title="Relatórios Pessoais" description="Receitas, despesas e compromissos pessoais consolidados sem dados empresariais." />
     <div className="pf-demo-badge">Dados reais do Financeiro Pessoal · visualização somente leitura</div>
-    <section className="ops-panel pf-report-filters"><label>Mês<input type="month" value={filters.month} onChange={(event) => setMonth(event.target.value)} /></label><span>ou</span><label>De<input type="date" value={filters.start} onChange={(event) => setRange("start", event.target.value)} /></label><label>Até<input type="date" value={filters.end} onChange={(event) => setRange("end", event.target.value)} /></label><button type="button" onClick={clearFilters}>Todo o período</button></section>
+    <section className="ops-panel pf-report-filters"><label>Mês<input type="month" value={filters.month} onChange={(event) => setMonth(event.target.value)} /></label><span>ou</span><label>De<input type="date" value={filters.start} onChange={(event) => setRange("start", event.target.value)} /></label><label>Até<input type="date" value={filters.end} onChange={(event) => setRange("end", event.target.value)} /></label><button type="button" onClick={clearFilters}>Todo o período</button><button type="button" className="primary" onClick={generatePdf} disabled={loading || !serverNow}>Gerar PDF</button></section>
+    {(serverDateError || pdfFeedback) && <section className="ops-status-panel">{serverDateError || pdfFeedback}</section>}
     {errors.length > 0 && <section className="ops-status-panel">Não foi possível carregar parte dos dados pessoais: {errors.join(" · ")}</section>}
     {loading && <section className="ops-status-panel">Carregando dados pessoais existentes…</section>}
-    <PersonalFinanceMetrics items={[{ label: "Receitas no período", value: money(incomeTotal), detail: `${filteredIncomes.length} lançamento(s)`, icon: "↗", tone: "green" }, { label: "Despesas no período", value: money(expenseTotal), detail: `${filteredExpenses.length} lançamento(s)`, icon: "↘", tone: "amber" }, { label: "Saldo do período", value: money(balance), detail: balance >= 0 ? "resultado positivo" : "resultado negativo", icon: "R$", tone: balance >= 0 ? "green" : "rose" }, { label: "Contas fixas mensais", value: money(fixedMonthly), detail: `${fixedExpenses.records.length} conta(s) existente(s)`, icon: "🔁" }, { label: "Contas a pagar no período", value: money(payablesTotal), detail: `${filteredPayables.length} conta(s)`, icon: "◷" }]} />
+    <PersonalFinanceMetrics items={[{ label: "Receitas no período", value: money(incomeTotal), detail: `${filteredIncomes.length} lançamento(s)`, icon: "↗", tone: "green" }, { label: "Despesas no período", value: money(expenseTotal), detail: `${filteredExpenses.length} lançamento(s)`, icon: "↘", tone: "amber" }, { label: "Saldo receitas x despesas", value: money(balance), detail: "não inclui pagamentos de contas para evitar duplicidade", icon: "R$", tone: balance >= 0 ? "green" : "rose" }, { label: "Contas fixas mensais", value: money(fixedMonthly), detail: `${fixedExpenses.records.length} conta(s) existente(s)`, icon: "🔁" }, { label: "Obrigações ativas", value: money(payablesTotal), detail: `${(consolidated?.pending.length || 0) + (consolidated?.overdue.length || 0)} conta(s)`, icon: "◷" }]} />
     <section className="pf-payables-report__totals"><article><span>Pago</span><strong>{money(valueOf(paidPayables))}</strong><small>{paidPayables.length} conta(s)</small></article><article><span>Pendente</span><strong>{money(valueOf(pendingPayables))}</strong><small>{pendingPayables.length} conta(s)</small></article></section>
-    <section className="pf-payables-report__totals"><article><span>Desembolso efetivo em eventos</span><strong>{money(effectiveOutflow)}</strong><small>Somente pagamentos novos não estornados</small></article><article><span>Economia por antecipação</span><strong>{money(savings)}</strong><small>Desconto real registrado</small></article></section>
+    <section className="pf-payables-report__totals"><article><span>Pagamentos realizados em Contas a Pagar</span><strong>{money(consolidated?.totals.effectiveOutflow || 0)}</strong><small>Pagamentos + entradas + antecipações − estornos; separados das despesas lançadas</small></article><article><span>Antecipações</span><strong>{money(consolidated?.totals.anticipationTotal || 0)}</strong><small>Pagamentos antecipados identificados pelo evento</small></article><article><span>Economia por antecipação</span><strong>{money(consolidated?.totals.savings || 0)}</strong><small>Desconto real registrado</small></article></section>
     <section className="pf-report-chart-grid"><article className="ops-panel pf-real-report"><div className="ops-panel__header"><h2>Receitas x despesas</h2><span>Comparação mensal</span></div>{monthly.length ? <div className="pf-real-bars">{monthly.map((item) => <div key={item.month}><div><i style={{ height: `${item.income / chartMax * 100}%` }} title={`Receitas ${money(item.income)}`} /><b style={{ height: `${item.expense / chartMax * 100}%` }} title={`Despesas ${money(item.expense)}`} /></div><small>{monthLabel(item.month)}</small></div>)}</div> : <div className="pf-report-empty">Nenhuma receita ou despesa real no período selecionado.</div>}<footer><span className="income-dot" /> Receitas <span className="expense-dot" /> Despesas</footer></article>
       <article className="ops-panel pf-real-report"><div className="ops-panel__header"><h2>Evolução do saldo</h2><span>Acumulado no período</span></div>{monthly.length ? <div className="pf-balance-report">{monthly.map((item) => <div key={item.month}><span>{monthLabel(item.month)}</span><i><b className={item.accumulated < 0 ? "negative" : ""} style={{ width: `${Math.abs(item.accumulated) / chartMax * 100}%` }} /></i><strong>{money(item.accumulated)}</strong></div>)}</div> : <div className="pf-report-empty">Sem saldo mensal para apresentar.</div>}</article></section>
     <section className="pf-report-chart-grid"><CategoryPanel title="Despesas por categoria" records={filteredExpenses} emptyText="Nenhuma despesa real categorizada no período." /><CategoryPanel title="Receitas por categoria/origem" records={filteredIncomes} emptyText="Nenhuma receita real categorizada no período." /></section>
-    <PayablesPanel records={filteredPayables} />
-    <PaymentEventsPanel events={filteredPaymentEvents} payables={payables.records} />
+    <section className="pf-report-chart-grid"><CategoryPanel title="Despesas por classificação" records={classifiedExpenses} emptyText="Nenhuma despesa classificada no período." /></section>
+    <PayablesPanel records={consolidated?.filteredPayables || filteredPayables} />
+    <PaymentEventsPanel events={consolidated?.filteredPaymentEvents || filteredPaymentEvents} payables={payables.records} />
   </main>;
 }

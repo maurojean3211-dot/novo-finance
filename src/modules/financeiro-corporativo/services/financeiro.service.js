@@ -18,7 +18,7 @@ export async function loadFinanceServerTime() {
 
 export async function loadCorporateFinance(empresaId) {
   const empresa = company(empresaId);
-  const [titles, settlements, reconciliations, history, purchaseInstallments, sales, budgets] = await Promise.all([
+  const [titles, settlements, reconciliations, history, purchaseInstallments, sales, budgets, recurrences] = await Promise.all([
     supabase.from("financeiro_titulos").select("*").eq("empresa_id", empresa).order("vencimento"),
     supabase.from("financeiro_baixas").select("*").eq("empresa_id", empresa).order("created_at", { ascending: false }),
     supabase.from("financeiro_conciliacoes").select("*").eq("empresa_id", empresa).order("created_at", { ascending: false }),
@@ -26,6 +26,7 @@ export async function loadCorporateFinance(empresaId) {
     supabase.from("pedido_compra_parcelas").select("*,pedidos_compra!inner(id,numero,status,fornecedor_id,fornecedor_snapshot,observacoes)").eq("empresa_id", empresa).eq("status", "Pendente"),
     supabase.from("vendas").select("id,empresa_id,cliente_nome,produto,valor,data_venda").eq("empresa_id", empresa).order("data_venda", { ascending: false }).limit(100),
     supabase.from("orcamentos").select("id,numero,status,cliente_id,cliente_snapshot,valor_final,data,validade").eq("empresa_id", empresa).eq("status", "Aprovado").order("data", { ascending: false }).limit(100),
+    supabase.from("financeiro_recorrencias").select("*").eq("empresa_id", empresa).eq("escopo", "Empresarial").order("descricao"),
   ]);
   const core = [titles, settlements, reconciliations, history];
   const coreError = core.find((result) => result.error)?.error;
@@ -33,9 +34,21 @@ export async function loadCorporateFinance(empresaId) {
   return {
     titles: titles.data || [], settlements: settlements.data || [], reconciliations: reconciliations.data || [], history: history.data || [],
     purchaseInstallments: purchaseInstallments.error ? [] : purchaseInstallments.data || [],
-    sales: sales.error ? [] : sales.data || [], budgets: budgets.error ? [] : budgets.data || [],
+    sales: sales.error ? [] : sales.data || [], budgets: budgets.error ? [] : budgets.data || [], recurrences: recurrences.error ? [] : recurrences.data || [],
     unavailable: { purchases: purchaseInstallments.error?.message, sales: sales.error?.message, budgets: budgets.error?.message },
   };
+}
+
+export async function saveCorporateRecurrence({ empresaId, values }) {
+  const payload = { empresa_id: company(empresaId), proprietario_id: null, escopo: "Empresarial", descricao: values.description.trim(), contraparte: values.party?.trim() || null, classificacao: values.classification, valor_previsto: Number(values.value), dia_vencimento: Number(values.dueDay), data_inicio: values.startDate, data_fim: values.endDate || null, frequencia: "Mensal", ativo: true, centro_custo: values.costCenter?.trim() || null, observacoes: values.notes?.trim() || null, gerar_automaticamente: true };
+  const { error } = await supabase.from("financeiro_recorrencias").insert(payload);
+  if (error) throw error;
+}
+
+export async function generateCorporateRecurringTitles({ competencia }) {
+  const { data, error } = await supabase.rpc("gerar_titulos_recorrentes", { p_competencia: `${competencia}-01`, p_recorrencia_id: null });
+  if (error) throw error;
+  return (data || []).filter((item) => item.escopo === "Empresarial");
 }
 
 export async function registerTitle({ empresaId, title }) {

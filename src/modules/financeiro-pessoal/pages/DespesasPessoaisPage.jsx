@@ -5,11 +5,14 @@ import PersonalTransactionModal from "../components/PersonalTransactionModal";
 import { usePersonalExpensesRead } from "../hooks/usePersonalFinanceRead";
 import { deletePersonalTransaction, savePersonalTransaction } from "../services/personalFinance.service";
 import { dateLabel, money } from "../utils/personalFinance";
+import { manualPersonalExpenses } from "../utils/personalFinanceCalculations";
 
 const emptyForm = { descricao: "", valor: "", data: "", categoria: "" };
 
-export default function DespesasPessoaisPage({ empresaId }) {
-  const { records, loading, error, reload } = usePersonalExpensesRead(empresaId);
+export default function DespesasPessoaisPage({ empresaId, userId }) {
+  const source = usePersonalExpensesRead(empresaId, userId);
+  const { loading, error, reload } = source;
+  const records = manualPersonalExpenses(source.records);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -22,20 +25,20 @@ export default function DespesasPessoaisPage({ empresaId }) {
   function openNew() { setEditingId(null); setForm(emptyForm); setModalOpen(true); setFeedback(null); }
   function openEdit(item) { setEditingId(item.id); setForm({ descricao: item.descricao || "", valor: item.valor || "", data: String(item.data_lancamento || "").slice(0, 10), categoria: item.categoria || "" }); setModalOpen(true); setFeedback(null); }
   async function confirmDocumentExpense(values) {
-    await savePersonalTransaction({ empresaId, tipo: "despesa", values });
+    await savePersonalTransaction({ empresaId, userId, tipo: "despesa", values });
     await reload();
     setFeedback({ type: "success", message: "Despesa cadastrada após revisão e confirmação." });
   }
   async function save() {
     if (!form.descricao.trim() || !(Number(form.valor) > 0) || !form.data) { setFeedback({ type: "error", message: "Informe descrição, valor maior que zero e data." }); return; }
     setSaving(true);
-    try { await savePersonalTransaction({ empresaId, tipo: "despesa", id: editingId, values: form }); await reload(); setModalOpen(false); setFeedback({ type: "success", message: editingId ? "Despesa atualizada com sucesso." : "Despesa cadastrada com sucesso." }); }
+    try { await savePersonalTransaction({ empresaId, userId, tipo: "despesa", id: editingId, values: form }); await reload(); setModalOpen(false); setFeedback({ type: "success", message: editingId ? "Despesa atualizada com sucesso." : "Despesa cadastrada com sucesso." }); }
     catch (saveError) { setFeedback({ type: "error", message: `Não foi possível salvar a despesa: ${saveError.message}` }); }
     finally { setSaving(false); }
   }
   async function remove(item) {
     if (!window.confirm(`Excluir a despesa “${item.descricao || "sem descrição"}”?`)) return;
-    try { await deletePersonalTransaction({ empresaId, tipo: "despesa", id: item.id }); await reload(); setFeedback({ type: "success", message: "Despesa excluída com sucesso." }); }
+    try { await deletePersonalTransaction({ empresaId, userId, tipo: "despesa", id: item.id }); await reload(); setFeedback({ type: "success", message: "Despesa excluída com sucesso." }); }
     catch (deleteError) { setFeedback({ type: "error", message: `Não foi possível excluir a despesa: ${deleteError.message}` }); }
   }
 

@@ -2,6 +2,28 @@ export function isAuthorizedMaster(profile) {
   return profile?.status === "ATIVO" && (profile?.role === "master" || profile?.master_admin === true);
 }
 
+export function isAuthorizedTenantAdmin(profile, company) {
+  return profile?.status === "ATIVO"
+    && profile?.master_admin !== true
+    && profile?.empresa_id
+    && ["cliente", "admin_empresa"].includes(String(profile?.tipo_usuario || "").toLowerCase())
+    && company?.id === profile.empresa_id
+    && company?.tipo === "PJ"
+    && company?.status === "ATIVO";
+}
+
+export function normalizeTenantPermissions(value, permissionKeys, contractedModules) {
+  const source = value && typeof value === "object" ? value : {};
+  const allowed = new Set([...contractedModules].filter((key) => !["energia", "representacoes", "financas_pessoais"].includes(key)));
+  const forbidden = permissionKeys.filter((key) => source[key] === true && !allowed.has(key));
+  if (forbidden.length) throw new Error(`Módulo não contratado: ${forbidden.join(", ")}.`);
+  return Object.fromEntries(permissionKeys.map((key) => [key, allowed.has(key) && source[key] === true]));
+}
+
+export function targetBelongsToCompany(target, companyId) {
+  return Boolean(companyId) && [target?.empresa_id, target?.empresa_id_bloqueada].includes(companyId);
+}
+
 export function normalizeApprovalChoice(body = {}) {
   const empresaId = body.empresa_id ? String(body.empresa_id) : "";
   const empresaNome = String(body.empresa_nome || "").trim();

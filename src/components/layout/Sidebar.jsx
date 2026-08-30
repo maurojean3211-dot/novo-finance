@@ -14,7 +14,7 @@ function MenuItem({ item, pagina, onNavigate }) {
   );
 }
 
-export default function Sidebar({ pagina, permissoes, loginMaster, nomeEmpresa, onNavigate, onLogout }) {
+export default function Sidebar({ pagina, permissoes, loginMaster, platformAdmin, contextoMaster, onMasterContextChange, nomeEmpresa, plano, statusAssinatura, tipoCliente, onNavigate, onLogout }) {
   const activeGroupId = findMenuGroupByPage(pagina)?.id || "visao-geral";
   const [openGroupId, setOpenGroupId] = useState(activeGroupId);
 
@@ -26,10 +26,15 @@ export default function Sidebar({ pagina, permissoes, loginMaster, nomeEmpresa, 
       </div>
 
       <div className="app-company-card">
-        <span>Empresa ativa</span>
+        <span>{loginMaster ? "Administração" : tipoCliente === "PF" ? "Pessoa física" : "Empresa ativa"}</span>
         <strong>{nomeEmpresa || "Empresa vinculada"}</strong>
-        <small>Plano completo</small>
+        <small>{loginMaster ? "Master Admin" : `${plano || "Sem plano"} · ${statusAssinatura || "Sem status"}`}</small>
       </div>
+
+      {platformAdmin && <div className="app-context-switch" aria-label="Contexto do Master">
+        <button className={contextoMaster === "administracao" ? "active" : ""} onClick={() => onMasterContextChange("administracao")}>Administração</button>
+        <button className={contextoMaster === "empresa" ? "active" : ""} onClick={() => onMasterContextChange("empresa")}>Minha Empresa</button>
+      </div>}
 
       <div className="app-sidebar__navigation">
         <nav className="app-nav-groups" aria-label="Navegação principal">

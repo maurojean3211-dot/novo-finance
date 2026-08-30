@@ -6,8 +6,11 @@ import {
   compensateFailedApproval,
   hasNormalizedTextChanged,
   isAuthorizedMaster,
+  isAuthorizedTenantAdmin,
   normalizeApprovalChoice,
+  normalizeTenantPermissions,
   shouldSyncAuth,
+  targetBelongsToCompany,
 } from "../supabase/functions/admin-users-v1/adminUsersSecurity.js";
 import {
   canApplyBackgroundRefresh,
@@ -30,6 +33,28 @@ test("Master pode escolher empresa existente ou nova, nunca ambas", () => {
   assert.deepEqual(normalizeApprovalChoice({ empresa_nome: "Nova Empresa" }), { empresaId: "", empresaNome: "Nova Empresa" });
   assert.throws(() => normalizeApprovalChoice({}), /Escolha/);
   assert.throws(() => normalizeApprovalChoice({ empresa_id: "a", empresa_nome: "b" }), /Escolha/);
+});
+
+test("somente administrador de locatário PJ ativo administra equipe", () => {
+  const company = { id: "empresa-a", tipo: "PJ", status: "ATIVO" };
+  assert.equal(isAuthorizedTenantAdmin({ status: "ATIVO", empresa_id: "empresa-a", tipo_usuario: "cliente", master_admin: false }, company), true);
+  assert.equal(isAuthorizedTenantAdmin({ status: "ATIVO", empresa_id: "empresa-a", tipo_usuario: "admin_empresa", master_admin: false }, company), true);
+  assert.equal(isAuthorizedTenantAdmin({ status: "ATIVO", empresa_id: "empresa-a", tipo_usuario: "usuario", master_admin: false }, company), false);
+  assert.equal(isAuthorizedTenantAdmin({ status: "ATIVO", empresa_id: "empresa-a", tipo_usuario: "cliente", master_admin: false }, { ...company, tipo: "PF" }), false);
+  assert.equal(isAuthorizedTenantAdmin({ status: "ATIVO", empresa_id: "empresa-a", tipo_usuario: "cliente", master_admin: false }, { ...company, status: "SUSPENSO" }), false);
+});
+
+test("permissões do locatário são limitadas ao contrato e excluem módulos futuros", () => {
+  const keys = ["crm", "vendas", "financeiro", "energia", "representacoes"];
+  assert.deepEqual(normalizeTenantPermissions({ crm: true, vendas: true }, keys, new Set(["crm", "vendas"])), { crm: true, vendas: true, financeiro: false, energia: false, representacoes: false });
+  assert.throws(() => normalizeTenantPermissions({ financeiro: true }, keys, new Set(["crm", "vendas"])), /não contratado/i);
+  assert.throws(() => normalizeTenantPermissions({ energia: true }, keys, new Set(["energia"])), /não contratado/i);
+});
+
+test("alvo da equipe precisa pertencer à mesma empresa ativa ou bloqueada", () => {
+  assert.equal(targetBelongsToCompany({ empresa_id: "empresa-a" }, "empresa-a"), true);
+  assert.equal(targetBelongsToCompany({ empresa_id_bloqueada: "empresa-a" }, "empresa-a"), true);
+  assert.equal(targetBelongsToCompany({ empresa_id: "empresa-b" }, "empresa-a"), false);
 });
 
 test("falha intermediária restaura perfil e remove somente a empresa criada", async () => {

@@ -4,8 +4,8 @@ export const menuGroups = [
     label: "VISÃO GERAL",
     icon: "▦",
     items: [
-      { page: "dashboard", label: "Dashboard", icon: "📊" },
-      { page: "painel_executivo", label: "Painel Executivo", icon: "◫" },
+      { page: "dashboard", label: "Dashboard", icon: "📊", permissionKey: "dashboard" },
+      { page: "painel_executivo", label: "Painel Executivo", icon: "◫", permissionKey: "dashboard" },
     ],
   },
   {
@@ -13,21 +13,21 @@ export const menuGroups = [
     label: "COMERCIAL",
     icon: "◇",
     items: [
-      { page: "crm", label: "CRM", icon: "◎", permissionKey: "vendas" },
-      { page: "clientes", label: "Clientes", icon: "◉", permissionKey: "vendas" },
-      { page: "prospeccao", label: "Prospecção", icon: "⌕", permissionKey: "vendas" },
+      { page: "crm", label: "CRM", icon: "◎", permissionKey: "crm" },
+      { page: "clientes", label: "Clientes", icon: "◉", permissionKey: "crm" },
+      { page: "prospeccao", label: "Prospecção", icon: "⌕", permissionKey: "prospeccao" },
       {
         page: "agenda_comercial",
         label: "Agenda Comercial",
         icon: "◷",
-        permissionKey: "vendas",
+        permissionKey: "prospeccao",
       },
       { page: "contatos", label: "Contatos", icon: "◉", planned: true },
       {
         page: "orcamentos",
         label: "Orçamentos",
         icon: "▤",
-        permissionKey: "vendas",
+        permissionKey: "orcamentos",
       },
       { page: "vendas", label: "Vendas", icon: "📦", permissionKey: "vendas" },
       { page: "compras", label: "Compras", icon: "🧱", permissionKey: "compras" },
@@ -43,21 +43,21 @@ export const menuGroups = [
         page: "catalogo_inteligente",
         label: "Catálogo",
         icon: "▦",
-        permissionKey: "compras",
+        permissionKey: "catalogo",
       },
-      { page: "produtos", label: "Produtos", icon: "◈", permissionKey: "compras" },
-      { page: "estoque", label: "Estoque", icon: "▥", permissionKey: "compras" },
+      { page: "produtos", label: "Produtos", icon: "◈", permissionKey: "catalogo" },
+      { page: "estoque", label: "Estoque", icon: "▥", permissionKey: "estoque" },
       {
         page: "producao",
         label: "Produção e PCP",
         icon: "⚙",
-        permissionKey: "compras",
+        permissionKey: "pcp",
       },
       {
         page: "fornecedores",
         label: "Fornecedores",
         icon: "🏭",
-        permissionKey: "compras",
+        permissionKey: "catalogo",
       },
     ],
   },
@@ -70,13 +70,13 @@ export const menuGroups = [
         page: "contas_pagar",
         label: "Contas a pagar",
         icon: "↘",
-        permissionKey: "contas_pagar",
+        permissionKey: "financeiro",
       },
       {
         page: "recebimentos",
         label: "Contas a Receber",
         icon: "💵",
-        permissionKey: "recebimentos",
+        permissionKey: "financeiro",
       },
       {
         page: "financeiro",
@@ -96,6 +96,7 @@ export const menuGroups = [
         page: "ia_comercial",
         label: "Atendimento Comercial IA",
         icon: "✦",
+        permissionKey: "catalogo",
       },
       {
         page: "leitor_pdf",
@@ -123,7 +124,7 @@ export const menuGroups = [
         page: "relatorio",
         label: "Relatórios",
         icon: "▤",
-        permissionKey: "relatorio",
+        permissionKey: "relatorios",
       },
       {
         page: "indicadores",
@@ -135,13 +136,13 @@ export const menuGroups = [
         page: "relatorio_comercial",
         label: "Comercial",
         icon: "◇",
-        permissionKey: "relatorio",
+        permissionKey: "relatorios",
       },
       {
         page: "relatorio_financeiro",
         label: "Financeiro",
         icon: "$",
-        permissionKey: "relatorio",
+        permissionKey: "relatorios",
       },
       {
         page: "relatorio_estoque",
@@ -153,13 +154,13 @@ export const menuGroups = [
         page: "relatorio_compras",
         label: "Compras",
         icon: "▧",
-        permissionKey: "relatorio",
+        permissionKey: "relatorios",
       },
       {
         page: "relatorio_vendas",
         label: "Vendas",
         icon: "↗",
-        permissionKey: "relatorio",
+        permissionKey: "relatorios",
       },
       {
         page: "relatorio_ia",
@@ -208,7 +209,6 @@ export const menuGroups = [
         icon: "🔁",
         permissionKey: "pessoal_contas_fixas",
         legacyPermissionKeys: ["pessoal", "contas_fixas"],
-        hidden: true,
       },
       {
         page: "relatorios_pessoais",
@@ -228,7 +228,7 @@ export const menuGroups = [
         page: "usuarios",
         label: "Usuários",
         icon: "👤",
-        planned: true,
+        permissionKey: "gerenciar_usuarios",
       },
       {
         page: "empresas_saas",
@@ -253,13 +253,17 @@ export const menuGroups = [
         page: "configuracoes",
         label: "Configuração Tributária",
         icon: "🧾",
+        permissionKey: "tributario",
       },
+
+      { page: "energia", label: "Energia", icon: "⚡", permissionKey: "energia", planned: true },
+      { page: "representacoes", label: "Representações", icon: "◇", permissionKey: "representacoes", planned: true },
 
       {
         page: "master",
         label: "Master Admin",
         icon: "◆",
-        masterOnly: true,
+        accessScope: "PLATFORM_ADMIN",
       },
     ],
   },
@@ -267,15 +271,7 @@ export const menuGroups = [
 
 export function canAccessMenuItem(item, permissoes, loginMaster) {
   if (item.planned) return false;
-  if (item.masterOnly) return loginMaster;
-
-  if (
-    item.page === "dashboard" ||
-    item.page === "painel_executivo" ||
-    item.page === "configuracoes"
-  ) {
-    return true;
-  }
+  if (item.accessScope === "PLATFORM_ADMIN") return loginMaster === true;
 
   if (item.permissionKey) {
     if (

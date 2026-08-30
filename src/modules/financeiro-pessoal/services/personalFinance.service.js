@@ -1,13 +1,28 @@
 import { supabase } from "../../../supabase";
 
+export async function loadPersonalFinanceServerTime() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error("Sessão indisponível para consultar a data do servidor.");
+  const response = await fetch(`${supabase.supabaseUrl}/rest/v1/despesas?select=id&limit=1`, {
+    cache: "no-store",
+    headers: { apikey: supabase.supabaseKey, Authorization: `Bearer ${session.access_token}` },
+  });
+  if (!response.ok) throw new Error("Não foi possível consultar a data do servidor.");
+  const serverDate = response.headers.get("date");
+  if (!serverDate) throw new Error("O servidor não informou uma referência de data.");
+  return new Date(serverDate);
+}
+
 function requireScope(empresaId) {
   if (!empresaId) throw new Error("Empresa ativa não identificada.");
 }
 
-function personalTransactionPayload(values, tipo, empresaId) {
+function personalTransactionPayload(values, tipo, empresaId, userId) {
   requireScope(empresaId);
+  if (!userId) throw new Error("Proprietário não identificado.");
   return {
     empresa_id: empresaId,
+    proprietario_id: userId,
     tipo,
     descricao: values.descricao.trim(),
     valor: Number(values.valor),
@@ -17,8 +32,8 @@ function personalTransactionPayload(values, tipo, empresaId) {
   };
 }
 
-export async function savePersonalTransaction({ empresaId, tipo, id, values }) {
-  const payload = personalTransactionPayload(values, tipo, empresaId);
+export async function savePersonalTransaction({ empresaId, userId, tipo, id, values }) {
+  const payload = personalTransactionPayload(values, tipo, empresaId, userId);
   const query = id
     ? supabase.from("despesas").update(payload).eq("id", id).eq("empresa_id", empresaId).eq("tipo", tipo)
     : supabase.from("despesas").insert([payload]);
@@ -32,26 +47,55 @@ export async function deletePersonalTransaction({ empresaId, tipo, id }) {
   if (error) throw error;
 }
 
-export async function savePersonalFixedExpense({ empresaId, id, values }) {
+export async function savePersonalFixedExpense({ empresaId, userId, id, values }) {
   requireScope(empresaId);
+  if (!userId) throw new Error("Proprietário não identificado.");
   const payload = {
     empresa_id: empresaId,
+    proprietario_id: userId,
+    escopo: "Pessoal",
     descricao: values.descricao.trim(),
-    valor: Number(values.valor),
+    contraparte: values.contraparte?.trim() || null,
+    categoria_id: values.categoria_id || null,
+    classificacao: values.classificacao || "Fixa",
+    valor_previsto: Number(values.valor),
     dia_vencimento: Number(values.dia_vencimento),
     frequencia: values.frequencia,
+    data_inicio: values.data_base,
+    data_fim: values.data_fim || null,
     ativo: values.ativo,
+    observacoes: values.observacoes?.trim() || null,
+    forma_pagamento: values.forma_pagamento?.trim() || null,
+    conta_financeira: values.conta_financeira?.trim() || null,
+    gerar_automaticamente: values.gerar_automaticamente !== false,
   };
   const query = id
-    ? supabase.from("contas_fixas").update(payload).eq("id", id).eq("empresa_id", empresaId)
-    : supabase.from("contas_fixas").insert([payload]);
+    ? supabase.from("financeiro_recorrencias").update(payload).eq("id", id).eq("empresa_id", empresaId).eq("proprietario_id", userId)
+    : supabase.from("financeiro_recorrencias").insert([payload]);
   const { error } = await query;
   if (error) throw error;
 }
 
 export async function deletePersonalFixedExpense({ empresaId, id }) {
   requireScope(empresaId);
-  const { error } = await supabase.from("contas_fixas").delete().eq("id", id).eq("empresa_id", empresaId);
+  const { error } = await supabase.from("financeiro_recorrencias").update({ ativo: false }).eq("id", id).eq("empresa_id", empresaId);
+  if (error) throw error;
+}
+
+export async function generatePersonalRecurringTitles({ competencia, recurrenceId = null }) {
+  const { data, error } = await supabase.rpc("gerar_titulos_recorrentes", { p_competencia: `${competencia}-01`, p_recorrencia_id: recurrenceId });
+  if (error) throw error;
+  return data || [];
+}
+
+export async function savePersonalCategory({ empresaId, userId, values }) {
+  const { data, error } = await supabase.from("financeiro_categorias").insert({ empresa_id: empresaId, proprietario_id: userId, nome: values.nome.trim(), classificacao: values.classificacao }).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function savePersonalBudget({ empresaId, userId, values }) {
+  const { error } = await supabase.from("orcamentos_pessoais_mensais").upsert({ empresa_id: empresaId, proprietario_id: userId, categoria_id: values.categoria_id, competencia: `${values.competencia}-01`, valor_previsto: Number(values.valor_previsto) }, { onConflict: "empresa_id,proprietario_id,categoria_id,competencia" });
   if (error) throw error;
 }
 

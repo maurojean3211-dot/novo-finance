@@ -1,5 +1,6 @@
 import { COMMISSION_TYPES, formatPercentage, getCommissionRule, getPurchaseCommissionData, getSaleCommissionPercentage, getStoredOrCalculatedCommission } from "./commissionEngine.js";
 import { formatOriginalPurchaseDate } from "./purchaseDate.js";
+import { fixedExpenseOccurrences, manualPersonalExpenses, personalPaymentTotals } from "../modules/financeiro-pessoal/utils/personalFinanceCalculations.js";
 
 const PAGE = { width: 841.89, height: 595.28, margin: 28 };
 
@@ -83,7 +84,7 @@ function createSummary(summary, startY) {
   summary.forEach((item, index) => {
     const x = PAGE.margin + index * width;
     content += rectCommand(x, startY - 38, width - 5, 38, index % 2 ? "0.94 0.96 0.98" : "0.91 0.94 0.98");
-    content += textCommand(item.label, x + 7, startY - 13, 6, false, "0.35 0.42 0.52");
+    content += textCommand(item.label, x + 7, startY - 13, item.labelSize || 6, false, "0.35 0.42 0.52");
     content += textCommand(truncate(item.value, width - 14, 9), x + 7, startY - 29, 9, true, "0.08 0.16 0.27");
   });
   return content;
@@ -296,6 +297,94 @@ export function generatePayablesReport(options) {
   const report = buildPayablesReportData(options);
   if (!report.records.length) return false;
   downloadPdf(generateReportPdfBytes(report.pdf), `relatorio-contas-a-pagar-${new Date().toISOString().slice(0, 10)}.pdf`);
+  return true;
+}
+
+function matchesPersonalPeriod(value, filters) {
+  const date = String(value || "").slice(0, 10);
+  if (!date) return !filters.month && !filters.start && !filters.end;
+  if (filters.month) return date.slice(0, 7) === filters.month;
+  return (!filters.start || date >= filters.start) && (!filters.end || date <= filters.end);
+}
+
+function personalPeriodLabel(filters) {
+  if (filters.month) return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric", timeZone: FINANCE_TIME_ZONE }).format(new Date(`${filters.month}-02T12:00:00Z`));
+  return describePeriod(filters.start, filters.end);
+}
+
+export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fixedExpenses = [], payables = [], paymentEvents = [], empresaId, userId, filters = { month: "", start: "", end: "" }, serverNow }) {
+  const today = dateKeyInTimeZone(serverNow);
+  const sameCompany = (item) => String(item.empresa_id) === String(empresaId);
+  const sameOwner = (item) => sameCompany(item) && String(item.proprietario_id) === String(userId);
+  const filteredIncomes = incomes.filter((item) => sameOwner(item) && item.tipo === "receita" && matchesPersonalPeriod(item.data_lancamento, filters));
+  const filteredExpenses = manualPersonalExpenses(expenses).filter((item) => sameOwner(item) && matchesPersonalPeriod(item.data_lancamento, filters));
+  const integratedPaymentExpenses = expenses.filter((item) => sameOwner(item) && item.tipo === "despesa" && item.pagamento_evento_id && matchesPersonalPeriod(item.data_lancamento, filters));
+  const ownedFixedExpenses = fixedExpenses.filter(sameOwner);
+  const activeFixedExpenses = fixedExpenseOccurrences(ownedFixedExpenses, filters);
+  const filteredPayables = payables.filter((item) => sameOwner(item) && matchesPersonalPeriod(item.vencimento, filters));
+  const filteredPaymentEvents = paymentEvents.filter((item) => sameOwner(item) && matchesPersonalPeriod(item.pago_em, filters));
+  const numberValue = (value) => Number(value || 0);
+  const sumValues = (items, field = "valor") => items.reduce((sum, item) => sum + numberValue(item[field]), 0);
+  const classifiedPayables = filteredPayables.map((item) => ({ ...item, reportStatus: item.status === "Cancelada" ? "Cancelada" : item.status === "Pago" ? "Pago" : String(item.vencimento || "").slice(0, 10) < today ? "Vencida" : "Pendente" }));
+  const pending = classifiedPayables.filter((item) => item.reportStatus === "Pendente");
+  const overdue = classifiedPayables.filter((item) => item.reportStatus === "Vencida");
+  const paid = classifiedPayables.filter((item) => item.reportStatus === "Pago");
+  const cancelled = classifiedPayables.filter((item) => item.reportStatus === "Cancelada");
+  const installments = classifiedPayables.filter((item) => item.grupo_parcelamento_id);
+  const activeOwnedEvents = personalPaymentTotals(paymentEvents.filter(sameOwner)).active.filter((item) => matchesPersonalPeriod(item.pago_em, filters));
+  const paymentTotals = personalPaymentTotals(activeOwnedEvents);
+  const payments = paymentTotals.payments;
+  const downPayments = paymentTotals.downPayments;
+  const anticipations = paymentTotals.anticipations;
+  const reversals = filteredPaymentEvents.filter((item) => item.tipo === "Estorno");
+  const paymentValue = (items) => sumValues(items, "valor_pago");
+  const grossOutflow = paymentTotals.effectiveOutflow;
+  const reversedOutflow = paymentValue(reversals);
+  const effectiveOutflow = paymentTotals.effectiveOutflow;
+  const incomeTotal = sumValues(filteredIncomes);
+  const expenseTotal = sumValues(filteredExpenses);
+  const accountingBalance = incomeTotal - expenseTotal;
+  const fixedMonthly = sumValues(activeFixedExpenses);
+  const activePayables = [...pending, ...overdue];
+  const activePayablesTotal = sumValues(activePayables);
+  const totals = {
+    incomeTotal, expenseTotal, accountingBalance, fixedMonthly,
+    activePayablesTotal, paidTotal: sumValues(paid), pendingTotal: sumValues(pending), overdueTotal: sumValues(overdue), cancelledTotal: sumValues(cancelled),
+    installmentTotal: sumValues(installments), effectiveOutflow, grossOutflow, reversedOutflow,
+    paymentTotal: paymentTotals.paymentTotal, downPaymentTotal: paymentTotals.downPaymentTotal, anticipationTotal: paymentTotals.anticipationTotal, savings: paymentTotals.savings,
+  };
+  const rows = [
+    ...filteredIncomes.map((item) => ({ type: "Receita", date: formatDate(item.data_lancamento), description: item.descricao || "-", detail: item.categoria || "Sem categoria", status: "Recebida", value: formatMoney(item.valor) })),
+    ...filteredExpenses.map((item) => ({ type: "Despesa", date: formatDate(item.data_lancamento), description: item.descricao || "-", detail: item.categoria || "Sem categoria", status: "Realizada", value: formatMoney(item.valor) })),
+    ...classifiedPayables.map((item) => ({ type: item.grupo_parcelamento_id ? "Parcela" : "Conta a pagar", date: formatDate(item.vencimento), description: item.descricao || item.fornecedor || "-", detail: item.grupo_parcelamento_id ? `${item.parcela_numero}/${item.parcelas_total} · ${item.fornecedor || "-"}` : item.fornecedor || "-", status: item.reportStatus, value: formatMoney(item.valor) })),
+    ...activeFixedExpenses.map((item) => ({ type: "Conta fixa", date: item.competencia ? `${item.competencia} · dia ${item.dia_vencimento}` : item.dia_vencimento ? `Dia ${item.dia_vencimento}` : "-", description: item.descricao || "-", detail: item.frequencia || "Mensal", status: "Ativa", value: formatMoney(item.valor) })),
+    ...filteredPaymentEvents.map((item) => ({ type: item.tipo === "Antecipacao" ? "Antecipação" : item.tipo, date: formatDate(item.pago_em), description: "Evento de Conta a Pagar", detail: item.observacoes || "Evento persistido", status: item.tipo === "Estorno" ? "Redução dos pagamentos" : item.tipo === "Antecipacao" ? "Antecipação" : "Pagamento realizado", value: `${item.tipo === "Estorno" ? "-" : ""}${formatMoney(item.valor_pago)}` })),
+  ];
+  const hasData = rows.length > 0;
+  return {
+    filteredIncomes, filteredExpenses, integratedPaymentExpenses, activeFixedExpenses, filteredPayables: classifiedPayables, filteredPaymentEvents,
+    pending, overdue, paid, cancelled, installments, payments, downPayments, anticipations, reversals, totals, hasData,
+    pdf: {
+      title: "Relatório Financeiro Pessoal Consolidado", companyName: "Financeiro Pessoal", period: personalPeriodLabel(filters), issuedBy: "Usuário autenticado",
+      summary: [
+        { label: "Receitas", value: formatMoney(incomeTotal) }, { label: "Despesas lançadas", value: formatMoney(expenseTotal) },
+        { label: "Saldo receitas x despesas", value: formatMoney(accountingBalance) }, { label: "Contas em aberto", value: formatMoney(activePayablesTotal) },
+        { label: "Pagamentos realizados em Contas a Pagar", value: formatMoney(effectiveOutflow), labelSize: 5 },
+        { label: "Antecipações", value: formatMoney(totals.anticipationTotal) },
+      ],
+      columns: [
+        { key: "type", label: "Origem", width: 90 }, { key: "date", label: "Data", width: 68 }, { key: "description", label: "Descrição", width: 180 },
+        { key: "detail", label: "Detalhe / parcela", width: 190 }, { key: "status", label: "Status", width: 145 }, { key: "value", label: "Valor", width: 112 },
+      ], rows,
+      totals: `receitas ${formatMoney(incomeTotal)} | despesas lançadas ${formatMoney(expenseTotal)} | pagamentos em contas a pagar ${formatMoney(effectiveOutflow)} | antecipações ${formatMoney(totals.anticipationTotal)} | saldo receitas x despesas ${formatMoney(accountingBalance)}`,
+    },
+  };
+}
+
+export function generatePersonalFinanceReport(options) {
+  const report = buildPersonalFinanceReportData(options);
+  if (!report.hasData) return false;
+  downloadPdf(generateReportPdfBytes(report.pdf), `relatorio-financeiro-pessoal-${dateKeyInTimeZone(options.serverNow)}.pdf`);
   return true;
 }
 

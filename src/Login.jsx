@@ -10,6 +10,9 @@ const destaques = [
   ["03", "Controle Financeiro Pessoal", "Receitas, despesas, metas e investimentos."],
   ["04", "Segurança dos Dados", "Acesso protegido para suas informações."],
   ["05", "Multiempresa", "Empresas e contextos organizados na plataforma."],
+  ["06", "Mercado Livre de Energia", "Análise e oportunidades para redução e gestão do custo de energia."],
+  ["07", "Energia Solar / Geração Distribuída", "Soluções para empresas, residências e consumidores de baixa tensão."],
+  ["08", "Representações", "Acessórios para cortinas, produtos De Victor, insumos industriais, perfis e tarugos exclusivamente de alumínio."],
 ];
 
 export default function Login({ onLogin }) {
@@ -101,7 +104,7 @@ export default function Login({ onLogin }) {
     if (loading) return;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${window.location.origin}/reset` });
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: window.location.origin });
       if (error) throw error;
       exibirMensagem("sucesso", "Se o e-mail estiver cadastrado, enviaremos um link de recuperação.");
     } catch (error) {
@@ -118,9 +121,9 @@ export default function Login({ onLogin }) {
         <div className="login-brand"><span>CF</span><div><strong>Cunha Finance</strong><small>Gestão inteligente</small></div></div>
 
         <div className="login-presentation">
-          <p className="login-eyebrow">Gestão empresarial e financeira pessoal</p>
-          <h1>Decisões mais inteligentes para empresas e para o seu controle financeiro pessoal.</h1>
-          <p className="login-description">Gerencie vendas, estoque, CRM e financeiro empresarial, ou organize receitas, despesas, contas, metas e investimentos pessoais em uma única plataforma.</p>
+          <p className="login-eyebrow">Gestão empresarial, pessoal e novas oportunidades</p>
+          <h1>Gestão inteligente para sua empresa, suas finanças e novas oportunidades.</h1>
+          <p className="login-description">Financeiro, vendas, compras, estoque, produção, CRM, finanças pessoais, soluções em energia e representações em um único ecossistema.</p>
 
           <div className="industry-visual" aria-hidden="true">
             <div className="industry-visual__grid" />
@@ -146,7 +149,7 @@ export default function Login({ onLogin }) {
           </div>
         </div>
 
-        <footer><span>Feito para empresas — inclusive do mercado do alumínio — e para suas finanças pessoais.</span><b>Seguro · Modular · Multiempresa</b></footer>
+        <footer><span>Gestão Empresarial · Finanças Pessoais · Energia · Representações.</span><b>Seguro · Modular · Multiempresa</b></footer>
       </section>
 
       <section className="login-access">
