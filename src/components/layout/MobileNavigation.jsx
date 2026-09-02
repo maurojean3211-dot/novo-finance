@@ -5,7 +5,7 @@ import { canAccessMenuItem, findMenuGroupByPage, menuGroups } from "../../app/na
 const mobileBar = { position: "fixed", bottom: 0, left: 0, right: 0, height: 65, background: "#07111f", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #7b652d", boxShadow: "0 -12px 30px rgba(0, 0, 0, .32)", zIndex: 999 };
 const mobileBtn = { background: "transparent", border: "none", color: "#d9e0e9", fontSize: 24, cursor: "pointer" };
 
-export default function MobileNavigation({ pagina, permissoes, loginMaster, onNavigate, onLogout }) {
+export default function MobileNavigation({ pagina, permissoes, loginMaster, onNavigate, onAccount, onLogout }) {
   const [menuMais, setMenuMais] = useState(false);
   const activeGroupId = findMenuGroupByPage(pagina)?.id || "visao-geral";
   const [openGroupId, setOpenGroupId] = useState(activeGroupId);
@@ -37,6 +37,7 @@ export default function MobileNavigation({ pagina, permissoes, loginMaster, onNa
               </section>
             );
           })}
+          <button onClick={() => { setMenuMais(false); onAccount(); }} className="mobile-nav-account">👤 Minha Conta</button>
           <button onClick={onLogout} className="mobile-nav-logout">🚪 Sair</button>
         </nav>
       )}

@@ -15,7 +15,7 @@ function MenuItem({ item, pagina, onNavigate }) {
   );
 }
 
-export default function Sidebar({ pagina, permissoes, loginMaster, platformAdmin, contextoMaster, onMasterContextChange, nomeEmpresa, plano, statusAssinatura, tipoCliente, onNavigate, onLogout }) {
+export default function Sidebar({ pagina, permissoes, loginMaster, platformAdmin, contextoMaster, onMasterContextChange, nomeEmpresa, plano, statusAssinatura, tipoCliente, onNavigate, onAccount, onLogout }) {
   const { empresaId } = useAuth();
   const activeGroupId = findMenuGroupByPage(pagina)?.id || "visao-geral";
   const [openGroupId, setOpenGroupId] = useState(activeGroupId);
@@ -61,6 +61,7 @@ export default function Sidebar({ pagina, permissoes, loginMaster, platformAdmin
         </nav>
       </div>
 
+      <button onClick={onAccount} className="app-account"><span>👤</span>Minha Conta</button>
       <button onClick={onLogout} className="app-logout"><span>↪</span>Sair</button>
     </aside>
   );
