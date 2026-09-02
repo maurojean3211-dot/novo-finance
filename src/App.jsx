@@ -83,7 +83,9 @@ export default function App() {
   } = useAuth();
 
   const platformAdmin = hasPlatformAdminAccess(masterAdmin);
-  const loginMaster = platformAdmin && contextoMaster === "administracao";
+  const loginMaster =
+    platformAdmin &&
+    (contextoMaster === "administracao" || !empresaId);
 
   const { pagina, navigate } = useAppNavigation();
   const [commercialNavigation, setCommercialNavigation] = useState(null);

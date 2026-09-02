@@ -1,5 +1,5 @@
 export function isAuthorizedMaster(profile) {
-  return profile?.status === "ATIVO" && (profile?.role === "master" || profile?.master_admin === true);
+  return profile?.status === "ATIVO" && profile?.master_admin === true;
 }
 
 export function isAuthorizedTenantAdmin(profile, company) {

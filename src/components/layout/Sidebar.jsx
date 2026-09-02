@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { canAccessMenuItem, findMenuGroupByPage, menuGroups } from "../../app/navigation/menuConfig";
+import useAuth from "../../app/providers/useAuth";
 
 function MenuItem({ item, pagina, onNavigate }) {
   return (
@@ -15,6 +16,7 @@ function MenuItem({ item, pagina, onNavigate }) {
 }
 
 export default function Sidebar({ pagina, permissoes, loginMaster, platformAdmin, contextoMaster, onMasterContextChange, nomeEmpresa, plano, statusAssinatura, tipoCliente, onNavigate, onLogout }) {
+  const { empresaId } = useAuth();
   const activeGroupId = findMenuGroupByPage(pagina)?.id || "visao-geral";
   const [openGroupId, setOpenGroupId] = useState(activeGroupId);
 
@@ -33,7 +35,7 @@ export default function Sidebar({ pagina, permissoes, loginMaster, platformAdmin
 
       {platformAdmin && <div className="app-context-switch" aria-label="Contexto do Master">
         <button className={contextoMaster === "administracao" ? "active" : ""} onClick={() => onMasterContextChange("administracao")}>Administração</button>
-        <button className={contextoMaster === "empresa" ? "active" : ""} onClick={() => onMasterContextChange("empresa")}>Minha Empresa</button>
+        {empresaId && <button className={contextoMaster === "empresa" ? "active" : ""} onClick={() => onMasterContextChange("empresa")}>Minha Empresa</button>}
       </div>}
 
       <div className="app-sidebar__navigation">

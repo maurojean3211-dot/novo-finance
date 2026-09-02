@@ -24,7 +24,7 @@ const read = (path) => readFile(new URL(path, root), "utf8");
 test("usuário comum não passa pela autorização Master", () => {
   assert.equal(isAuthorizedMaster({ status: "ATIVO", role: "usuario", master_admin: false }), false);
   assert.equal(isAuthorizedMaster({ status: "BLOQUEADO", role: "master", master_admin: true }), false);
-  assert.equal(isAuthorizedMaster({ status: "ATIVO", role: "master", master_admin: false }), true);
+  assert.equal(isAuthorizedMaster({ status: "ATIVO", role: "master", master_admin: false }), false);
   assert.equal(isAuthorizedMaster({ status: "ATIVO", role: "cliente", master_admin: true }), true);
 });
 

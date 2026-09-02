@@ -7,8 +7,19 @@ const defaults = { vendas: true, compras: true, financeiro: true, recebimentos: 
 const permissionKeys = ["financas_pessoais", "pessoal_visao_geral", "pessoal_receitas", "pessoal_despesas", "pessoal_contas_pagar", "pessoal_contas_fixas", "pessoal_orcamentos", "pessoal_recorrencias", "pessoal_relatorios", "financeiro", "crm", "prospeccao", "vendas", "compras", "estoque", "catalogo", "orcamentos", "pcp", "tributario", "relatorios", "energia", "representacoes"];
 const contractKeys = ["financas_pessoais", "financeiro", "crm", "prospeccao", "vendas", "compras", "estoque", "catalogo", "orcamentos", "pcp", "tributario", "relatorios", "energia", "representacoes"];
 const personalDetailKeys = ["pessoal_visao_geral", "pessoal_receitas", "pessoal_despesas", "pessoal_contas_pagar", "pessoal_contas_fixas", "pessoal_orcamentos", "pessoal_recorrencias", "pessoal_relatorios"];
-const authRedirectTo = "https://cunha-finance.vercel.app";
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
+
+function getAuthRedirectUrl() {
+  const configured = (Deno.env.get("AUTH_REDIRECT_URL") || "").trim();
+  if (!configured) throw new Error("AUTH_REDIRECT_URL não configurada.");
+  try {
+    const url = new URL(configured);
+    if (!["http:", "https:"].includes(url.protocol)) throw new Error();
+    return url.toString();
+  } catch {
+    throw new Error("AUTH_REDIRECT_URL inválida.");
+  }
+}
 
 async function companyModules(admin: ReturnType<typeof createClient>, companyId: string) {
   const { data: company, error } = await admin.from("empresas").select("id,plano_id").eq("id", companyId).maybeSingle();
@@ -72,7 +83,7 @@ Deno.serve(async (request) => {
       try { permissions = normalizeTenantPermissions(input.permissoes, permissionKeys, contracted); }
       catch (error) { return json(403, { error: error instanceof Error ? error.message : "Permissão inválida." }); }
       const userType = perfil === "admin_empresa" ? "admin_empresa" : "usuario";
-      const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { data: { nome }, redirectTo: authRedirectTo });
+      const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { data: { nome }, redirectTo: getAuthRedirectUrl() });
       if (inviteError) throw inviteError;
       const { error } = await admin.from("usuarios").upsert({ id: invited.user.id, nome, email, empresa_id: tenantCompany.id, empresa_id_bloqueada: null, role: "usuario", tipo_usuario: userType, nivel: perfil, permissoes: permissions, status: "ATIVO", master_admin: false, valor_mensal: 0 }, { onConflict: "id" });
       if (error) { await admin.auth.admin.deleteUser(invited.user.id); throw error; }
@@ -191,7 +202,7 @@ Deno.serve(async (request) => {
       const nome = String(body.nome || "").trim();
       const empresa = String(body.empresa_nome || "").trim();
       if (!email || !nome || !empresa) return json(400, { error: "Nome, e-mail e empresa são obrigatórios." });
-      const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { data: { nome, empresa_nome: empresa }, redirectTo: authRedirectTo });
+      const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { data: { nome, empresa_nome: empresa }, redirectTo: getAuthRedirectUrl() });
       if (error) throw error;
       return json(200, { user_id: data.user.id, status: "PENDENTE" });
     }
