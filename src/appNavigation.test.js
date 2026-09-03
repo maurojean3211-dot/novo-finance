@@ -170,3 +170,10 @@ test("menu mobile oferece ao Master os mesmos contextos do desktop", () => {
   assert.match(mobile, /empresaId &&[\s\S]*Minha Empresa/);
   assert.match(mobile, /changeMasterContext\("empresa"\)/);
 });
+
+test("piloto de Crédito Pessoal tem rota própria e acesso demonstrativo", () => {
+  assert.equal(pathForPage("credito_pessoal"), "/credito-pessoal");
+  assert.equal(pageForPath("/credito-pessoal"), "credito_pessoal");
+  const credit = menuGroups.flatMap((group) => group.items).find((item) => item.page === "credito_pessoal");
+  assert.equal(credit?.accessScope, "DEMO");
+});

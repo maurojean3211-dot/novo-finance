@@ -240,6 +240,20 @@ export const menuGroups = [
     ],
   },
   {
+    id: "credito-pessoal",
+    label: "CRÉDITO PESSOAL",
+    icon: "◈",
+    items: [
+      {
+        page: "credito_pessoal",
+        path: "/credito-pessoal",
+        label: "Gestão de Crédito",
+        icon: "◇",
+        accessScope: "DEMO",
+      },
+    ],
+  },
+  {
     id: "administracao",
     label: "SISTEMA",
     icon: "⚙",
@@ -294,6 +308,7 @@ export const menuGroups = [
 
 export function canAccessMenuItem(item, permissoes, loginMaster) {
   if (item.planned) return false;
+  if (item.accessScope === "DEMO") return true;
   if (item.accessScope === "PLATFORM_ADMIN") return loginMaster === true;
 
   if (item.permissionKey) {

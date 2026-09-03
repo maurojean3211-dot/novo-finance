@@ -42,6 +42,7 @@ import FinanceiroCorporativo from "./modules/financeiro-corporativo";
 import ProducaoPcp from "./modules/producao-pcp";
 import ProspeccaoComercial from "./modules/prospeccao-comercial";
 import ConfiguracaoTributariaPage from "./modules/configuracao-tributaria/ConfiguracaoTributariaPage";
+import CreditoPessoal from "./modules/credito-pessoal";
 
 import {
   ContasFixasPessoaisIsoladasPage,
@@ -469,6 +470,10 @@ export default function App() {
 
           {pagina === "financeiro_pessoal" && (
             <FinanceiroPessoalDashboard />
+          )}
+
+          {pagina === "credito_pessoal" && (
+            <CreditoPessoal />
           )}
 
           {pagina === "receitas_pessoais" && (
