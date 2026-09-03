@@ -151,3 +151,22 @@ test("Sidebar e mobile continuam compatíveis com navigate(page)", () => {
   assert.match(sidebar, /onNavigate\(item\.page\)/);
   assert.match(mobile, /onNavigate\(page\)/);
 });
+
+test("menu mobile oferece ao Master os mesmos contextos do desktop", () => {
+  const layout = readFileSync(
+    fileURLToPath(new URL("./components/layout/Layout.jsx", import.meta.url)),
+    "utf8",
+  );
+  const mobile = readFileSync(
+    fileURLToPath(new URL("./components/layout/MobileNavigation.jsx", import.meta.url)),
+    "utf8",
+  );
+
+  assert.match(layout, /<MobileNavigation[^>]*platformAdmin=\{platformAdmin\}/);
+  assert.match(layout, /<MobileNavigation[^>]*contextoMaster=\{contextoMaster\}/);
+  assert.match(layout, /<MobileNavigation[^>]*onMasterContextChange=\{onMasterContextChange\}/);
+  assert.match(mobile, /platformAdmin &&/);
+  assert.match(mobile, /Administração Global/);
+  assert.match(mobile, /empresaId &&[\s\S]*Minha Empresa/);
+  assert.match(mobile, /changeMasterContext\("empresa"\)/);
+});

@@ -171,6 +171,8 @@ color:#fff;
 .mobile-nav-menu{position:fixed;z-index:998;right:10px;bottom:75px;left:10px;max-height:calc(100dvh - 95px);padding:12px;overflow-y:auto;border:1px solid #263750;border-radius:14px;background:linear-gradient(160deg,#111d2d,#09131f);box-shadow:0 20px 55px rgba(0,0,0,.48);}
 .mobile-nav-menu__header{display:flex;align-items:center;justify-content:space-between;padding:0 2px 8px;border-bottom:1px solid #27364b;}
 .mobile-nav-menu__header strong{font-size:13px;}.mobile-nav-menu__header button{width:30px;height:30px;padding:0;background:#1b293b;font-size:18px;}
+.mobile-nav-context-switch{margin:10px 0 4px;}
+.mobile-nav-context-switch button{min-height:36px;font-size:9px;}
 .mobile-nav-group{border-bottom:1px solid rgba(42,57,78,.55);}
 .mobile-nav-group__toggle{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:8px;width:100%;padding:10px 6px;background:transparent;color:#8293aa;text-align:left;}
 .mobile-nav-group__toggle strong{font-size:10px;letter-spacing:.07em;text-transform:uppercase;}.mobile-nav-group__toggle b{transition:transform .18s ease;}

@@ -19,7 +19,7 @@ export default function Layout({ children, pagina, permissoes, loginMaster, plat
       <main className="app-content" id="main-content">
         <div className="app-content__inner">{children}</div>
       </main>
-      {isMobile && <MobileNavigation pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} onNavigate={onNavigate} onAccount={() => setAccountOpen(true)} onLogout={onLogout} />}
+      {isMobile && <MobileNavigation pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} platformAdmin={platformAdmin} contextoMaster={contextoMaster} onMasterContextChange={onMasterContextChange} onNavigate={onNavigate} onAccount={() => setAccountOpen(true)} onLogout={onLogout} />}
       {accountOpen && <AccountSecurity onClose={() => setAccountOpen(false)} />}
     </div>
   );

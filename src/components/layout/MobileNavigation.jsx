@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { canAccessPage } from "../../app/auth/accessPolicy";
 import { canAccessMenuItem, findMenuGroupByPage, menuGroups } from "../../app/navigation/menuConfig";
+import useAuth from "../../app/providers/useAuth";
 
 const mobileBar = { position: "fixed", bottom: 0, left: 0, right: 0, height: 65, background: "#07111f", display: "flex", justifyContent: "space-around", alignItems: "center", borderTop: "1px solid #7b652d", boxShadow: "0 -12px 30px rgba(0, 0, 0, .32)", zIndex: 999 };
 const mobileBtn = { background: "transparent", border: "none", color: "#d9e0e9", fontSize: 24, cursor: "pointer" };
 
-export default function MobileNavigation({ pagina, permissoes, loginMaster, onNavigate, onAccount, onLogout }) {
+export default function MobileNavigation({ pagina, permissoes, loginMaster, platformAdmin, contextoMaster, onMasterContextChange, onNavigate, onAccount, onLogout }) {
+  const { empresaId } = useAuth();
   const [menuMais, setMenuMais] = useState(false);
   const activeGroupId = findMenuGroupByPage(pagina)?.id || "visao-geral";
   const [openGroupId, setOpenGroupId] = useState(activeGroupId);
@@ -15,11 +17,20 @@ export default function MobileNavigation({ pagina, permissoes, loginMaster, onNa
     setMenuMais(false);
   }
 
+  function changeMasterContext(context) {
+    onMasterContextChange(context);
+    setMenuMais(false);
+  }
+
   return (
     <>
       {menuMais && (
         <nav className="mobile-nav-menu" aria-label="Navegação móvel completa">
           <div className="mobile-nav-menu__header"><span className="mobile-nav-brand" aria-hidden="true"><img src="/cunha-c-premium.png" alt="" /></span><strong>Módulos</strong><button onClick={() => setMenuMais(false)} aria-label="Fechar menu">×</button></div>
+          {platformAdmin && <div className="app-context-switch mobile-nav-context-switch" aria-label="Contexto do Master">
+            <button className={contextoMaster === "administracao" ? "active" : ""} onClick={() => changeMasterContext("administracao")}>Administração Global</button>
+            {empresaId && <button className={contextoMaster === "empresa" ? "active" : ""} onClick={() => changeMasterContext("empresa")}>Minha Empresa</button>}
+          </div>}
           {menuGroups.map((group) => {
             const items = group.items.filter((item) => !item.hidden && canAccessMenuItem(item, permissoes, loginMaster));
             if (items.length === 0) return null;
