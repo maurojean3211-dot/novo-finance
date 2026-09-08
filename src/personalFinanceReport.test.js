@@ -55,15 +55,41 @@ test("calcula saldo inicial, movimentos, resultado e saldo final em período liv
     { initial: 800, inflow: 500, outflow: 300, result: 200, final: 1000 },
   );
 });
+test("separa investimentos das despesas e os considera na variação de caixa", () => {
+  const report = build({
+    filters: { month: "", start: "2026-08-01", end: "2026-08-31" },
+    expenses: [
+      ...expenses,
+      { id: "i1", empresa_id: empresaId, proprietario_id: userId, tipo: "despesa", categoria: "Investimentos / Aplicações financeiras", valor: 300, data_lancamento: "2026-08-07", ativo: true },
+    ],
+  });
+  assert.deepEqual(
+    { expenses: report.totals.expenseTotal, investments: report.totals.investmentTotal, result: report.totals.periodResult, cashVariation: report.totals.cashVariation, accumulated: report.totals.finalBalance },
+    { expenses: 200, investments: 300, result: 800, cashVariation: 500, accumulated: 500 },
+  );
+  assert.deepEqual(report.filteredInvestments.map((item) => item.id), ["i1"]);
+});
+test("investimento anterior reduz o saldo acumulado anterior", () => {
+  const report = build({
+    filters: { month: "", start: "2026-08-08", end: "2026-08-31" },
+    expenses: [
+      ...expenses,
+      { id: "i1", empresa_id: empresaId, proprietario_id: userId, tipo: "despesa", categoria: "Aplicação financeira", valor: 300, data_lancamento: "2026-08-07", ativo: true },
+    ],
+  });
+  assert.equal(report.totals.initialBalance, 500);
+});
 test("todo o período não elimina registros", () => { const report = build({ filters: { month: "", start: "", end: "" } }); assert.equal(report.filteredIncomes.length, 1); assert.equal(report.filteredPayables.length, 4); });
 test("resultado vazio não gera PDF", () => assert.equal(generatePersonalFinanceReport({ incomes: [], expenses: [], fixedExpenses: [], payables: [], paymentEvents: [], empresaId, userId, filters, serverNow }), false));
 test("não soma a despesa integrada do pagamento novamente e evita duplicidade", () => { const report = build(); assert.equal(report.totals.expenseTotal, 200); assert.equal(report.totals.accountingBalance, 800); assert.equal(report.totals.effectiveOutflow, 1399.14); assert.deepEqual(report.integratedPaymentExpenses.map((item) => item.id), ["d2"]); });
-test("mantém saldo inicial, movimentos, resultado e saldo final separados no PDF", () => {
+test("mantém acumulados, receitas, despesas, investimentos, resultado e variação separados no PDF", () => {
   const summary = Object.fromEntries(build({ filters: { month: "", start: "2026-08-06", end: "2026-08-31" } }).pdf.summary.map((item) => [item.label, item.value]));
-  assert.equal(summary["Saldo inicial"], "R$ 1.000,00");
-  assert.equal(summary["Entradas do período"], "R$ 0,00");
-  assert.equal(summary["Saídas do período"], "R$ 200,00");
+  assert.equal(summary["Saldo acumulado anterior"], "R$ 1.000,00");
+  assert.equal(summary["Receitas"], "R$ 0,00");
+  assert.equal(summary["Despesas"], "R$ 200,00");
+  assert.equal(summary["Investimentos"], "R$ 0,00");
   assert.equal(summary["Resultado do período"], "R$ -200,00");
-  assert.equal(summary["Saldo final"], "R$ 800,00");
+  assert.equal(summary["Variação de caixa"], "R$ -200,00");
+  assert.equal(summary["Saldo acumulado calculado"], "R$ 800,00");
 });
 test("usa a data civil de America/Sao_Paulo na virada", () => { assert.equal(dateKeyInTimeZone("2026-08-24T02:59:59Z"), "2026-08-23"); assert.equal(dateKeyInTimeZone("2026-08-24T03:00:00Z"), "2026-08-24"); });

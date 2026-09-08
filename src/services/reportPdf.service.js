@@ -312,22 +312,32 @@ function personalPeriodLabel(filters) {
   return describePeriod(filters.start, filters.end);
 }
 
+function isPersonalInvestment(item) {
+  const category = String(item?.categoria || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return category.includes("investimento") || category.includes("aplicacao financeira");
+}
+
 export function calculatePersonalPeriodBalances({ incomes = [], expenses = [], empresaId, userId, filters = { month: "", start: "", end: "" } }) {
   const sameCompany = (item) => String(item.empresa_id) === String(empresaId);
   const sameOwner = (item) => sameCompany(item) && String(item.proprietario_id) === String(userId);
   const periodStart = filters.month ? `${filters.month}-01` : filters.start;
   const ownedIncomes = incomes.filter((item) => sameOwner(item) && item.tipo === "receita");
-  const ownedExpenses = manualPersonalExpenses(expenses).filter(sameOwner);
+  const ownedOutflows = manualPersonalExpenses(expenses).filter(sameOwner);
+  const ownedInvestments = ownedOutflows.filter(isPersonalInvestment);
+  const ownedExpenses = ownedOutflows.filter((item) => !isPersonalInvestment(item));
   const filteredIncomes = ownedIncomes.filter((item) => matchesPersonalPeriod(item.data_lancamento, filters));
   const filteredExpenses = ownedExpenses.filter((item) => matchesPersonalPeriod(item.data_lancamento, filters));
+  const filteredInvestments = ownedInvestments.filter((item) => matchesPersonalPeriod(item.data_lancamento, filters));
   const beforePeriod = (item) => periodStart && String(item.data_lancamento || "").slice(0, 10) < periodStart;
   const sumValues = (items) => items.reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const initialBalance = sumValues(ownedIncomes.filter(beforePeriod)) - sumValues(ownedExpenses.filter(beforePeriod));
+  const initialBalance = sumValues(ownedIncomes.filter(beforePeriod)) - sumValues(ownedExpenses.filter(beforePeriod)) - sumValues(ownedInvestments.filter(beforePeriod));
   const inflowTotal = sumValues(filteredIncomes);
   const outflowTotal = sumValues(filteredExpenses);
+  const investmentTotal = sumValues(filteredInvestments);
   const periodResult = inflowTotal - outflowTotal;
-  const finalBalance = initialBalance + periodResult;
-  return { filteredIncomes, filteredExpenses, initialBalance, inflowTotal, outflowTotal, periodResult, finalBalance };
+  const cashVariation = periodResult - investmentTotal;
+  const finalBalance = initialBalance + cashVariation;
+  return { filteredIncomes, filteredExpenses, filteredInvestments, initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance };
 }
 
 export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fixedExpenses = [], payables = [], paymentEvents = [], empresaId, userId, filters = { month: "", start: "", end: "" }, serverNow }) {
@@ -335,7 +345,7 @@ export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fi
   const sameCompany = (item) => String(item.empresa_id) === String(empresaId);
   const sameOwner = (item) => sameCompany(item) && String(item.proprietario_id) === String(userId);
   const periodBalances = calculatePersonalPeriodBalances({ incomes, expenses, empresaId, userId, filters });
-  const { filteredIncomes, filteredExpenses, initialBalance, inflowTotal, outflowTotal, periodResult, finalBalance } = periodBalances;
+  const { filteredIncomes, filteredExpenses, filteredInvestments, initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance } = periodBalances;
   const integratedPaymentExpenses = expenses.filter((item) => sameOwner(item) && item.tipo === "despesa" && item.pagamento_evento_id && matchesPersonalPeriod(item.data_lancamento, filters));
   const ownedFixedExpenses = fixedExpenses.filter(sameOwner);
   const activeFixedExpenses = fixedExpenseOccurrences(ownedFixedExpenses, filters);
@@ -366,7 +376,7 @@ export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fi
   const activePayables = [...pending, ...overdue];
   const activePayablesTotal = sumValues(activePayables);
   const totals = {
-    initialBalance, inflowTotal, outflowTotal, periodResult, finalBalance,
+    initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance,
     incomeTotal, expenseTotal, accountingBalance, fixedMonthly,
     activePayablesTotal, paidTotal: sumValues(paid), pendingTotal: sumValues(pending), overdueTotal: sumValues(overdue), cancelledTotal: sumValues(cancelled),
     installmentTotal: sumValues(installments), effectiveOutflow, grossOutflow, reversedOutflow,
@@ -375,27 +385,29 @@ export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fi
   const rows = [
     ...filteredIncomes.map((item) => ({ type: "Receita", date: formatDate(item.data_lancamento), description: item.descricao || "-", detail: item.categoria || "Sem categoria", status: "Recebida", value: formatMoney(item.valor) })),
     ...filteredExpenses.map((item) => ({ type: "Despesa", date: formatDate(item.data_lancamento), description: item.descricao || "-", detail: item.categoria || "Sem categoria", status: "Realizada", value: formatMoney(item.valor) })),
+    ...filteredInvestments.map((item) => ({ type: "Investimento", date: formatDate(item.data_lancamento), description: item.descricao || "-", detail: item.categoria || "Investimentos / Aplicações financeiras", status: "Aplicado", value: formatMoney(item.valor) })),
     ...classifiedPayables.map((item) => ({ type: item.grupo_parcelamento_id ? "Parcela" : "Conta a pagar", date: formatDate(item.vencimento), description: item.descricao || item.fornecedor || "-", detail: item.grupo_parcelamento_id ? `${item.parcela_numero}/${item.parcelas_total} · ${item.fornecedor || "-"}` : item.fornecedor || "-", status: item.reportStatus, value: formatMoney(item.valor) })),
     ...activeFixedExpenses.map((item) => ({ type: "Conta fixa", date: item.competencia ? `${item.competencia} · dia ${item.dia_vencimento}` : item.dia_vencimento ? `Dia ${item.dia_vencimento}` : "-", description: item.descricao || "-", detail: item.frequencia || "Mensal", status: "Ativa", value: formatMoney(item.valor) })),
     ...filteredPaymentEvents.map((item) => ({ type: item.tipo === "Antecipacao" ? "Antecipação" : item.tipo, date: formatDate(item.pago_em), description: "Evento de Conta a Pagar", detail: item.observacoes || "Evento persistido", status: item.tipo === "Estorno" ? "Redução dos pagamentos" : item.tipo === "Antecipacao" ? "Antecipação" : "Pagamento realizado", value: `${item.tipo === "Estorno" ? "-" : ""}${formatMoney(item.valor_pago)}` })),
   ];
   const hasData = rows.length > 0 || initialBalance !== 0;
   return {
-    filteredIncomes, filteredExpenses, integratedPaymentExpenses, activeFixedExpenses, filteredPayables: classifiedPayables, filteredPaymentEvents,
+    filteredIncomes, filteredExpenses, filteredInvestments, integratedPaymentExpenses, activeFixedExpenses, filteredPayables: classifiedPayables, filteredPaymentEvents,
     pending, overdue, paid, cancelled, installments, payments, downPayments, anticipations, reversals, totals, hasData,
     pdf: {
       title: "Relatório Financeiro Pessoal Consolidado", companyName: "Financeiro Pessoal", period: personalPeriodLabel(filters), issuedBy: "Usuário autenticado",
       summary: [
-        { label: "Saldo inicial", value: formatMoney(initialBalance) }, { label: "Entradas do período", value: formatMoney(inflowTotal) },
-        { label: "Saídas do período", value: formatMoney(outflowTotal) }, { label: "Resultado do período", value: formatMoney(periodResult) },
-        { label: "Saldo final", value: formatMoney(finalBalance) }, { label: "Despesas lançadas", value: formatMoney(expenseTotal) },
+        { label: "Saldo acumulado anterior", value: formatMoney(initialBalance) }, { label: "Receitas", value: formatMoney(inflowTotal) },
+        { label: "Despesas", value: formatMoney(outflowTotal) }, { label: "Investimentos", value: formatMoney(investmentTotal) },
+        { label: "Resultado do período", value: formatMoney(periodResult) }, { label: "Variação de caixa", value: formatMoney(cashVariation) },
+        { label: "Saldo acumulado calculado", value: formatMoney(finalBalance) }, { label: "Despesas lançadas", value: formatMoney(expenseTotal) },
         { label: "Contas em aberto", value: formatMoney(activePayablesTotal) },
       ],
       columns: [
         { key: "type", label: "Origem", width: 90 }, { key: "date", label: "Data", width: 68 }, { key: "description", label: "Descrição", width: 180 },
         { key: "detail", label: "Detalhe / parcela", width: 190 }, { key: "status", label: "Status", width: 145 }, { key: "value", label: "Valor", width: 112 },
       ], rows,
-      totals: `saldo inicial ${formatMoney(initialBalance)} | entradas ${formatMoney(inflowTotal)} | saídas ${formatMoney(outflowTotal)} | resultado do período ${formatMoney(periodResult)} | saldo final ${formatMoney(finalBalance)}`,
+      totals: `saldo acumulado anterior ${formatMoney(initialBalance)} | receitas ${formatMoney(inflowTotal)} | despesas ${formatMoney(outflowTotal)} | investimentos ${formatMoney(investmentTotal)} | resultado do período ${formatMoney(periodResult)} | variação de caixa ${formatMoney(cashVariation)} | saldo acumulado calculado ${formatMoney(finalBalance)}`,
     },
   };
 }
