@@ -38,8 +38,32 @@ test("pagamento estornado não permanece no subtotal líquido", () => assert.equ
 test("identifica a antecipação da moto de R$ 1.299,14", () => { const report = build(); assert.equal(report.totals.anticipationTotal, 1299.14); assert.equal(report.totals.savings, 8.86); assert.equal(report.pdf.rows.find((row) => row.value === "R$ 1.299,14")?.type, "Antecipação"); });
 test("subtrai estornos do desembolso efetivo", () => { const totals = build().totals; assert.equal(totals.reversedOutflow, 80); assert.equal(totals.effectiveOutflow, 1399.14); });
 test("aplica período inicial e final", () => { const report = build({ filters: { month: "", start: "2026-08-03", end: "2026-08-05" } }); assert.equal(report.filteredIncomes.length, 1); assert.equal(report.filteredExpenses.length, 0); assert.equal(report.filteredPaymentEvents.length, 2); });
+test("calcula saldo inicial, movimentos, resultado e saldo final em período livre", () => {
+  const report = build({
+    filters: { month: "", start: "2026-08-31", end: "2026-09-30" },
+    incomes: [
+      ...incomes,
+      { id: "r2", empresa_id: empresaId, proprietario_id: userId, tipo: "receita", valor: 500, data_lancamento: "2026-09-10" },
+    ],
+    expenses: [
+      ...expenses,
+      { id: "d3", empresa_id: empresaId, proprietario_id: userId, tipo: "despesa", valor: 300, data_lancamento: "2026-09-20", ativo: true },
+    ],
+  });
+  assert.deepEqual(
+    { initial: report.totals.initialBalance, inflow: report.totals.inflowTotal, outflow: report.totals.outflowTotal, result: report.totals.periodResult, final: report.totals.finalBalance },
+    { initial: 800, inflow: 500, outflow: 300, result: 200, final: 1000 },
+  );
+});
 test("todo o período não elimina registros", () => { const report = build({ filters: { month: "", start: "", end: "" } }); assert.equal(report.filteredIncomes.length, 1); assert.equal(report.filteredPayables.length, 4); });
 test("resultado vazio não gera PDF", () => assert.equal(generatePersonalFinanceReport({ incomes: [], expenses: [], fixedExpenses: [], payables: [], paymentEvents: [], empresaId, userId, filters, serverNow }), false));
 test("não soma a despesa integrada do pagamento novamente e evita duplicidade", () => { const report = build(); assert.equal(report.totals.expenseTotal, 200); assert.equal(report.totals.accountingBalance, 800); assert.equal(report.totals.effectiveOutflow, 1399.14); assert.deepEqual(report.integratedPaymentExpenses.map((item) => item.id), ["d2"]); });
-test("mantém receitas, despesas, pagamentos e antecipações separados no PDF", () => { const summary = Object.fromEntries(build().pdf.summary.map((item) => [item.label, item.value])); assert.equal(summary.Receitas, "R$ 1.000,00"); assert.equal(summary["Despesas lançadas"], "R$ 200,00"); assert.equal(summary["Pagamentos realizados em Contas a Pagar"], "R$ 1.399,14"); assert.equal(summary.Antecipações, "R$ 1.299,14"); });
+test("mantém saldo inicial, movimentos, resultado e saldo final separados no PDF", () => {
+  const summary = Object.fromEntries(build({ filters: { month: "", start: "2026-08-06", end: "2026-08-31" } }).pdf.summary.map((item) => [item.label, item.value]));
+  assert.equal(summary["Saldo inicial"], "R$ 1.000,00");
+  assert.equal(summary["Entradas do período"], "R$ 0,00");
+  assert.equal(summary["Saídas do período"], "R$ 200,00");
+  assert.equal(summary["Resultado do período"], "R$ -200,00");
+  assert.equal(summary["Saldo final"], "R$ 800,00");
+});
 test("usa a data civil de America/Sao_Paulo na virada", () => { assert.equal(dateKeyInTimeZone("2026-08-24T02:59:59Z"), "2026-08-23"); assert.equal(dateKeyInTimeZone("2026-08-24T03:00:00Z"), "2026-08-24"); });

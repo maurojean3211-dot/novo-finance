@@ -4,7 +4,7 @@ import PersonalFinanceMetrics from "../components/PersonalFinanceMetrics";
 import { usePersonalExpensesRead, usePersonalFixedExpensesRead, usePersonalIncomesRead, usePersonalPayablesRead, usePersonalPaymentEventsRead } from "../hooks/usePersonalFinanceRead";
 import { dateLabel, money } from "../utils/personalFinance";
 import { loadPersonalFinanceServerTime } from "../services/personalFinance.service";
-import { buildPersonalFinanceReportData, generatePersonalFinanceReport } from "../../../services/reportPdf.service";
+import { buildPersonalFinanceReportData, calculatePersonalPeriodBalances, generatePersonalFinanceReport } from "../../../services/reportPdf.service";
 
 const today = new Date();
 const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -61,15 +61,12 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
   const [serverDateError, setServerDateError] = useState("");
   const [pdfFeedback, setPdfFeedback] = useState("");
   useEffect(() => { let active = true; void loadPersonalFinanceServerTime().then((value) => { if (active) { setServerNow(value); setServerDateError(""); } }).catch((cause) => { if (active) setServerDateError(cause.message || "Não foi possível obter a data do servidor."); }); return () => { active = false; }; }, []);
-  const filteredIncomes = useMemo(() => filterByPeriod(incomes.records, filters), [incomes.records, filters]);
-  const filteredExpenses = useMemo(() => filterByPeriod(expenses.records.filter((item) => !item.pagamento_evento_id), filters), [expenses.records, filters]);
+  const periodBalances = useMemo(() => calculatePersonalPeriodBalances({ incomes: incomes.records, expenses: expenses.records, empresaId, userId, filters }), [empresaId, expenses.records, filters, incomes.records, userId]);
+  const { filteredIncomes, filteredExpenses, initialBalance, inflowTotal, outflowTotal, periodResult, finalBalance } = periodBalances;
   const filteredPayables = useMemo(() => filterByPeriod(payables.records, filters, (record) => String(record.vencimento || "").slice(0, 10)), [payables.records, filters]);
   const filteredPaymentEvents = useMemo(() => filterByPeriod(paymentEvents.records, filters, (record) => String(record.pago_em || "").slice(0, 10)), [paymentEvents.records, filters]);
   const consolidated = useMemo(() => serverNow ? buildPersonalFinanceReportData({ incomes: incomes.records, expenses: expenses.records, fixedExpenses: fixedExpenses.records, payables: payables.records, paymentEvents: paymentEvents.records, empresaId, userId, filters, serverNow }) : null, [empresaId, expenses.records, filters, fixedExpenses.records, incomes.records, payables.records, paymentEvents.records, serverNow, userId]);
-  const incomeTotal = valueOf(filteredIncomes);
-  const expenseTotal = valueOf(filteredExpenses);
   const classifiedExpenses = filteredExpenses.map((item) => ({ ...item, categoria: item.classificacao_financeira || "Variável não essencial" }));
-  const balance = incomeTotal - expenseTotal;
   const fixedMonthly = consolidated?.totals.fixedMonthly || 0;
   const payablesTotal = consolidated?.totals.activePayablesTotal || 0;
   const paidPayables = consolidated?.paid || [];
@@ -88,10 +85,10 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
     });
     return [...groups.values()].sort((a, b) => a.month.localeCompare(b.month)).reduce((result, item) => {
       const balance = item.income - item.expense;
-      const accumulated = (result.at(-1)?.accumulated || 0) + balance;
+      const accumulated = (result.at(-1)?.accumulated ?? initialBalance) + balance;
       return [...result, { ...item, balance, accumulated }];
     }, []);
-  }, [filteredExpenses, filteredIncomes]);
+  }, [filteredExpenses, filteredIncomes, initialBalance]);
   const chartMax = Math.max(1, ...monthly.flatMap((item) => [item.income, item.expense, Math.abs(item.accumulated)]));
 
   function setMonth(month) { setFilters({ month, start: "", end: "" }); }
@@ -109,11 +106,11 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
     {(serverDateError || pdfFeedback) && <section className="ops-status-panel">{serverDateError || pdfFeedback}</section>}
     {errors.length > 0 && <section className="ops-status-panel">Não foi possível carregar parte dos dados pessoais: {errors.join(" · ")}</section>}
     {loading && <section className="ops-status-panel">Carregando dados pessoais existentes…</section>}
-    <PersonalFinanceMetrics items={[{ label: "Receitas no período", value: money(incomeTotal), detail: `${filteredIncomes.length} lançamento(s)`, icon: "↗", tone: "green" }, { label: "Despesas no período", value: money(expenseTotal), detail: `${filteredExpenses.length} lançamento(s)`, icon: "↘", tone: "amber" }, { label: "Saldo receitas x despesas", value: money(balance), detail: "não inclui pagamentos de contas para evitar duplicidade", icon: "R$", tone: balance >= 0 ? "green" : "rose" }, { label: "Contas fixas mensais", value: money(fixedMonthly), detail: `${fixedExpenses.records.length} conta(s) existente(s)`, icon: "🔁" }, { label: "Obrigações ativas", value: money(payablesTotal), detail: `${(consolidated?.pending.length || 0) + (consolidated?.overdue.length || 0)} conta(s)`, icon: "◷" }]} />
+    <PersonalFinanceMetrics items={[{ label: "Saldo inicial", value: money(initialBalance), detail: "acumulado anterior ao início do período", icon: "R$", tone: initialBalance >= 0 ? "green" : "rose" }, { label: "Entradas do período", value: money(inflowTotal), detail: `${filteredIncomes.length} receita(s)`, icon: "↗", tone: "green" }, { label: "Saídas do período", value: money(outflowTotal), detail: `${filteredExpenses.length} despesa(s)`, icon: "↘", tone: "amber" }, { label: "Resultado do período", value: money(periodResult), detail: "entradas menos saídas", icon: "=", tone: periodResult >= 0 ? "green" : "rose" }, { label: "Saldo final", value: money(finalBalance), detail: "saldo inicial mais o resultado do período", icon: "R$", tone: finalBalance >= 0 ? "green" : "rose" }, { label: "Contas fixas mensais", value: money(fixedMonthly), detail: `${fixedExpenses.records.length} conta(s) existente(s)`, icon: "🔁" }, { label: "Obrigações ativas", value: money(payablesTotal), detail: `${(consolidated?.pending.length || 0) + (consolidated?.overdue.length || 0)} conta(s)`, icon: "◷" }]} />
     <section className="pf-payables-report__totals"><article><span>Pago</span><strong>{money(valueOf(paidPayables))}</strong><small>{paidPayables.length} conta(s)</small></article><article><span>Pendente</span><strong>{money(valueOf(pendingPayables))}</strong><small>{pendingPayables.length} conta(s)</small></article></section>
     <section className="pf-payables-report__totals"><article><span>Pagamentos realizados em Contas a Pagar</span><strong>{money(consolidated?.totals.effectiveOutflow || 0)}</strong><small>Pagamentos + entradas + antecipações − estornos; separados das despesas lançadas</small></article><article><span>Antecipações</span><strong>{money(consolidated?.totals.anticipationTotal || 0)}</strong><small>Pagamentos antecipados identificados pelo evento</small></article><article><span>Economia por antecipação</span><strong>{money(consolidated?.totals.savings || 0)}</strong><small>Desconto real registrado</small></article></section>
     <section className="pf-report-chart-grid"><article className="ops-panel pf-real-report"><div className="ops-panel__header"><h2>Receitas x despesas</h2><span>Comparação mensal</span></div>{monthly.length ? <div className="pf-real-bars">{monthly.map((item) => <div key={item.month}><div><i style={{ height: `${item.income / chartMax * 100}%` }} title={`Receitas ${money(item.income)}`} /><b style={{ height: `${item.expense / chartMax * 100}%` }} title={`Despesas ${money(item.expense)}`} /></div><small>{monthLabel(item.month)}</small></div>)}</div> : <div className="pf-report-empty">Nenhuma receita ou despesa real no período selecionado.</div>}<footer><span className="income-dot" /> Receitas <span className="expense-dot" /> Despesas</footer></article>
-      <article className="ops-panel pf-real-report"><div className="ops-panel__header"><h2>Evolução do saldo</h2><span>Acumulado no período</span></div>{monthly.length ? <div className="pf-balance-report">{monthly.map((item) => <div key={item.month}><span>{monthLabel(item.month)}</span><i><b className={item.accumulated < 0 ? "negative" : ""} style={{ width: `${Math.abs(item.accumulated) / chartMax * 100}%` }} /></i><strong>{money(item.accumulated)}</strong></div>)}</div> : <div className="pf-report-empty">Sem saldo mensal para apresentar.</div>}</article></section>
+      <article className="ops-panel pf-real-report"><div className="ops-panel__header"><h2>Evolução do saldo</h2><span>Parte de {money(initialBalance)} de saldo inicial</span></div>{monthly.length ? <div className="pf-balance-report">{monthly.map((item) => <div key={item.month}><span>{monthLabel(item.month)}</span><i><b className={item.accumulated < 0 ? "negative" : ""} style={{ width: `${Math.abs(item.accumulated) / chartMax * 100}%` }} /></i><strong>{money(item.accumulated)}</strong></div>)}</div> : <div className="pf-report-empty">Sem movimentação no período. Saldo final: {money(finalBalance)}.</div>}</article></section>
     <section className="pf-report-chart-grid"><CategoryPanel title="Despesas por categoria" records={filteredExpenses} emptyText="Nenhuma despesa real categorizada no período." /><CategoryPanel title="Receitas por categoria/origem" records={filteredIncomes} emptyText="Nenhuma receita real categorizada no período." /></section>
     <section className="pf-report-chart-grid"><CategoryPanel title="Despesas por classificação" records={classifiedExpenses} emptyText="Nenhuma despesa classificada no período." /></section>
     <PayablesPanel records={consolidated?.filteredPayables || filteredPayables} />
