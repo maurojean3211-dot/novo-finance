@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { clearReconciliationSession, loadReconciliationSession, saveReconciliationSession, statementPeriod } from "./modules/financeiro-pessoal/utils/reconciliationSession.js";
+import { buildReconciliationSession, clearReconciliationSession, loadReconciliationSession, saveReconciliationSession, statementPeriod } from "./modules/financeiro-pessoal/utils/reconciliationSession.js";
 
 function memoryStorage() {
   const values = new Map();
@@ -10,10 +10,31 @@ function memoryStorage() {
 
 test("sair da rota e voltar restaura toda a conciliação durante a sessão", () => {
   const storage = memoryStorage();
-  const state = { fileName: "extrato.pdf", period: { start: "2026-08-01", end: "2026-08-31" }, statement: { transactions: [{ date: "2026-08-01" }] }, items: [{ id: "n1", selected: true, suggestedType: "Despesa", suggestedCategory: "Alimentação", situation: "Faltando lançar" }], feedback: "" };
+  const state = buildReconciliationSession({ fileName: "extrato.pdf", statement: { bank: "Nubank", transactions: [{ id: "n1", date: "2026-08-01", description: "Mercado", direction: "saida", amount: 10 }] }, items: [{ id: "n1", selected: true, suggestedType: "Despesa", suggestedCategory: "Alimentação", situation: "Faltando lançar" }], totals: { outgoing: 10 }, feedback: "" });
   saveReconciliationSession(storage, "empresa-a", "user-a", state);
   assert.deepEqual(loadReconciliationSession(storage, "empresa-a", "user-a"), state);
   assert.equal(loadReconciliationSession(storage, "empresa-a", "user-b"), null);
+  clearReconciliationSession(storage, "empresa-a", "user-a");
+  assert.equal(loadReconciliationSession(storage, "empresa-a", "user-a"), null);
+});
+
+test("checks alterados sobrevivem à navegação e ao refresh na mesma sessão", () => {
+  const storage = memoryStorage();
+  const statement = { transactions: [{ id: "n1", date: "2026-08-01", description: "Mercado", direction: "saida", amount: 10 }] };
+  const checked = buildReconciliationSession({ fileName: "agosto.pdf", statement, items: [{ id: "n1", selected: false, suggestedType: "Despesa", suggestedCategory: "Mercado", situation: "Faltando lançar" }], totals: { outgoing: 10 } });
+  saveReconciliationSession(storage, "empresa-a", "user-a", checked);
+  assert.equal(loadReconciliationSession(storage, "empresa-a", "user-a").items[0].selected, false);
+  assert.equal(loadReconciliationSession(storage, "empresa-a", "user-a").fileName, "agosto.pdf");
+});
+
+test("snapshot persiste somente dados processados e limpar encerra a conciliação", () => {
+  const storage = memoryStorage();
+  const state = buildReconciliationSession({ fileName: "extrato.pdf", statement: { transactions: [{ id: "n1", date: "2026-08-01", description: "Mercado", direction: "saida", amount: 10 }], rawPdf: "não persistir", bytes: [1, 2, 3] }, items: [{ id: "n1", selected: true, situation: "Faltando lançar" }], totals: { outgoing: 10 } });
+  saveReconciliationSession(storage, "empresa-a", "user-a", state);
+  const restored = loadReconciliationSession(storage, "empresa-a", "user-a");
+  assert.equal(restored.statement.rawPdf, undefined);
+  assert.equal(restored.statement.bytes, undefined);
+  assert.deepEqual(restored.groups, { "Faltando lançar": ["n1"] });
   clearReconciliationSession(storage, "empresa-a", "user-a");
   assert.equal(loadReconciliationSession(storage, "empresa-a", "user-a"), null);
 });

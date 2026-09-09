@@ -3,11 +3,12 @@ import { money } from "../utils/personalFinance";
 import { acquireReconciliationImportLock, buildReconciliationImportSummary, reconcileStatementTransactions, reconciliationTotals, RECONCILIATION_GROUPS } from "../utils/bankReconciliation";
 import { extractPdfLinesLocally, parseNubankStatement } from "../utils/nubankStatementParser";
 import { importPersonalReconciliationItems } from "../services/personalFinance.service";
-import { clearReconciliationSession, loadReconciliationSession, saveReconciliationSession, statementPeriod } from "../utils/reconciliationSession";
+import { buildReconciliationSession, clearReconciliationSession, loadReconciliationSession, reconciliationSessionKey, saveReconciliationSession, statementPeriod } from "../utils/reconciliationSession";
 
 export default function BankReconciliationPanel({ empresaId, userId, incomes, expenses, payables = [], onImported }) {
   const inputRef = useRef(null);
   const importingRef = useRef(false);
+  const sessionScopeRef = useRef(reconciliationSessionKey(empresaId, userId));
   const [restored] = useState(() => loadReconciliationSession(typeof window === "undefined" ? null : window.sessionStorage, empresaId, userId));
   const [statement, setStatement] = useState(restored?.statement || null);
   const [items, setItems] = useState(restored?.items || []);
@@ -21,8 +22,17 @@ export default function BankReconciliationPanel({ empresaId, userId, incomes, ex
   const selectedCount = importSummary.total;
 
   useEffect(() => {
-    saveReconciliationSession(typeof window === "undefined" ? null : window.sessionStorage, empresaId, userId, { fileName, period: statementPeriod(statement), statement, items, feedback });
-  }, [empresaId, feedback, fileName, items, statement, userId]);
+    const nextScope = reconciliationSessionKey(empresaId, userId);
+    if (sessionScopeRef.current === nextScope) return;
+    sessionScopeRef.current = nextScope;
+    const saved = loadReconciliationSession(typeof window === "undefined" ? null : window.sessionStorage, empresaId, userId);
+    setStatement(saved?.statement || null); setItems(saved?.items || []); setFileName(saved?.fileName || ""); setFeedback(saved?.feedback || "");
+  }, [empresaId, userId]);
+
+  function persist(nextStatement, nextItems, nextFileName, nextFeedback) {
+    const nextTotals = nextStatement ? reconciliationTotals(nextStatement, nextItems) : null;
+    saveReconciliationSession(typeof window === "undefined" ? null : window.sessionStorage, empresaId, userId, buildReconciliationSession({ fileName: nextFileName, statement: nextStatement, items: nextItems, feedback: nextFeedback, totals: nextTotals }));
+  }
 
   async function readFile(event) {
     const file = event.target.files?.[0];
@@ -32,15 +42,18 @@ export default function BankReconciliationPanel({ empresaId, userId, incomes, ex
     setBusy(true); setFeedback("");
     try {
       const parsed = parseNubankStatement(await extractPdfLinesLocally(file));
+      const reconciled = reconcileStatementTransactions(parsed.transactions, existing, payables);
+      const nextFeedback = parsed.warnings.join(" ");
       setFileName(file.name);
       setStatement(parsed);
-      setItems(reconcileStatementTransactions(parsed.transactions, existing, payables));
-      setFeedback(parsed.warnings.join(" "));
+      setItems(reconciled);
+      setFeedback(nextFeedback);
+      persist(parsed, reconciled, file.name, nextFeedback);
     } catch (cause) { setStatement(null); setItems([]); setFeedback(`Não foi possível ler o PDF localmente: ${cause.message}`); }
     finally { setBusy(false); }
   }
 
-  function updateItem(id, changes) { setItems((current) => current.map((item) => item.id === id ? { ...item, ...changes } : item)); }
+  function updateItem(id, changes) { setItems((current) => { const next = current.map((item) => item.id === id ? { ...item, ...changes } : item); persist(statement, next, fileName, feedback); return next; }); }
   function clearReconciliation() {
     if (busy) return;
     clearReconciliationSession(typeof window === "undefined" ? null : window.sessionStorage, empresaId, userId);
@@ -52,8 +65,9 @@ export default function BankReconciliationPanel({ empresaId, userId, incomes, ex
     setBusy(true); setFeedback("");
     try {
       const result = await importPersonalReconciliationItems({ empresaId, userId, items: importSummary.items });
-      setFeedback(`Importação concluída — ${result.imported} importado(s), ${result.skipped} ignorado(s) por já existirem, ${result.blocked} bloqueado(s) por possível duplicidade e ${result.failed} erro(s).`);
-      setItems((current) => current.map((item) => result.importedIds.includes(item.id) || result.exactIds.includes(item.id) ? { ...item, selected: false, situation: "Já conciliado / encontrado no sistema", matchedIds: result.importedIds.includes(item.id) ? ["importado-agora"] : item.matchedIds } : result.duplicateIds.includes(item.id) ? { ...item, selected: false, situation: "Possível duplicidade", matchedIds: item.matchedIds.length ? item.matchedIds : ["duplicidade-detectada"] } : item));
+      const nextFeedback = `Importação concluída — ${result.imported} importado(s), ${result.skipped} ignorado(s) por já existirem, ${result.blocked} bloqueado(s) por possível duplicidade e ${result.failed} erro(s).`;
+      setFeedback(nextFeedback);
+      setItems((current) => { const next = current.map((item) => result.importedIds.includes(item.id) || result.exactIds.includes(item.id) ? { ...item, selected: false, situation: "Já conciliado / encontrado no sistema", matchedIds: result.importedIds.includes(item.id) ? ["importado-agora"] : item.matchedIds } : result.duplicateIds.includes(item.id) ? { ...item, selected: false, situation: "Possível duplicidade", matchedIds: item.matchedIds.length ? item.matchedIds : ["duplicidade-detectada"] } : item); persist(statement, next, fileName, nextFeedback); return next; });
       await onImported?.();
     } catch (cause) { setFeedback(`A importação foi interrompida: ${cause.message}`); }
     finally { importingRef.current = false; setBusy(false); }
