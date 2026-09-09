@@ -1,5 +1,5 @@
 const INVESTMENT_CATEGORY = "Investimentos / Aplicações financeiras";
-const IGNORED_DESCRIPTION_WORDS = new Set(["pix", "transferencia", "transferido", "enviada", "enviado", "recebida", "recebido", "compra", "debito", "pagamento", "pago", "via", "por", "para", "de", "da", "do", "das", "dos", "na", "no"]);
+const IGNORED_DESCRIPTION_WORDS = new Set(["pix", "transferencia", "transferido", "enviada", "enviado", "recebida", "recebido", "compra", "debito", "pagamento", "pago", "boleto", "efetuado", "efetuada", "via", "por", "para", "de", "da", "do", "das", "dos", "na", "no"]);
 
 export const RECONCILIATION_GROUPS = [
   "Já conciliado / encontrado no sistema",
@@ -48,11 +48,14 @@ export function detectReconciliationDuplicate(item, existingRecords = []) {
 }
 
 export function suggestStatementTransaction(transaction) {
+  const rawText = String(transaction.description || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
   const text = normalizeReconciliationText(transaction.description);
-  const incoming = transaction.direction === "entrada" || /recebid|credito|deposito|estorno/.test(text);
-  const ownTransfer = transaction.isOwnTransfer || /entre contas|mesma titularidade|conta propria|minha conta/.test(text);
+  const ownTransfer = transaction.isOwnTransfer || /entre contas|mesma titularidade|conta propria|minha conta/.test(rawText);
+  const explicitBoletoPayment = /pagamento de boleto efetuad[oa]/.test(rawText) && !/estorno|devolucao|cancelamento/.test(rawText);
+  const incoming = !explicitBoletoPayment && (transaction.direction === "entrada" || /recebid|credito|deposito|estorno/.test(rawText));
   const investment = /investimento|aplicacao|renda fixa|tesouro|acoes|acao|fii|bolsa|\b[a-z]{4}\d{1,2}\b/.test(text);
   if (ownTransfer) return { suggestedType: "Transferência", systemType: null, suggestedCategory: "Transferência entre contas próprias", confidence: "alta" };
+  if (explicitBoletoPayment) return { suggestedType: "Despesa", systemType: "despesa", suggestedCategory: "Outros", confidence: "alta" };
   if (investment) return { suggestedType: "Investimento", systemType: transaction.direction === "saida" ? "despesa" : null, suggestedCategory: INVESTMENT_CATEGORY, confidence: transaction.direction === "saida" ? "alta" : "baixa" };
   if (incoming) return { suggestedType: "Receita", systemType: "receita", suggestedCategory: /pix/.test(text) ? "PIX recebido" : "Outras receitas", confidence: "alta" };
   if (transaction.direction === "saida" || /compra|debito|pagamento|pix enviado|transferencia enviada|boleto/.test(text)) {
@@ -62,7 +65,18 @@ export function suggestStatementTransaction(transaction) {
   return { suggestedType: "Revisar", systemType: null, suggestedCategory: "Não definida", confidence: "baixa" };
 }
 
-export function reconcileStatementTransactions(transactions = [], existingRecords = []) {
+export function findPayableMatches(transaction, payables = []) {
+  return payables.filter((payable) => {
+    const status = payable.reportStatus || payable.status;
+    const description = [payable.fornecedor, payable.descricao].filter(Boolean).join(" ");
+    return !["Pago", "Cancelada"].includes(status)
+      && Math.abs(Number(payable.valor) - Number(transaction.amount)) < 0.005
+      && dateDistance(String(payable.vencimento || "").slice(0, 10), transaction.date) <= 3
+      && reconciliationTextSimilarity(description, transaction.description) >= 0.2;
+  }).sort((left, right) => reconciliationTextSimilarity([right.fornecedor, right.descricao].join(" "), transaction.description) - reconciliationTextSimilarity([left.fornecedor, left.descricao].join(" "), transaction.description));
+}
+
+export function reconcileStatementTransactions(transactions = [], existingRecords = [], payables = []) {
   const usedMatches = new Set();
   const seenStatement = new Set();
   return transactions.map((transaction, index) => {
@@ -72,12 +86,14 @@ export function reconcileStatementTransactions(transactions = [], existingRecord
     const exact = duplicate.status === "exact" ? duplicate.matches : [];
     const possibleDuplicates = duplicate.status === "possible_duplicate" ? duplicate.matches : [];
     const probable = comparable.filter((item) => dateDistance(String(item.data_lancamento).slice(0, 10), transaction.date) <= 3 || reconciliationTextSimilarity(item.descricao, transaction.description) >= 0.55);
+    const payableMatches = transaction.direction === "saida" || suggestion.suggestedType === "Transferência" ? findPayableMatches(transaction, payables) : [];
     const fingerprint = reconciliationFingerprint({ ...transaction, systemType: suggestion.systemType });
     let situation = "Faltando lançar";
     if (suggestion.suggestedType === "Transferência") situation = "Transferências entre contas próprias";
     else if (exact.length) { situation = "Já conciliado / encontrado no sistema"; usedMatches.add(exact[0].id); }
     else if (possibleDuplicates.length) situation = "Possível duplicidade";
     else if (probable.length) situation = "Possível correspondência";
+    else if (payableMatches.length && suggestion.suggestedType !== "Transferência") situation = "Possível correspondência";
     else if (seenStatement.has(fingerprint)) situation = "Possível duplicidade";
     else if (suggestion.suggestedType === "Investimento") situation = "Investimentos";
     else if (suggestion.confidence === "baixa") situation = "Necessita revisão";
@@ -88,6 +104,7 @@ export function reconcileStatementTransactions(transactions = [], existingRecord
       id: transaction.id || `statement-${index + 1}`,
       situation,
       matchedIds: (exact.length ? exact.slice(0, 1) : possibleDuplicates.length ? possibleDuplicates : probable).map((item) => item.id),
+      payableMatches: payableMatches.map((item) => ({ id: item.id, fornecedor: item.fornecedor || "", descricao: item.descricao || "", vencimento: item.vencimento, valor: Number(item.valor) })),
       selected: ["Faltando lançar", "Investimentos"].includes(situation),
     };
   });
@@ -103,7 +120,7 @@ export function reconciliationTotals(statement, items = []) {
 }
 
 export function canImportReconciliationItem(item) {
-  return item.selected && item.systemType && !item.matchedIds?.length && ["Faltando lançar", "Investimentos"].includes(item.situation);
+  return Boolean(item.selected && item.systemType && !item.matchedIds?.length && !item.payableMatches?.length && ["Faltando lançar", "Investimentos"].includes(item.situation));
 }
 
 export function buildReconciliationImportSummary(items = []) {

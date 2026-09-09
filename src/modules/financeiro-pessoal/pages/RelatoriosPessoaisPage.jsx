@@ -115,7 +115,7 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
     <section className="pf-report-chart-grid"><CategoryPanel title="Despesas por categoria" records={filteredExpenses} emptyText="Nenhuma despesa real categorizada no período." /><CategoryPanel title="Investimentos / Aplicações financeiras" records={filteredInvestments} emptyText="Nenhum investimento no período." /></section>
     <section className="pf-report-chart-grid"><CategoryPanel title="Receitas por categoria/origem" records={filteredIncomes} emptyText="Nenhuma receita real categorizada no período." /></section>
     <section className="pf-report-chart-grid"><CategoryPanel title="Despesas por classificação" records={classifiedExpenses} emptyText="Nenhuma despesa classificada no período." /></section>
-    <BankReconciliationPanel empresaId={empresaId} userId={userId} incomes={incomes.records} expenses={expenses.records} onImported={() => Promise.all([incomes.reload(), expenses.reload()])} />
+    <BankReconciliationPanel empresaId={empresaId} userId={userId} incomes={incomes.records} expenses={expenses.records} payables={payables.records} onImported={() => Promise.all([incomes.reload(), expenses.reload()])} />
     <PayablesPanel records={consolidated?.filteredPayables || filteredPayables} />
     <PaymentEventsPanel events={consolidated?.filteredPaymentEvents || filteredPaymentEvents} payables={payables.records} />
   </main>;

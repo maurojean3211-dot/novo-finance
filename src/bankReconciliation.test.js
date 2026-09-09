@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { acquireReconciliationImportLock, buildReconciliationImportSummary, detectReconciliationDuplicate, reconcileStatementTransactions, reconciliationTotals, runReconciliationImport } from "./modules/financeiro-pessoal/utils/bankReconciliation.js";
+import { acquireReconciliationImportLock, buildReconciliationImportSummary, canImportReconciliationItem, detectReconciliationDuplicate, findPayableMatches, reconcileStatementTransactions, reconciliationTotals, runReconciliationImport } from "./modules/financeiro-pessoal/utils/bankReconciliation.js";
 import { parseNubankStatement } from "./modules/financeiro-pessoal/utils/nubankStatementParser.js";
 
 const parsed = parseNubankStatement([
@@ -30,6 +30,36 @@ test("conciliação separa encontrado, investimento e transferência própria", 
   assert.equal(items[2].suggestedCategory, "Investimentos / Aplicações financeiras");
   assert.equal(items[3].systemType, null);
   assert.deepEqual(reconciliationTotals(parsed, items), { initialBalance: 1000, incoming: 500, outgoing: 420, finalBalance: 1080, found: 120, ownTransfers: 100, reconciliableTotal: 820, difference: 700 });
+});
+
+test("pagamento de boleto efetuado é despesa mesmo quando o extrato informa entrada", () => {
+  for (const [description, amount] of [["Pagamento de boleto efetuado REALIZE", 91.87], ["Pagamento de boleto efetuado REALIZE", 44.5]]) {
+    const [item] = reconcileStatementTransactions([{ date: "2026-09-02", description, direction: "entrada", amount }]);
+    assert.deepEqual([item.suggestedType, item.systemType, item.suggestedCategory], ["Despesa", "despesa", "Outros"]);
+  }
+  const [reversal] = reconcileStatementTransactions([{ date: "2026-09-03", description: "Estorno de pagamento de boleto efetuado REALIZE", direction: "entrada", amount: 91.87 }]);
+  assert.equal(reversal.suggestedType, "Receita");
+});
+
+test("transferência própria não vira receita ou despesa nem baixa Conta a Pagar", () => {
+  const payable = { id: "cp-556", fornecedor: "Banco do Brasil", descricao: "Seguro CB300", vencimento: "2026-09-03", valor: 556.33, status: "Pendente" };
+  const [item] = reconcileStatementTransactions([{ date: "2026-09-02", description: "Transferência entre contas próprias para Banco do Brasil", direction: "saida", amount: 556.33 }], [], [payable]);
+  assert.deepEqual([item.suggestedType, item.systemType, item.suggestedCategory, item.situation], ["Transferência", null, "Transferência entre contas próprias", "Transferências entre contas próprias"]);
+  assert.equal(canImportReconciliationItem({ ...item, selected: true }), false);
+  assert.deepEqual(buildReconciliationImportSummary([{ ...item, selected: true }]), { items: [], total: 0, incomes: 0, expenses: 0, investments: 0, transfers: 0, incoming: 0, outgoing: 0 });
+  assert.equal(payable.status, "Pendente");
+});
+
+test("débito compatível sugere Conta a Pagar e exige confirmação", () => {
+  const payable = { id: "cp-realize", fornecedor: "REALIZE", descricao: "Boleto mensal", vencimento: "2026-09-04", valor: 91.87, status: "Pendente" };
+  const transaction = { date: "2026-09-02", description: "Pagamento de boleto efetuado REALIZE", direction: "saida", amount: 91.87 };
+  assert.deepEqual(findPayableMatches(transaction, [payable]).map((item) => item.id), ["cp-realize"]);
+  const [item] = reconcileStatementTransactions([transaction], [], [payable]);
+  assert.equal(item.situation, "Possível correspondência");
+  assert.equal(item.selected, false);
+  assert.deepEqual(item.payableMatches.map((match) => match.id), ["cp-realize"]);
+  assert.equal(canImportReconciliationItem({ ...item, selected: true, situation: "Faltando lançar" }), false);
+  assert.equal(payable.status, "Pendente");
 });
 
 test("marca correspondência próxima e duplicidade no próprio extrato", () => {
