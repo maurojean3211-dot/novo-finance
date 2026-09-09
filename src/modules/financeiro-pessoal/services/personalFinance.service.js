@@ -84,6 +84,26 @@ export async function deletePersonalFixedExpense({ empresaId, userId, id }) {
   if (error) throw error;
 }
 
+export async function importPersonalReconciliationItems({ empresaId, userId, items }) {
+  requireScope(empresaId);
+  if (!userId) throw new Error("Proprietário não identificado.");
+  const { data: existing, error } = await supabase.from("despesas")
+    .select("id, tipo, descricao, valor, data_lancamento, idempotency_key")
+    .eq("empresa_id", empresaId).eq("proprietario_id", userId);
+  if (error) throw error;
+  const importedIds = [];
+  let skipped = 0;
+  for (const item of items) {
+    const idempotencyKey = `nubank:${item.date}:${item.systemType}:${Number(item.amount).toFixed(2)}:${String(item.description).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-").slice(0, 80)}`;
+    const duplicate = existing.some((record) => record.idempotency_key === idempotencyKey || (record.tipo === item.systemType && String(record.data_lancamento).slice(0, 10) === item.date && Math.abs(Number(record.valor) - Number(item.amount)) < 0.005 && String(record.descricao || "").trim().toLocaleLowerCase("pt-BR") === String(item.description || "").trim().toLocaleLowerCase("pt-BR")));
+    if (duplicate) { skipped += 1; continue; }
+    await savePersonalTransaction({ empresaId, userId, tipo: item.systemType, values: { descricao: item.description, valor: item.amount, data: item.date, categoria: item.suggestedCategory, idempotency_key: idempotencyKey } });
+    existing.push({ tipo: item.systemType, descricao: item.description, valor: item.amount, data_lancamento: item.date, idempotency_key: idempotencyKey });
+    importedIds.push(item.id);
+  }
+  return { imported: importedIds.length, skipped, importedIds };
+}
+
 export async function generatePersonalRecurringTitles({ competencia, recurrenceId = null }) {
   const { data, error } = await supabase.rpc("gerar_titulos_recorrentes", { p_competencia: `${competencia}-01`, p_recorrencia_id: recurrenceId });
   if (error) throw error;
