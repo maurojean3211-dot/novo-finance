@@ -45,13 +45,18 @@ function createSupabaseStub() {
 
 const supabaseStub = createSupabaseStub();
 globalThis.__personalFinanceOwnershipSupabase = supabaseStub;
+globalThis.__personalFinanceOwnershipRunReconciliationImport = async () => ({ imported: 0, skipped: 0, blocked: 0, failed: 0, importedIds: [], exactIds: [], duplicateIds: [], errors: [] });
 const executableServiceSource = rawServiceSource.replace(
   /import\s+\{\s*supabase\s*\}\s+from\s+"\.\.\/\.\.\/\.\.\/supabase";/,
   "const supabase = globalThis.__personalFinanceOwnershipSupabase;",
+).replace(
+  /import\s+\{\s*runReconciliationImport\s*\}\s+from\s+"\.\.\/utils\/bankReconciliation\.js";/,
+  "const runReconciliationImport = globalThis.__personalFinanceOwnershipRunReconciliationImport;",
 );
 assert.notEqual(executableServiceSource, rawServiceSource, "Import Supabase não foi substituído no harness");
 const service = await import(`data:text/javascript;base64,${Buffer.from(executableServiceSource).toString("base64")}`);
 delete globalThis.__personalFinanceOwnershipSupabase;
+delete globalThis.__personalFinanceOwnershipRunReconciliationImport;
 
 function functionSource(name, nextName) {
   const start = serviceSource.indexOf(`export async function ${name}`);

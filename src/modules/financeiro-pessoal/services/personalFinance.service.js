@@ -1,4 +1,5 @@
 import { supabase } from "../../../supabase";
+import { runReconciliationImport } from "../utils/bankReconciliation.js";
 
 export async function loadPersonalFinanceServerTime() {
   const { data: { session } } = await supabase.auth.getSession();
@@ -84,24 +85,25 @@ export async function deletePersonalFixedExpense({ empresaId, userId, id }) {
   if (error) throw error;
 }
 
-export async function importPersonalReconciliationItems({ empresaId, userId, items }) {
+export async function importPersonalReconciliationItems({ empresaId, userId, items, client = supabase }) {
   requireScope(empresaId);
   if (!userId) throw new Error("Proprietário não identificado.");
-  const { data: existing, error } = await supabase.from("despesas")
-    .select("id, tipo, descricao, valor, data_lancamento, idempotency_key")
-    .eq("empresa_id", empresaId).eq("proprietario_id", userId);
-  if (error) throw error;
-  const importedIds = [];
-  let skipped = 0;
-  for (const item of items) {
-    const idempotencyKey = `nubank:${item.date}:${item.systemType}:${Number(item.amount).toFixed(2)}:${String(item.description).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, "-").slice(0, 80)}`;
-    const duplicate = existing.some((record) => record.idempotency_key === idempotencyKey || (record.tipo === item.systemType && String(record.data_lancamento).slice(0, 10) === item.date && Math.abs(Number(record.valor) - Number(item.amount)) < 0.005 && String(record.descricao || "").trim().toLocaleLowerCase("pt-BR") === String(item.description || "").trim().toLocaleLowerCase("pt-BR")));
-    if (duplicate) { skipped += 1; continue; }
-    await savePersonalTransaction({ empresaId, userId, tipo: item.systemType, values: { descricao: item.description, valor: item.amount, data: item.date, categoria: item.suggestedCategory, idempotency_key: idempotencyKey } });
-    existing.push({ tipo: item.systemType, descricao: item.description, valor: item.amount, data_lancamento: item.date, idempotency_key: idempotencyKey });
-    importedIds.push(item.id);
-  }
-  return { imported: importedIds.length, skipped, importedIds };
+  return runReconciliationImport({
+    items,
+    findExisting: async (item) => {
+      const { data, error } = await client.from("despesas")
+        .select("id, tipo, descricao, valor, data_lancamento, idempotency_key")
+        .eq("empresa_id", empresaId).eq("proprietario_id", userId)
+        .eq("tipo", item.systemType).eq("data_lancamento", item.date).eq("valor", Number(item.amount));
+      if (error) throw error;
+      return data || [];
+    },
+    insert: async (item, idempotencyKey) => {
+      const payload = personalTransactionPayload({ descricao: item.description, valor: item.amount, data: item.date, categoria: item.suggestedCategory, idempotency_key: idempotencyKey }, item.systemType, empresaId, userId);
+      const { error: insertError } = await client.from("despesas").insert([payload]);
+      if (insertError) throw insertError;
+    },
+  });
 }
 
 export async function generatePersonalRecurringTitles({ competencia, recurrenceId = null }) {

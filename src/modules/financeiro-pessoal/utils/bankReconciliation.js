@@ -1,4 +1,5 @@
 const INVESTMENT_CATEGORY = "Investimentos / Aplicações financeiras";
+const IGNORED_DESCRIPTION_WORDS = new Set(["pix", "transferencia", "transferido", "enviada", "enviado", "recebida", "recebido", "compra", "debito", "pagamento", "pago", "via", "por", "para", "de", "da", "do", "das", "dos", "na", "no"]);
 
 export const RECONCILIATION_GROUPS = [
   "Já conciliado / encontrado no sistema",
@@ -11,7 +12,7 @@ export const RECONCILIATION_GROUPS = [
 ];
 
 export function normalizeReconciliationText(value) {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter((word) => word && !IGNORED_DESCRIPTION_WORDS.has(word)).join(" ");
 }
 
 function dateDistance(left, right) {
@@ -20,7 +21,7 @@ function dateDistance(left, right) {
   return Number.isFinite(first) && Number.isFinite(second) ? Math.abs(first - second) / 86400000 : Infinity;
 }
 
-function textSimilarity(left, right) {
+export function reconciliationTextSimilarity(left, right) {
   const a = new Set(normalizeReconciliationText(left).split(" ").filter((word) => word.length > 2));
   const b = new Set(normalizeReconciliationText(right).split(" ").filter((word) => word.length > 2));
   if (!a.size || !b.size) return 0;
@@ -32,11 +33,25 @@ export function reconciliationFingerprint(item) {
   return [item.date || item.data_lancamento, item.systemType || item.tipo, Number(item.amount ?? item.valor).toFixed(2), normalizeReconciliationText(item.description || item.descricao)].join("|");
 }
 
+export function detectReconciliationDuplicate(item, existingRecords = []) {
+  const sameOperation = existingRecords.filter((record) =>
+    record.tipo === (item.systemType || item.tipo)
+    && String(record.data_lancamento).slice(0, 10) === (item.date || String(item.data_lancamento).slice(0, 10))
+    && Math.abs(Number(record.valor) - Number(item.amount ?? item.valor)) < 0.005,
+  );
+  if (!sameOperation.length) return { status: "none", matches: [] };
+  const fingerprint = reconciliationFingerprint(item);
+  const exact = sameOperation.find((record) => (item.idempotencyKey && record.idempotency_key === item.idempotencyKey) || reconciliationFingerprint(record) === fingerprint);
+  if (exact) return { status: "exact", matches: [exact] };
+  const ranked = [...sameOperation].sort((left, right) => reconciliationTextSimilarity(right.descricao, item.description || item.descricao) - reconciliationTextSimilarity(left.descricao, item.description || item.descricao));
+  return { status: "possible_duplicate", matches: ranked };
+}
+
 export function suggestStatementTransaction(transaction) {
   const text = normalizeReconciliationText(transaction.description);
   const incoming = transaction.direction === "entrada" || /recebid|credito|deposito|estorno/.test(text);
   const ownTransfer = transaction.isOwnTransfer || /entre contas|mesma titularidade|conta propria|minha conta/.test(text);
-  const investment = /investimento|aplicacao|renda fixa|tesouro|compra (de )?(acoes|acao|fii)|bolsa/.test(text);
+  const investment = /investimento|aplicacao|renda fixa|tesouro|acoes|acao|fii|bolsa|\b[a-z]{4}\d{1,2}\b/.test(text);
   if (ownTransfer) return { suggestedType: "Transferência", systemType: null, suggestedCategory: "Transferência entre contas próprias", confidence: "alta" };
   if (investment) return { suggestedType: "Investimento", systemType: transaction.direction === "saida" ? "despesa" : null, suggestedCategory: INVESTMENT_CATEGORY, confidence: transaction.direction === "saida" ? "alta" : "baixa" };
   if (incoming) return { suggestedType: "Receita", systemType: "receita", suggestedCategory: /pix/.test(text) ? "PIX recebido" : "Outras receitas", confidence: "alta" };
@@ -52,13 +67,16 @@ export function reconcileStatementTransactions(transactions = [], existingRecord
   const seenStatement = new Set();
   return transactions.map((transaction, index) => {
     const suggestion = suggestStatementTransaction(transaction);
-    const comparable = existingRecords.filter((item) => item.tipo === suggestion.systemType && Math.abs(Number(item.valor) - Number(transaction.amount)) < 0.005);
-    const exact = comparable.filter((item) => !usedMatches.has(item.id) && String(item.data_lancamento).slice(0, 10) === transaction.date).sort((left, right) => textSimilarity(right.descricao, transaction.description) - textSimilarity(left.descricao, transaction.description));
-    const probable = comparable.filter((item) => !usedMatches.has(item.id) && (dateDistance(String(item.data_lancamento).slice(0, 10), transaction.date) <= 3 || textSimilarity(item.descricao, transaction.description) >= 0.55));
+    const comparable = existingRecords.filter((item) => item.tipo === suggestion.systemType && Math.abs(Number(item.valor) - Number(transaction.amount)) < 0.005 && !usedMatches.has(item.id));
+    const duplicate = detectReconciliationDuplicate({ ...transaction, systemType: suggestion.systemType }, comparable);
+    const exact = duplicate.status === "exact" ? duplicate.matches : [];
+    const possibleDuplicates = duplicate.status === "possible_duplicate" ? duplicate.matches : [];
+    const probable = comparable.filter((item) => dateDistance(String(item.data_lancamento).slice(0, 10), transaction.date) <= 3 || reconciliationTextSimilarity(item.descricao, transaction.description) >= 0.55);
     const fingerprint = reconciliationFingerprint({ ...transaction, systemType: suggestion.systemType });
     let situation = "Faltando lançar";
     if (suggestion.suggestedType === "Transferência") situation = "Transferências entre contas próprias";
     else if (exact.length) { situation = "Já conciliado / encontrado no sistema"; usedMatches.add(exact[0].id); }
+    else if (possibleDuplicates.length) situation = "Possível duplicidade";
     else if (probable.length) situation = "Possível correspondência";
     else if (seenStatement.has(fingerprint)) situation = "Possível duplicidade";
     else if (suggestion.suggestedType === "Investimento") situation = "Investimentos";
@@ -69,7 +87,7 @@ export function reconcileStatementTransactions(transactions = [], existingRecord
       ...suggestion,
       id: transaction.id || `statement-${index + 1}`,
       situation,
-      matchedIds: (exact.length ? exact.slice(0, 1) : probable).map((item) => item.id),
+      matchedIds: (exact.length ? exact.slice(0, 1) : possibleDuplicates.length ? possibleDuplicates : probable).map((item) => item.id),
       selected: ["Faltando lançar", "Investimentos"].includes(situation),
     };
   });
@@ -86,4 +104,50 @@ export function reconciliationTotals(statement, items = []) {
 
 export function canImportReconciliationItem(item) {
   return item.selected && item.systemType && !item.matchedIds?.length && ["Faltando lançar", "Investimentos"].includes(item.situation);
+}
+
+export function buildReconciliationImportSummary(items = []) {
+  const selected = items.filter(canImportReconciliationItem);
+  const countType = (type) => selected.filter((item) => item.suggestedType === type).length;
+  return {
+    items: selected,
+    total: selected.length,
+    incomes: countType("Receita"),
+    expenses: countType("Despesa"),
+    investments: countType("Investimento"),
+    transfers: countType("Transferência"),
+    incoming: selected.filter((item) => item.direction === "entrada").reduce((sum, item) => sum + Number(item.amount || 0), 0),
+    outgoing: selected.filter((item) => item.direction === "saida").reduce((sum, item) => sum + Number(item.amount || 0), 0),
+  };
+}
+
+export function reconciliationIdempotencyKey(item) {
+  return `nubank:${item.date}:${item.systemType}:${Number(item.amount).toFixed(2)}:${normalizeReconciliationText(item.description).replace(/\s+/g, "-").slice(0, 80)}`;
+}
+
+export async function runReconciliationImport({ items = [], findExisting, insert }) {
+  const importedIds = [];
+  const exactIds = [];
+  const duplicateIds = [];
+  const errors = [];
+  for (const item of items.filter(canImportReconciliationItem)) {
+    const idempotencyKey = reconciliationIdempotencyKey(item);
+    try {
+      const duplicate = detectReconciliationDuplicate({ ...item, idempotencyKey }, await findExisting(item));
+      if (duplicate.status === "exact") { exactIds.push(item.id); continue; }
+      if (duplicate.status === "possible_duplicate") { duplicateIds.push(item.id); continue; }
+      await insert(item, idempotencyKey);
+      importedIds.push(item.id);
+    } catch (cause) {
+      if (cause?.code === "23505") exactIds.push(item.id);
+      else errors.push({ id: item.id, message: cause.message || "Falha ao importar lançamento." });
+    }
+  }
+  return { imported: importedIds.length, skipped: exactIds.length, blocked: duplicateIds.length, failed: errors.length, importedIds, exactIds, duplicateIds, errors };
+}
+
+export function acquireReconciliationImportLock(lock) {
+  if (lock.current) return false;
+  lock.current = true;
+  return true;
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { reconcileStatementTransactions, reconciliationTotals } from "./modules/financeiro-pessoal/utils/bankReconciliation.js";
+import { acquireReconciliationImportLock, buildReconciliationImportSummary, detectReconciliationDuplicate, reconcileStatementTransactions, reconciliationTotals, runReconciliationImport } from "./modules/financeiro-pessoal/utils/bankReconciliation.js";
 import { parseNubankStatement } from "./modules/financeiro-pessoal/utils/nubankStatementParser.js";
 
 const parsed = parseNubankStatement([
@@ -44,4 +44,52 @@ test("cada lançamento existente concilia no máximo uma linha do extrato", () =
   const transaction = { date: "2026-09-10", description: "Compra repetida", direction: "saida", amount: 16 };
   const items = reconcileStatementTransactions([transaction, { ...transaction }], [{ id: "d1", tipo: "despesa", data_lancamento: "2026-09-10", descricao: "Compra repetida", valor: 16 }]);
   assert.deepEqual(items.map((item) => item.situation), ["Já conciliado / encontrado no sistema", "Possível duplicidade"]);
+});
+
+test("mesma data, valor e descrição semelhante é possível duplicidade; data diferente não bloqueia", () => {
+  const existing = [{ id: "d1", tipo: "despesa", data_lancamento: "2026-08-15", descricao: "SUPERMERCADO", valor: 133.13 }];
+  assert.equal(detectReconciliationDuplicate({ systemType: "despesa", date: "2026-08-15", description: "Supermercado compra no débito", amount: 133.13 }, existing).status, "exact");
+  assert.equal(detectReconciliationDuplicate({ systemType: "despesa", date: "2026-08-15", description: "ASSAI ATACADISTA LJ295", amount: 133.13 }, existing).status, "possible_duplicate");
+  assert.equal(detectReconciliationDuplicate({ systemType: "despesa", date: "2026-08-16", description: "SUPERMERCADO", amount: 133.13 }, existing).status, "none");
+});
+
+test("importação é idempotente e consulta novamente antes de cada insert", async () => {
+  const records = [];
+  let lookups = 0;
+  const item = { id: "n1", selected: true, situation: "Faltando lançar", systemType: "despesa", suggestedType: "Despesa", suggestedCategory: "Alimentação", direction: "saida", date: "2026-08-15", description: "SUPERMERCADO", amount: 133.13 };
+  const adapter = {
+    items: [item],
+    findExisting: async () => { lookups += 1; return records; },
+    insert: async (current, idempotencyKey) => { records.push({ id: "created", tipo: current.systemType, data_lancamento: current.date, descricao: current.description, valor: current.amount, idempotency_key: idempotencyKey }); },
+  };
+  const first = await runReconciliationImport(adapter);
+  const second = await runReconciliationImport(adapter);
+  assert.deepEqual([first.imported, second.imported, second.skipped, records.length, lookups], [1, 0, 1, 1, 2]);
+});
+
+test("importação inclui somente selecionados válidos e preserva investimento", async () => {
+  const inserted = [];
+  const valid = { id: "expense", selected: true, situation: "Faltando lançar", systemType: "despesa", suggestedType: "Despesa", direction: "saida", date: "2026-09-01", description: "Mercado", amount: 20 };
+  const investment = { ...valid, id: "investment", situation: "Investimentos", suggestedType: "Investimento", suggestedCategory: "Investimentos / Aplicações financeiras", description: "Compra BHIA3", amount: 50 };
+  const transfer = { ...valid, id: "transfer", situation: "Transferências entre contas próprias", systemType: null, suggestedType: "Transferência", selected: false, description: "Pix para conta própria", amount: 556.33 };
+  const unselected = { ...valid, id: "off", selected: false };
+  const result = await runReconciliationImport({ items: [valid, investment, transfer, unselected], findExisting: async () => [], insert: async (item) => inserted.push(item) });
+  assert.equal(result.imported, 2);
+  assert.deepEqual(inserted.map((item) => item.id), ["expense", "investment"]);
+  assert.equal(inserted[1].suggestedCategory, "Investimentos / Aplicações financeiras");
+  assert.equal(buildReconciliationImportSummary([valid, investment, transfer]).transfers, 0);
+});
+
+test("tickers de ações e FIIs permanecem classificados como investimento", () => {
+  const transactions = ["BHIA3", "ASAI3", "XPML11"].map((ticker, index) => ({ id: ticker, date: `2026-09-${String(index + 1).padStart(2, "0")}`, description: `Compra de ações ${ticker}`, direction: "saida", amount: 50 + index }));
+  const items = reconcileStatementTransactions(transactions, []);
+  assert.deepEqual(items.map((item) => [item.suggestedType, item.suggestedCategory, item.situation]), Array(3).fill(["Investimento", "Investimentos / Aplicações financeiras", "Investimentos"]));
+});
+
+test("trava impede concorrência e duplo clique", () => {
+  const lock = { current: false };
+  assert.equal(acquireReconciliationImportLock(lock), true);
+  assert.equal(acquireReconciliationImportLock(lock), false);
+  lock.current = false;
+  assert.equal(acquireReconciliationImportLock(lock), true);
 });
