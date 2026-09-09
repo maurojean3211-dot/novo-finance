@@ -171,6 +171,24 @@ test("menu mobile oferece ao Master os mesmos contextos do desktop", () => {
   assert.match(mobile, /changeMasterContext\("empresa"\)/);
 });
 
+test("layout responsivo nasce estável e deixa a media query escolher a navegação", () => {
+  const layout = readFileSync(
+    fileURLToPath(new URL("./components/layout/Layout.jsx", import.meta.url)),
+    "utf8",
+  );
+  const styles = readFileSync(fileURLToPath(new URL("./App.css", import.meta.url)), "utf8");
+  const html = readFileSync(fileURLToPath(new URL("../index.html", import.meta.url)), "utf8");
+
+  assert.doesNotMatch(layout, /window\.innerWidth|addEventListener\("resize"/);
+  assert.match(layout, /<Sidebar /);
+  assert.match(layout, /<MobileNavigation /);
+  assert.match(styles, /\.mobile-navigation\{display:none\}/);
+  assert.match(styles, /@media\(max-width:767px\),\(max-width:932px\) and \(max-height:500px\)[\s\S]*\.app-sidebar\{display:none\}/);
+  assert.match(styles, /\.app-content\{[^}]*overflow-x:hidden;overflow-y:auto/);
+  assert.match(styles, /safe-area-inset-bottom/);
+  assert.match(html, /name="viewport" content="width=device-width, initial-scale=1\.0"/);
+});
+
 test("piloto de Crédito Pessoal tem rota própria e acesso demonstrativo", () => {
   assert.equal(pathForPage("credito_pessoal"), "/credito-pessoal");
   assert.equal(pageForPath("/credito-pessoal"), "credito_pessoal");
