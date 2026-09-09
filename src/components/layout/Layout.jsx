@@ -16,7 +16,7 @@ export default function Layout({ children, pagina, permissoes, loginMaster, plat
   return (
     <div className={`app-shell${isMobile ? " app-shell--mobile" : ""}`}>
       {!isMobile && <Sidebar pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} platformAdmin={platformAdmin} contextoMaster={contextoMaster} onMasterContextChange={onMasterContextChange} nomeEmpresa={nomeEmpresa} plano={plano} statusAssinatura={statusAssinatura} tipoCliente={tipoCliente} onNavigate={onNavigate} onAccount={() => setAccountOpen(true)} onLogout={onLogout} />}
-      <main className="app-content" id="main-content">
+      <main className={`app-content${pagina === "relatorios_pessoais" ? " app-content--page-scroll" : ""}`} id="main-content">
         <div className="app-content__inner">{children}</div>
       </main>
       {isMobile && <MobileNavigation pagina={pagina} permissoes={permissoes} loginMaster={loginMaster} platformAdmin={platformAdmin} contextoMaster={contextoMaster} onMasterContextChange={onMasterContextChange} onNavigate={onNavigate} onAccount={() => setAccountOpen(true)} onLogout={onLogout} />}

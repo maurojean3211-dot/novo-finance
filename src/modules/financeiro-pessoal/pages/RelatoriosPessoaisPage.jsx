@@ -101,7 +101,7 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
     setPdfFeedback(generated ? "PDF gerado com os dados pessoais filtrados." : "Nenhum dado encontrado para gerar o PDF.");
   }
 
-  return <main className="ops-page pf-page"><PersonalFinanceHeader title="Relatórios Pessoais" description="Receitas, despesas e compromissos pessoais consolidados sem dados empresariais." />
+  return <main className="ops-page pf-page pf-reports-page"><PersonalFinanceHeader title="Relatórios Pessoais" description="Receitas, despesas e compromissos pessoais consolidados sem dados empresariais." />
     <div className="pf-demo-badge">Dados reais do Financeiro Pessoal · visualização somente leitura</div>
     <section className="ops-panel pf-report-filters"><label>Mês<input type="month" value={filters.month} onChange={(event) => setMonth(event.target.value)} /></label><span>ou</span><label>De<input type="date" value={filters.start} onChange={(event) => setRange("start", event.target.value)} /></label><label>Até<input type="date" value={filters.end} onChange={(event) => setRange("end", event.target.value)} /></label><button type="button" onClick={clearFilters}>Todo o período</button><button type="button" className="primary" onClick={generatePdf} disabled={loading || !serverNow}>Gerar PDF</button></section>
     {(serverDateError || pdfFeedback) && <section className="ops-status-panel">{serverDateError || pdfFeedback}</section>}

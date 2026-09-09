@@ -163,6 +163,10 @@ color:#fff;
   }
 }
 
+.app-content--page-scroll{overflow-y:auto;overscroll-behavior:contain;}
+.app-content--page-scroll>.app-content__inner{height:auto;min-height:100%;overflow:visible;}
+.app-content--page-scroll>.app-content__inner>.pf-reports-page{height:auto;min-height:100%;max-height:none;overflow:visible;}
+
 /* Cabeçalhos de módulo permanecem visíveis dentro da rolagem da área principal. */
 @media(min-width:768px){
   .app-content :is(.executive-header,.dashboard-header,.ops-header){position:sticky;z-index:40;top:-14px;padding-top:14px;background:linear-gradient(180deg,#07101d 82%,rgba(7,16,29,0));}
