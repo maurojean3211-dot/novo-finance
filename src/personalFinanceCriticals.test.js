@@ -37,7 +37,7 @@ test("dashboard, despesas, relatório e PDF usam somente despesa manual ativa", 
   assert.deepEqual(manualPersonalExpenses(expenses).map((item) => item.id), ["manual"]);
   const report = buildPersonalFinanceReportData({ ...base, expenses });
   assert.equal(report.totals.expenseTotal, 200);
-  assert.equal(report.pdf.summary.find((item) => item.label === "Despesas do mês").value, "R$ 200,00");
+  assert.equal(report.pdf.summary.find((item) => item.label === "Despesas").value, "R$ 200,00");
 });
 
 test("estorno neutraliza antecipação e economia preservando histórico", () => {

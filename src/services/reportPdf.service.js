@@ -112,6 +112,19 @@ function createTableRow(row, columns, y, shaded) {
   return content;
 }
 
+function createFinalSummary(items, y) {
+  const rowHeight = 16;
+  const width = 320;
+  let content = "";
+  items.forEach((item, index) => {
+    const rowY = y - index * rowHeight;
+    content += rectCommand(PAGE.margin, rowY - rowHeight, width, rowHeight, index % 2 ? "0.94 0.96 0.98" : "0.88 0.93 0.99");
+    content += textCommand(item.label, PAGE.margin + 8, rowY - 11, 8, index === items.length - 1, "0.07 0.19 0.34");
+    content += textCommand(item.value, PAGE.margin + 190, rowY - 11, 8, true, "0.07 0.19 0.34");
+  });
+  return content;
+}
+
 function toWinAnsiBytes(value) {
   const replacements = { "€": 128, "…": 133, "‘": 145, "’": 146, "“": 147, "”": 148, "•": 149, "–": 150, "—": 151 };
   const bytes = [];
@@ -146,14 +159,19 @@ export function generateReportPdfBytes({ title, companyName, period, issuedBy, s
     y -= 20;
   });
 
-  if (y - 28 < 35) {
+  const finalSummaryHeight = Array.isArray(totals) ? totals.length * 16 : 25;
+  if (y - finalSummaryHeight - 3 < 35) {
     pages.push(content);
     pageNumber += 1;
     y = PAGE.height - 88;
     content = createPageHeader({ title, companyName, period, issuedBy, emittedAt, pageNumber });
   }
-  content += rectCommand(PAGE.margin, y - 25, PAGE.width - PAGE.margin * 2, 25, "0.88 0.93 0.99");
-  content += textCommand(`Totais: ${totals}`, PAGE.margin + 8, y - 17, 8, true, "0.07 0.19 0.34");
+  if (Array.isArray(totals)) {
+    content += createFinalSummary(totals, y);
+  } else {
+    content += rectCommand(PAGE.margin, y - 25, PAGE.width - PAGE.margin * 2, 25, "0.88 0.93 0.99");
+    content += textCommand(`Totais: ${totals}`, PAGE.margin + 8, y - 17, 8, true, "0.07 0.19 0.34");
+  }
   pages.push(content);
 
   const objects = [];
@@ -414,15 +432,20 @@ export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fi
     pdf: {
       title: "Relatório Financeiro Pessoal do Período", companyName: "Financeiro Pessoal", period: personalPeriodLabel(filters), issuedBy: "Usuário autenticado",
       summary: [
-        { label: "Entradas do mês", value: formatMoney(inflowTotal) },
-        { label: "Despesas do mês", value: formatMoney(outflowTotal) }, { label: "Investimentos do mês", value: formatMoney(investmentTotal) },
+        { label: "Entradas", value: formatMoney(inflowTotal) },
+        { label: "Despesas", value: formatMoney(outflowTotal) }, { label: "Investimentos", value: formatMoney(investmentTotal) },
         { label: "Saldo do mês", value: formatMoney(periodResult) },
       ],
       columns: [
         { key: "type", label: "Origem", width: 90 }, { key: "date", label: "Data", width: 68 }, { key: "description", label: "Descrição", width: 180 },
         { key: "detail", label: "Detalhe / parcela", width: 190 }, { key: "status", label: "Status", width: 145 }, { key: "value", label: "Valor", width: 112 },
       ], rows,
-      totals: `entradas ${formatMoney(inflowTotal)} | despesas ${formatMoney(outflowTotal)} | investimentos ${formatMoney(investmentTotal)} | saldo do mês ${formatMoney(periodResult)}`,
+      totals: [
+        { label: "Entradas", value: formatMoney(inflowTotal) },
+        { label: "Despesas", value: formatMoney(outflowTotal) },
+        { label: "Investimentos", value: formatMoney(investmentTotal) },
+        { label: "Saldo do mês", value: formatMoney(periodResult) },
+      ],
     },
   };
 }
