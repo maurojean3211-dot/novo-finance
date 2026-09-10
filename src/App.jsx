@@ -45,6 +45,7 @@ import ConfiguracaoTributariaPage from "./modules/configuracao-tributaria/Config
 import CreditoPessoal from "./modules/credito-pessoal";
 
 import {
+  ConferenciaExtratoPage,
   ContasFixasPessoaisIsoladasPage,
   ContasPagarPessoaisPage,
   DespesasPessoaisPage,
@@ -508,6 +509,13 @@ export default function App() {
 
           {pagina === "contas_fixas_pessoais" && (
             <ContasFixasPessoaisIsoladasPage
+              empresaId={empresaId}
+              userId={session.user.id}
+            />
+          )}
+
+          {pagina === "conferencia_extrato_pessoal" && (
+            <ConferenciaExtratoPage
               empresaId={empresaId}
               userId={session.user.id}
             />

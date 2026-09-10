@@ -50,3 +50,12 @@ test("cancelar modal não chama importação e confirmar usa a função protegid
   assert.doesNotMatch(source, /window\.confirm/);
   assert.match(source, /acquireReconciliationImportLock\(importingRef\)/);
 });
+
+test("conferência de extrato mantém item de menu e rota dedicada para o componente existente", () => {
+  const menuSource = readFileSync(new URL("./app/navigation/menuConfig.js", import.meta.url), "utf8");
+  const appSource = readFileSync(new URL("./App.jsx", import.meta.url), "utf8");
+  const pageSource = readFileSync(new URL("./modules/financeiro-pessoal/pages/ConferenciaExtratoPage.jsx", import.meta.url), "utf8");
+  assert.match(menuSource, /page: "conferencia_extrato_pessoal"[\s\S]*path: "\/financeiro-pessoal\/conferencia-extrato"[\s\S]*label: "Conferência de Extrato"/);
+  assert.match(appSource, /pagina === "conferencia_extrato_pessoal"[\s\S]*<ConferenciaExtratoPage/);
+  assert.match(pageSource, /<BankReconciliationPanel/);
+});

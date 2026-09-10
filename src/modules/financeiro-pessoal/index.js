@@ -6,4 +6,5 @@ export { default as DespesasPessoaisPage } from "./pages/DespesasPessoaisPage";
 export { default as ContasPagarPessoaisPage } from "./pages/ContasPagarPessoaisPage";
 export { default as ContasFixasPessoaisIsoladasPage } from "./pages/ContasFixasPessoaisIsoladasPage";
 export { default as RelatoriosPessoaisPage } from "./pages/RelatoriosPessoaisPage";
+export { default as ConferenciaExtratoPage } from "./pages/ConferenciaExtratoPage";
 import "./financeiro-pessoal.css";

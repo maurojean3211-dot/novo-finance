@@ -230,6 +230,14 @@ export const menuGroups = [
         legacyPermissionKeys: ["pessoal", "contas_fixas"],
       },
       {
+        page: "conferencia_extrato_pessoal",
+        path: "/financeiro-pessoal/conferencia-extrato",
+        label: "Conferência de Extrato",
+        icon: "≋",
+        permissionKey: "pessoal_relatorios",
+        legacyPermissionKeys: ["pessoal"],
+      },
+      {
         page: "relatorios_pessoais",
         path: "/financeiro-pessoal/relatorios",
         label: "Relatórios Pessoais",
