@@ -35,7 +35,7 @@ test("separa canceladas das obrigações ativas", () => { const report = build()
 test("classifica vencidas e preserva título vencendo hoje como pendente", () => { const report = build(); assert.deepEqual(report.overdue.map((item) => item.id), ["p1"]); assert.deepEqual(report.pending.map((item) => item.id), ["p2"]); });
 test("inclui entradas no desembolso", () => assert.equal(build().totals.downPaymentTotal, 100));
 test("pagamento estornado não permanece no subtotal líquido", () => assert.equal(build().totals.paymentTotal, 0));
-test("identifica a antecipação da moto de R$ 1.299,14", () => { const report = build(); assert.equal(report.totals.anticipationTotal, 1299.14); assert.equal(report.totals.savings, 8.86); assert.equal(report.pdf.rows.find((row) => row.value === "R$ 1.299,14")?.type, "Antecipação"); });
+test("identifica a antecipação da moto de R$ 1.299,14 sem misturá-la aos lançamentos do relatório simplificado", () => { const report = build(); assert.equal(report.totals.anticipationTotal, 1299.14); assert.equal(report.totals.savings, 8.86); assert.equal(report.pdf.rows.find((row) => row.type === "Antecipação"), undefined); });
 test("subtrai estornos do desembolso efetivo", () => { const totals = build().totals; assert.equal(totals.reversedOutflow, 80); assert.equal(totals.effectiveOutflow, 1399.14); });
 test("aplica período inicial e final", () => { const report = build({ filters: { month: "", start: "2026-08-03", end: "2026-08-05" } }); assert.equal(report.filteredIncomes.length, 1); assert.equal(report.filteredExpenses.length, 0); assert.equal(report.filteredPaymentEvents.length, 2); });
 test("calcula saldo inicial, movimentos, resultado e saldo final em período livre", () => {
@@ -82,14 +82,27 @@ test("investimento anterior reduz o saldo acumulado anterior", () => {
 test("todo o período não elimina registros", () => { const report = build({ filters: { month: "", start: "", end: "" } }); assert.equal(report.filteredIncomes.length, 1); assert.equal(report.filteredPayables.length, 4); });
 test("resultado vazio não gera PDF", () => assert.equal(generatePersonalFinanceReport({ incomes: [], expenses: [], fixedExpenses: [], payables: [], paymentEvents: [], empresaId, userId, filters, serverNow }), false));
 test("não soma a despesa integrada do pagamento novamente e evita duplicidade", () => { const report = build(); assert.equal(report.totals.expenseTotal, 200); assert.equal(report.totals.accountingBalance, 800); assert.equal(report.totals.effectiveOutflow, 1399.14); assert.deepEqual(report.integratedPaymentExpenses.map((item) => item.id), ["d2"]); });
-test("mantém acumulados, receitas, despesas, investimentos, resultado e variação separados no PDF", () => {
+test("PDF apresenta somente entradas, despesas, investimentos e saldo do mês", () => {
   const summary = Object.fromEntries(build({ filters: { month: "", start: "2026-08-06", end: "2026-08-31" } }).pdf.summary.map((item) => [item.label, item.value]));
-  assert.equal(summary["Saldo acumulado anterior"], "R$ 1.000,00");
-  assert.equal(summary["Receitas"], "R$ 0,00");
-  assert.equal(summary["Despesas"], "R$ 200,00");
-  assert.equal(summary["Investimentos"], "R$ 0,00");
-  assert.equal(summary["Resultado do período"], "R$ -200,00");
-  assert.equal(summary["Variação de caixa"], "R$ -200,00");
-  assert.equal(summary["Saldo acumulado calculado"], "R$ 800,00");
+  assert.equal(summary["Entradas do mês"], "R$ 0,00");
+  assert.equal(summary["Despesas do mês"], "R$ 200,00");
+  assert.equal(summary["Investimentos do mês"], "R$ 0,00");
+  assert.equal(summary["Saldo do mês"], "R$ -200,00");
+  assert.equal(summary["Variação de caixa"], undefined);
+  assert.equal(summary["Saldo acumulado anterior"], undefined);
+  assert.equal(summary["Saldo acumulado calculado"], undefined);
+  assert.equal(build().pdf.title, "Relatório Financeiro Pessoal do Período");
+});
+test("pagamento de fatura reduz caixa sem entrar novamente nas despesas ou no saldo do mês", () => {
+  const report = build({ expenses: [...expenses, { id: "fatura", empresa_id: empresaId, proprietario_id: userId, tipo: "despesa", descricao: "Pagamento de fatura de cartão", categoria: "Cartão de crédito", valor: 450, data_lancamento: "2026-08-08", ativo: true }] });
+  assert.equal(report.totals.expenseTotal, 200);
+  assert.equal(report.totals.periodResult, 800);
+  assert.deepEqual(report.filteredCardBillPayments.map((item) => item.id), ["fatura"]);
+  assert.equal(report.pdf.rows.find((item) => item.type === "Pagamento de fatura de cartão")?.status, "Fora das despesas");
+});
+test("compra no cartão permanece despesa normal na categoria real", () => {
+  const report = build({ expenses: [...expenses, { id: "cartao", empresa_id: empresaId, proprietario_id: userId, tipo: "despesa", descricao: "Restaurante · Cartão de crédito", categoria: "Alimentação", valor: 90, data_lancamento: "2026-08-09", ativo: true }] });
+  assert.equal(report.totals.expenseTotal, 290);
+  assert.equal(report.pdf.rows.find((item) => item.description.includes("Restaurante"))?.detail, "Alimentação");
 });
 test("usa a data civil de America/Sao_Paulo na virada", () => { assert.equal(dateKeyInTimeZone("2026-08-24T02:59:59Z"), "2026-08-23"); assert.equal(dateKeyInTimeZone("2026-08-24T03:00:00Z"), "2026-08-24"); });
