@@ -23,6 +23,10 @@ function formatMoney(value) {
   return `R$ ${Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function roundMoney(value) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+}
+
 function formatNumber(value, digits = 2) {
   return Number(value || 0).toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
@@ -340,7 +344,7 @@ function isCreditCardBillPayment(item) {
   return text.includes("pagamento de fatura") && text.includes("cartao");
 }
 
-export function calculatePersonalPeriodBalances({ incomes = [], expenses = [], empresaId, userId, filters = { month: "", start: "", end: "" } }) {
+export function calculatePersonalPeriodBalances({ incomes = [], expenses = [], empresaId, userId, filters = { month: "", start: "", end: "" }, bankStatement = null }) {
   const sameCompany = (item) => String(item.empresa_id) === String(empresaId);
   const sameOwner = (item) => sameCompany(item) && String(item.proprietario_id) === String(userId);
   const periodStart = filters.month ? `${filters.month}-01` : filters.start;
@@ -355,22 +359,34 @@ export function calculatePersonalPeriodBalances({ incomes = [], expenses = [], e
   const filteredCardBillPayments = ownedCardBillPayments.filter((item) => matchesPersonalPeriod(item.data_lancamento, filters));
   const beforePeriod = (item) => periodStart && String(item.data_lancamento || "").slice(0, 10) < periodStart;
   const sumValues = (items) => items.reduce((sum, item) => sum + Number(item.valor || 0), 0);
-  const initialBalance = sumValues(ownedIncomes.filter(beforePeriod)) - sumValues(ownedExpenses.filter(beforePeriod)) - sumValues(ownedInvestments.filter(beforePeriod));
+  const initialBalance = sumValues(ownedIncomes.filter(beforePeriod)) - sumValues(ownedOutflows.filter(beforePeriod));
   const inflowTotal = sumValues(filteredIncomes);
   const outflowTotal = sumValues(filteredExpenses);
   const investmentTotal = sumValues(filteredInvestments);
+  const cardBillPaymentTotal = sumValues(filteredCardBillPayments);
   const periodResult = inflowTotal - outflowTotal;
-  const cashVariation = periodResult - investmentTotal;
+  const cashOutflowTotal = outflowTotal + investmentTotal + cardBillPaymentTotal;
+  const cashVariation = inflowTotal - cashOutflowTotal;
   const finalBalance = initialBalance + cashVariation;
-  return { filteredIncomes, filteredExpenses, filteredInvestments, filteredCardBillPayments, initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance };
+  const statementTransactions = bankStatement?.transactions || [];
+  const statementInitial = Number(bankStatement?.initialBalance);
+  const statementBeforePeriod = statementTransactions.filter((item) => beforePeriod({ data_lancamento: item.date }));
+  const statementInPeriod = statementTransactions.filter((item) => matchesPersonalPeriod(item.date, filters));
+  const statementMovement = (items, direction) => items.filter((item) => item.direction === direction).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const hasBankStatement = bankStatement && Number.isFinite(statementInitial) && statementTransactions.length > 0;
+  const bankInitialBalance = roundMoney(hasBankStatement ? statementInitial + statementMovement(statementBeforePeriod, "entrada") - statementMovement(statementBeforePeriod, "saida") : initialBalance);
+  const bankInflowTotal = roundMoney(hasBankStatement ? statementMovement(statementInPeriod, "entrada") : inflowTotal);
+  const bankOutflowTotal = roundMoney(hasBankStatement ? statementMovement(statementInPeriod, "saida") : cashOutflowTotal);
+  const bankFinalBalance = roundMoney(bankInitialBalance + bankInflowTotal - bankOutflowTotal);
+  return { filteredIncomes, filteredExpenses, filteredInvestments, filteredCardBillPayments, initialBalance, inflowTotal, outflowTotal, investmentTotal, cardBillPaymentTotal, cashOutflowTotal, periodResult, cashVariation, finalBalance, bankInitialBalance, bankInflowTotal, bankOutflowTotal, bankFinalBalance, hasBankStatement };
 }
 
-export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fixedExpenses = [], payables = [], paymentEvents = [], empresaId, userId, filters = { month: "", start: "", end: "" }, serverNow }) {
+export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fixedExpenses = [], payables = [], paymentEvents = [], empresaId, userId, filters = { month: "", start: "", end: "" }, serverNow, bankStatement = null }) {
   const today = dateKeyInTimeZone(serverNow);
   const sameCompany = (item) => String(item.empresa_id) === String(empresaId);
   const sameOwner = (item) => sameCompany(item) && String(item.proprietario_id) === String(userId);
-  const periodBalances = calculatePersonalPeriodBalances({ incomes, expenses, empresaId, userId, filters });
-  const { filteredIncomes, filteredExpenses, filteredInvestments, filteredCardBillPayments, initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance } = periodBalances;
+  const periodBalances = calculatePersonalPeriodBalances({ incomes, expenses, empresaId, userId, filters, bankStatement });
+  const { filteredIncomes, filteredExpenses, filteredInvestments, filteredCardBillPayments, initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance, bankInitialBalance, bankInflowTotal, bankOutflowTotal, bankFinalBalance } = periodBalances;
   const integratedPaymentExpenses = expenses.filter((item) => sameOwner(item) && item.tipo === "despesa" && item.pagamento_evento_id && matchesPersonalPeriod(item.data_lancamento, filters));
   const ownedFixedExpenses = fixedExpenses.filter(sameOwner);
   const activeFixedExpenses = fixedExpenseOccurrences(ownedFixedExpenses, filters);
@@ -401,7 +417,7 @@ export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fi
   const activePayables = [...pending, ...overdue];
   const activePayablesTotal = sumValues(activePayables);
   const totals = {
-    initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance,
+    initialBalance, inflowTotal, outflowTotal, investmentTotal, periodResult, cashVariation, finalBalance, bankInitialBalance, bankInflowTotal, bankOutflowTotal, bankFinalBalance,
     incomeTotal, expenseTotal, accountingBalance, fixedMonthly,
     activePayablesTotal, paidTotal: sumValues(paid), pendingTotal: sumValues(pending), overdueTotal: sumValues(overdue), cancelledTotal: sumValues(cancelled),
     installmentTotal: sumValues(installments), effectiveOutflow, grossOutflow, reversedOutflow,
@@ -423,7 +439,7 @@ export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fi
     groups[month] = current;
     return groups;
   }, {})).sort((a, b) => a.month.localeCompare(b.month)).map((item) => ({ ...item, balance: item.inflow - item.expenses }));
-  const monthlyRows = monthly.length > 1 ? monthly.map((item) => ({ type: "Resumo mensal", date: item.month, description: `Entradas ${formatMoney(item.inflow)}`, detail: `Despesas ${formatMoney(item.expenses)} · Investimentos ${formatMoney(item.investments)}`, status: "Saldo do mês", value: formatMoney(item.balance) })) : [];
+  const monthlyRows = monthly.length > 1 ? monthly.map((item) => ({ type: "Resumo mensal", date: item.month, description: `Entradas ${formatMoney(item.inflow)}`, detail: `Despesas ${formatMoney(item.expenses)} · Investimentos ${formatMoney(item.investments)}`, status: "Resultado operacional", value: formatMoney(item.balance) })) : [];
   const rows = [...monthlyRows, ...transactionRows];
   const hasData = rows.length > 0;
   return {
@@ -432,19 +448,20 @@ export function buildPersonalFinanceReportData({ incomes = [], expenses = [], fi
     pdf: {
       title: "Relatório Financeiro Pessoal do Período", companyName: "Financeiro Pessoal", period: personalPeriodLabel(filters), issuedBy: "Usuário autenticado",
       summary: [
-        { label: "Entradas", value: formatMoney(inflowTotal) },
-        { label: "Despesas", value: formatMoney(outflowTotal) }, { label: "Investimentos", value: formatMoney(investmentTotal) },
-        { label: "Saldo do mês", value: formatMoney(periodResult) },
+        { label: "Saldo inicial", value: formatMoney(bankInitialBalance) },
+        { label: "Entradas", value: formatMoney(bankInflowTotal) },
+        { label: "Saídas", value: formatMoney(bankOutflowTotal) },
+        { label: "Saldo final", value: formatMoney(bankFinalBalance) },
       ],
       columns: [
         { key: "type", label: "Origem", width: 90 }, { key: "date", label: "Data", width: 68 }, { key: "description", label: "Descrição", width: 180 },
         { key: "detail", label: "Detalhe / parcela", width: 190 }, { key: "status", label: "Status", width: 145 }, { key: "value", label: "Valor", width: 112 },
       ], rows,
       totals: [
-        { label: "Entradas", value: formatMoney(inflowTotal) },
-        { label: "Despesas", value: formatMoney(outflowTotal) },
-        { label: "Investimentos", value: formatMoney(investmentTotal) },
-        { label: "Saldo do mês", value: formatMoney(periodResult) },
+        { label: "Saldo inicial", value: formatMoney(bankInitialBalance) },
+        { label: "Entradas", value: formatMoney(bankInflowTotal) },
+        { label: "Saídas", value: formatMoney(bankOutflowTotal) },
+        { label: "Saldo final", value: formatMoney(bankFinalBalance) },
       ],
     },
   };

@@ -82,27 +82,45 @@ test("investimento anterior reduz o saldo acumulado anterior", () => {
 test("todo o período não elimina registros", () => { const report = build({ filters: { month: "", start: "", end: "" } }); assert.equal(report.filteredIncomes.length, 1); assert.equal(report.filteredPayables.length, 4); });
 test("resultado vazio não gera PDF", () => assert.equal(generatePersonalFinanceReport({ incomes: [], expenses: [], fixedExpenses: [], payables: [], paymentEvents: [], empresaId, userId, filters, serverNow }), false));
 test("não soma a despesa integrada do pagamento novamente e evita duplicidade", () => { const report = build(); assert.equal(report.totals.expenseTotal, 200); assert.equal(report.totals.accountingBalance, 800); assert.equal(report.totals.effectiveOutflow, 1399.14); assert.deepEqual(report.integratedPaymentExpenses.map((item) => item.id), ["d2"]); });
-test("PDF apresenta somente entradas, despesas, investimentos e saldo do mês", () => {
+test("PDF apresenta saldo inicial, entradas, saídas e saldo final", () => {
   const report = build({ filters: { month: "", start: "2026-08-06", end: "2026-08-31" } });
   const summary = Object.fromEntries(report.pdf.summary.map((item) => [item.label, item.value]));
+  assert.equal(summary["Saldo inicial"], "R$ 1.000,00");
   assert.equal(summary.Entradas, "R$ 0,00");
-  assert.equal(summary.Despesas, "R$ 200,00");
-  assert.equal(summary.Investimentos, "R$ 0,00");
-  assert.equal(summary["Saldo do mês"], "R$ -200,00");
+  assert.equal(summary["Saídas"], "R$ 200,00");
+  assert.equal(summary["Saldo final"], "R$ 800,00");
   assert.equal(summary["Variação de caixa"], undefined);
   assert.equal(summary["Saldo acumulado anterior"], undefined);
   assert.equal(summary["Saldo acumulado calculado"], undefined);
   assert.equal(build().pdf.title, "Relatório Financeiro Pessoal do Período");
-  assert.deepEqual(report.pdf.totals.map((item) => item.label), ["Entradas", "Despesas", "Investimentos", "Saldo do mês"]);
+  assert.deepEqual(report.pdf.totals.map((item) => item.label), ["Saldo inicial", "Entradas", "Saídas", "Saldo final"]);
   const pdfText = new TextDecoder("latin1").decode(generateReportPdfBytes(report.pdf)).toLowerCase();
   for (const obsolete of ["saldo acumulado anterior", "resultado do período", "variação de caixa", "saldo acumulado calculado", "evolução acumulada", "totais:"]) {
     assert.equal(pdfText.includes(obsolete), false);
   }
 });
+test("resumo bancário reutiliza o extrato atual e fecha no saldo final esperado", () => {
+  const bankStatement = {
+    initialBalance: 1365.48,
+    finalBalance: 69.89,
+    transactions: [
+      { date: "2026-08-28", direction: "entrada", amount: 4066.91 },
+      { date: "2026-09-10", direction: "saida", amount: 5362.50 },
+    ],
+  };
+  const report = build({ filters: { month: "", start: "2026-08-28", end: "2026-09-10" }, bankStatement });
+  assert.deepEqual(
+    { initial: report.totals.bankInitialBalance, incoming: report.totals.bankInflowTotal, outgoing: report.totals.bankOutflowTotal, final: report.totals.bankFinalBalance },
+    { initial: 1365.48, incoming: 4066.91, outgoing: 5362.50, final: 69.89 },
+  );
+  assert.equal(report.totals.bankFinalBalance, bankStatement.finalBalance);
+});
 test("pagamento de fatura reduz caixa sem entrar novamente nas despesas ou no saldo do mês", () => {
   const report = build({ expenses: [...expenses, { id: "fatura", empresa_id: empresaId, proprietario_id: userId, tipo: "despesa", descricao: "Pagamento de fatura de cartão", categoria: "Cartão de crédito", valor: 450, data_lancamento: "2026-08-08", ativo: true }] });
   assert.equal(report.totals.expenseTotal, 200);
   assert.equal(report.totals.periodResult, 800);
+  assert.equal(report.totals.bankOutflowTotal, 650);
+  assert.equal(report.totals.bankFinalBalance, 350);
   assert.deepEqual(report.filteredCardBillPayments.map((item) => item.id), ["fatura"]);
   assert.equal(report.pdf.rows.find((item) => item.type === "Pagamento de fatura de cartão")?.status, "Fora das despesas");
 });

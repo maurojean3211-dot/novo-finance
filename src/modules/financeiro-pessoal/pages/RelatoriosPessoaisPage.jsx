@@ -4,6 +4,7 @@ import PersonalFinanceMetrics from "../components/PersonalFinanceMetrics";
 import { usePersonalExpensesRead, usePersonalIncomesRead } from "../hooks/usePersonalFinanceRead";
 import { money } from "../utils/personalFinance";
 import { loadPersonalFinanceServerTime } from "../services/personalFinance.service";
+import { loadReconciliationSession } from "../utils/reconciliationSession";
 import { buildPersonalFinanceReportData, calculatePersonalPeriodBalances, generatePersonalFinanceReport } from "../../../services/reportPdf.service";
 
 const today = new Date();
@@ -33,14 +34,15 @@ function CategoryPanel({ title, records, emptyText }) {
 export default function RelatoriosPessoaisPage({ empresaId, userId }) {
   const incomes = usePersonalIncomesRead(empresaId, userId);
   const expenses = usePersonalExpensesRead(empresaId, userId);
-  const [filters, setFilters] = useState({ month: currentMonth, start: "", end: "" });
+  const [reconciliation] = useState(() => loadReconciliationSession(typeof window === "undefined" ? null : window.sessionStorage, empresaId, userId));
+  const [filters, setFilters] = useState(() => reconciliation?.period?.start && reconciliation?.period?.end ? { month: "", start: reconciliation.period.start, end: reconciliation.period.end } : { month: currentMonth, start: "", end: "" });
   const [serverNow, setServerNow] = useState(null);
   const [serverDateError, setServerDateError] = useState("");
   const [pdfFeedback, setPdfFeedback] = useState("");
   useEffect(() => { let active = true; void loadPersonalFinanceServerTime().then((value) => { if (active) { setServerNow(value); setServerDateError(""); } }).catch((cause) => { if (active) setServerDateError(cause.message || "Não foi possível obter a data do servidor."); }); return () => { active = false; }; }, []);
-  const periodBalances = useMemo(() => calculatePersonalPeriodBalances({ incomes: incomes.records, expenses: expenses.records, empresaId, userId, filters }), [empresaId, expenses.records, filters, incomes.records, userId]);
-  const { filteredIncomes, filteredExpenses, filteredInvestments, inflowTotal, outflowTotal, investmentTotal, periodResult } = periodBalances;
-  const consolidated = useMemo(() => serverNow ? buildPersonalFinanceReportData({ incomes: incomes.records, expenses: expenses.records, empresaId, userId, filters, serverNow }) : null, [empresaId, expenses.records, filters, incomes.records, serverNow, userId]);
+  const periodBalances = useMemo(() => calculatePersonalPeriodBalances({ incomes: incomes.records, expenses: expenses.records, empresaId, userId, filters, bankStatement: reconciliation?.statement }), [empresaId, expenses.records, filters, incomes.records, reconciliation, userId]);
+  const { filteredIncomes, filteredExpenses, filteredInvestments, bankInitialBalance, bankInflowTotal, bankOutflowTotal, bankFinalBalance, hasBankStatement } = periodBalances;
+  const consolidated = useMemo(() => serverNow ? buildPersonalFinanceReportData({ incomes: incomes.records, expenses: expenses.records, empresaId, userId, filters, serverNow, bankStatement: reconciliation?.statement }) : null, [empresaId, expenses.records, filters, incomes.records, reconciliation, serverNow, userId]);
   const loading = incomes.loading || expenses.loading;
   const errors = [incomes.error, expenses.error].filter(Boolean);
 
@@ -62,7 +64,7 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
   function clearFilters() { setFilters({ month: "", start: "", end: "" }); }
   function generatePdf() {
     if (!serverNow) { setPdfFeedback(serverDateError || "Aguarde a referência de data do servidor."); return; }
-    const generated = generatePersonalFinanceReport({ incomes: incomes.records, expenses: expenses.records, empresaId, userId, filters, serverNow });
+    const generated = generatePersonalFinanceReport({ incomes: incomes.records, expenses: expenses.records, empresaId, userId, filters, serverNow, bankStatement: reconciliation?.statement });
     setPdfFeedback(generated ? "PDF gerado com os dados pessoais filtrados." : "Nenhum dado encontrado para gerar o PDF.");
   }
 
@@ -72,8 +74,8 @@ export default function RelatoriosPessoaisPage({ empresaId, userId }) {
     {(serverDateError || pdfFeedback) && <section className="ops-status-panel">{serverDateError || pdfFeedback}</section>}
     {errors.length > 0 && <section className="ops-status-panel">Não foi possível carregar parte dos dados pessoais: {errors.join(" · ")}</section>}
     {loading && <section className="ops-status-panel">Carregando dados pessoais existentes…</section>}
-    <PersonalFinanceMetrics items={[{ label: "Entradas do mês", value: money(inflowTotal), detail: `${filteredIncomes.length} receita(s)`, icon: "↗", tone: "green" }, { label: "Despesas do mês", value: money(outflowTotal), detail: `${filteredExpenses.length} despesa(s)`, icon: "↘", tone: "amber" }, { label: "Investimentos do mês", value: money(investmentTotal), detail: `${filteredInvestments.length} investimento(s)`, icon: "◇", tone: "amber" }, { label: "Saldo do mês", value: money(periodResult), detail: "entradas menos despesas", icon: "=", tone: periodResult >= 0 ? "green" : "rose" }]} />
-    {monthly.length > 1 && <section className="ops-panel pf-payables-report"><div className="ops-panel__header"><h2>Resumo por mês</h2><span>{monthly.length} meses</span></div><div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Mês</th><th>Entradas</th><th>Despesas</th><th>Investimentos</th><th>Saldo do mês</th></tr></thead><tbody>{monthly.map((item) => <tr key={item.month}><td>{monthLabel(item.month)}</td><td>{money(item.income)}</td><td>{money(item.expense)}</td><td>{money(item.investment)}</td><td>{money(item.balance)}</td></tr>)}</tbody></table></div></section>}
+    <PersonalFinanceMetrics items={[{ label: "Saldo inicial", value: money(bankInitialBalance), detail: hasBankStatement ? "saldo informado pelo extrato" : "saldo calculado pelos lançamentos", icon: "R$", tone: bankInitialBalance >= 0 ? "green" : "rose" }, { label: "Entradas", value: money(bankInflowTotal), detail: hasBankStatement ? "movimentações de entrada do extrato" : "entradas calculadas pelos lançamentos", icon: "↗", tone: "green" }, { label: "Saídas", value: money(bankOutflowTotal), detail: hasBankStatement ? "movimentações de saída do extrato" : "saídas calculadas pelos lançamentos", icon: "↘", tone: "amber" }, { label: "Saldo final", value: money(bankFinalBalance), detail: hasBankStatement ? "saldo conciliado com o extrato" : "saldo calculado pelos lançamentos; não conciliado com banco", icon: "=", tone: bankFinalBalance >= 0 ? "green" : "rose" }]} />
+    {monthly.length > 1 && <section className="ops-panel pf-payables-report"><div className="ops-panel__header"><h2>Detalhamento mensal dos lançamentos</h2><span>{monthly.length} meses</span></div><div className="ops-table-wrap"><table className="ops-table"><thead><tr><th>Mês</th><th>Entradas</th><th>Despesas</th><th>Investimentos</th><th>Resultado entre entradas e despesas</th></tr></thead><tbody>{monthly.map((item) => <tr key={item.month}><td>{monthLabel(item.month)}</td><td>{money(item.income)}</td><td>{money(item.expense)}</td><td>{money(item.investment)}</td><td>{money(item.balance)}</td></tr>)}</tbody></table></div></section>}
     <section className="pf-report-chart-grid"><article className="ops-panel pf-real-report"><div className="ops-panel__header"><h2>Receitas x despesas</h2><span>Comparação mensal</span></div>{monthly.length ? <div className="pf-real-bars">{monthly.map((item) => <div key={item.month}><div><i style={{ height: `${item.income / chartMax * 100}%` }} title={`Receitas ${money(item.income)}`} /><b style={{ height: `${item.expense / chartMax * 100}%` }} title={`Despesas ${money(item.expense)}`} /></div><small>{monthLabel(item.month)}</small></div>)}</div> : <div className="pf-report-empty">Nenhuma receita ou despesa real no período selecionado.</div>}<footer><span className="income-dot" /> Receitas <span className="expense-dot" /> Despesas</footer></article>
       <CategoryPanel title="Despesas por categoria" records={filteredExpenses} emptyText="Nenhuma despesa categorizada no período." /></section>
     <section className="pf-report-chart-grid"><CategoryPanel title="Receitas por categoria/origem" records={filteredIncomes} emptyText="Nenhuma receita real categorizada no período." /></section>
